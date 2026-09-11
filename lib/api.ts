@@ -17,6 +17,8 @@ export interface ApiResponse<T = any> {
   limit?: number;
   isLiked?: boolean;
   likeCount?: number;
+  userLikePosts?: any[];
+  authorizationType?: 'normal' | 'incomplete' | 'none';
   errors?: Array<{ field?: string; message: string }>;
 }
 
@@ -141,6 +143,13 @@ export const authApi = {
     });
   },
 
+  // Check Username Uniqueness
+  checkUsername: (username: string) =>
+    request('/api/v1/auth/is-unique-username', {
+      method: 'POST',
+      body: JSON.stringify({ username }),
+    }),
+
   // Google OAuth URL helper
   getGoogleAuthUrl: () => `${API_BASE_URL}/api/v1/auth/google`,
 };
@@ -157,7 +166,7 @@ export const clearSessionProfileCache = () => {
 
 export const profileApi = {
   getMyProfile: async () => {
-    return request<ProfileResponse>('/api/v1/profile/get-my-profile', {
+    return request<any>('/api/v1/profile/get-my-profile', {
       method: 'GET',
     });
   },
@@ -167,20 +176,32 @@ export const profileApi = {
   },
 
   getBasicInfo: async () => {
-    return request<ProfileResponse>('/api/v1/profile/basic-info', {
+    return request<any>('/api/v1/profile/basic-info', {
+      method: 'GET',
+    });
+  },
+
+  getProfileByUsername: async (username: string) => {
+    return request<any>(`/api/v1/profile/${encodeURIComponent(username)}`, {
       method: 'GET',
     });
   },
 
   getProfileById: async (id: string) => {
-    return request<ProfileResponse>(`/api/v1/profile/${id}`, {
-      method: 'GET',
-    });
+    return profileApi.getProfileByUsername(id);
   },
 
   getUserHistory: async () => {
     return request<ApiResponse>('/api/v1/profile/history', {
       method: 'GET',
+    });
+  },
+
+  editProfile: async (payload: FormData | { username?: string; avatarUrl?: string }) => {
+    const isFormData = payload instanceof FormData;
+    return request<any>('/api/v1/profile/update', {
+      method: 'PATCH',
+      body: isFormData ? payload : JSON.stringify(payload),
     });
   },
 
@@ -232,6 +253,12 @@ export const spotsApi = {
       method: 'PATCH',
     });
   },
+
+  deleteSpot: async (spotId: string) => {
+    return request(`/api/v1/spots/${spotId}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 export interface FeedPost {
@@ -260,6 +287,7 @@ export interface FeedPost {
     coordinates?: [number, number];
   };
   likeCount?: number;
+  isLiked?: boolean;
   createdAt?: string;
 }
 
@@ -272,6 +300,7 @@ export interface FeedsResponse extends ApiResponse {
   limit?: number;
   isLiked?: boolean;
   likeCount?: number;
+  userLikePosts?: any[];
 }
 
 export const feedsApi = {
@@ -280,20 +309,20 @@ export const feedsApi = {
     if (userId) {
       searchParams.append('userId', userId);
     }
-    return request<FeedsResponse>(`/api/v1/feeds?${searchParams.toString()}`, {
+    return request<any>(`/api/v1/feeds?${searchParams.toString()}`, {
       method: 'GET',
     });
   },
 
   getPostById: async (id: string, userId?: string) => {
     const queryString = userId ? `?userId=${encodeURIComponent(userId)}` : '';
-    return request<FeedsResponse>(`/api/v1/feeds/${id}${queryString}`, {
+    return request<any>(`/api/v1/feeds/${id}${queryString}`, {
       method: 'GET',
     });
   },
 
   toggleLike: async (id: string, userId?: string) => {
-    return request<FeedsResponse>(`/api/v1/feeds/${id}/like`, {
+    return request<any>(`/api/v1/feeds/${id}/like`, {
       method: 'POST',
       body: userId ? JSON.stringify({ userId }) : undefined,
     });

@@ -20,9 +20,27 @@ import {
   Building,
   AlertCircle,
   Loader2,
+  XCircle,
 } from "lucide-react";
 import { authApi } from "@/lib/api";
 import ValidationAlertModal from "@/components/ValidationAlertModal";
+
+// Custom useDebounce hook for input text debouncing
+function useDebounce<T>(value: T, delay: number = 450): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 type RoleOption = "Civilian" | "Hybrid" | "Coordinator";
 
@@ -39,6 +57,12 @@ function OnboardingContent() {
   const [pincode, setPincode] = useState("");
   const [address, setAddress] = useState("");
   const [selectedRole, setSelectedRole] = useState<RoleOption>("Hybrid"); // Hybrid (Civic Ranger) recommended by default
+
+  // Username Uniqueness Debounced Validation State
+  const debouncedUsername = useDebounce(username, 450);
+  const [isCheckingUsername, setIsCheckingUsername] = useState<boolean>(false);
+  const [isUsernameUnique, setIsUsernameUnique] = useState<boolean | null>(null);
+  const [usernameStatusMessage, setUsernameStatusMessage] = useState<string | null>(null);
 
   // Avatar Upload State
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -76,7 +100,7 @@ function OnboardingContent() {
       try {
         const res = await authApi.getMe();
         if (res.success) {
-          if (res.isProfileCompleted) {
+          if (res.isProfileCompleted || res.authorizationType === "normal") {
             setIsAlreadySignedIn(true);
             setCurrentUser(res.user);
             return;
@@ -88,13 +112,71 @@ function OnboardingContent() {
               setAvatarPreview(res.user.avatarUrl || res.user.avatar?.url);
             }
           }
+        } else {
+          // If no token cookie or unauthorized, redirect to /login
+          router.push("/login");
         }
       } catch (e) {
         console.warn("Session fetch error:", e);
+        router.push("/login");
       }
     }
     fetchSession();
   }, [emailParam, email, router]);
+
+  // Debounced effect to verify username uniqueness via backend route POST /api/v1/auth/is-unique-username
+  useEffect(() => {
+    const trimmed = debouncedUsername.trim();
+    if (!trimmed) {
+      setIsUsernameUnique(null);
+      setUsernameStatusMessage(null);
+      setIsCheckingUsername(false);
+      return;
+    }
+
+    if (trimmed.length < 3) {
+      setIsUsernameUnique(false);
+      setUsernameStatusMessage("Username must be at least 3 characters long");
+      setIsCheckingUsername(false);
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+      setIsUsernameUnique(false);
+      setUsernameStatusMessage("Username can only contain letters, numbers, and underscores");
+      setIsCheckingUsername(false);
+      return;
+    }
+
+    let isCancelled = false;
+    async function checkUniqueness() {
+      setIsCheckingUsername(true);
+      try {
+        const res = await authApi.checkUsername(trimmed);
+        if (isCancelled) return;
+
+        if (res.success) {
+          setIsUsernameUnique(true);
+          setUsernameStatusMessage("Username is unique and available! ✅");
+        } else {
+          setIsUsernameUnique(false);
+          setUsernameStatusMessage(res.message || "Username already exists. Please pick another.");
+        }
+      } catch (err: any) {
+        if (isCancelled) return;
+        setIsUsernameUnique(false);
+        setUsernameStatusMessage("Error verifying username uniqueness.");
+      } finally {
+        if (!isCancelled) setIsCheckingUsername(false);
+      }
+    }
+
+    checkUniqueness();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [debouncedUsername]);
 
   // Handle avatar file selection & 5MB size limit validation
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
@@ -464,18 +546,66 @@ function OnboardingContent() {
 
             {/* Username Field */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-mono text-xs text-[#6d7a72] uppercase tracking-wider font-semibold flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-[#006948]" />
-                <span>Full Name / Username</span>
+              <label className="font-mono text-xs text-[#6d7a72] uppercase tracking-wider font-semibold flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-[#006948]" />
+                  <span>Username</span>
+                </span>
+                {isUsernameUnique === true && (
+                  <span className="text-[10px] text-[#059669] font-bold bg-[#DCFCE7] px-2 py-0.5 rounded-full border border-[#BBF7D0]">
+                    Available
+                  </span>
+                )}
+                {isUsernameUnique === false && (
+                  <span className="text-[10px] text-[#ba1a1a] font-bold bg-[#FFDAD6] px-2 py-0.5 rounded-full border border-[#FFB4AB]">
+                    Unavailable
+                  </span>
+                )}
               </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Sarah Jenkins"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 bg-[#f2f3ff] border border-[#bccac0]/50 rounded-xl text-sm font-medium text-[#131b2e] placeholder:text-[#6d7a72]/60 focus:outline-none focus:border-[#006948] focus:bg-white transition-all"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. sarah_jenkins"
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    if (isUsernameUnique !== null) setIsUsernameUnique(null);
+                  }}
+                  className={`w-full px-4 py-3 bg-[#f2f3ff] border rounded-xl text-sm font-medium text-[#131b2e] placeholder:text-[#6d7a72]/60 focus:outline-none focus:bg-white transition-all ${
+                    isUsernameUnique === true
+                      ? "border-[#059669] ring-1 ring-[#059669]/20"
+                      : isUsernameUnique === false
+                      ? "border-[#ba1a1a] ring-1 ring-[#ba1a1a]/20"
+                      : "border-[#bccac0]/50 focus:border-[#006948]"
+                  }`}
+                />
+                {isCheckingUsername && (
+                  <div className="absolute right-3.5 top-3.5">
+                    <Loader2 className="w-4 h-4 animate-spin text-[#006948]" />
+                  </div>
+                )}
+              </div>
+
+              {/* Username Uniqueness Live Feedback Message */}
+              {isCheckingUsername && (
+                <p className="text-xs text-[#006948] font-medium flex items-center gap-1.5 mt-0.5">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#006948]" />
+                  <span>Checking username availability...</span>
+                </p>
+              )}
+              {!isCheckingUsername && isUsernameUnique === true && (
+                <p className="text-xs text-[#059669] font-semibold flex items-center gap-1.5 mt-0.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#059669]" />
+                  <span>{usernameStatusMessage}</span>
+                </p>
+              )}
+              {!isCheckingUsername && isUsernameUnique === false && (
+                <p className="text-xs text-[#ba1a1a] font-semibold flex items-center gap-1.5 mt-0.5">
+                  <XCircle className="w-3.5 h-3.5 text-[#ba1a1a]" />
+                  <span>{usernameStatusMessage}</span>
+                </p>
+              )}
             </div>
 
             {/* Email Field */}
@@ -659,17 +789,29 @@ function OnboardingContent() {
           {/* Submit Action Button */}
           <button
             type="submit"
-            disabled={isLoading || setupFinished}
-            className={`w-full h-[52px] rounded-xl font-['Hanken_Grotesk'] font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer ${
-              setupFinished
-                ? "bg-[#00855d] text-white"
-                : "bg-[#006948] hover:bg-[#00855d] text-white"
+            disabled={isLoading || setupFinished || isCheckingUsername || isUsernameUnique === false}
+            className={`w-full h-[52px] rounded-xl font-['Hanken_Grotesk'] font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all ${
+              isUsernameUnique === false || isCheckingUsername
+                ? "bg-slate-300 text-slate-500 cursor-not-allowed border border-slate-300 shadow-none opacity-80"
+                : setupFinished
+                ? "bg-[#00855d] text-white active:scale-[0.98] cursor-pointer"
+                : "bg-[#006948] hover:bg-[#00855d] text-white active:scale-[0.98] cursor-pointer"
             }`}
           >
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin text-white" />
                 <span>Completing Setup...</span>
+              </>
+            ) : isCheckingUsername ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-slate-600" />
+                <span>Verifying Username...</span>
+              </>
+            ) : isUsernameUnique === false ? (
+              <>
+                <XCircle className="w-4 h-4 text-slate-500" />
+                <span>Username Unavailable - Pick Another</span>
               </>
             ) : setupFinished ? (
               <>

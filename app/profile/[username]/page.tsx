@@ -2,10 +2,11 @@
 
 import React, { useState, use, useEffect } from "react";
 import Link from "next/link";
-import { profileApi, spotsApi } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { authApi, profileApi, spotsApi } from "@/lib/api";
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: Promise<{ username?: string; id?: string }>;
 }
 
 interface Trophy {
@@ -54,24 +55,61 @@ interface Voucher {
   badge?: string;
 }
 
+function useDebounce<T>(value: T, delay: number = 450): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 export default function ProfilePage({ params }: PageProps) {
+  const router = useRouter();
   const resolvedParams = use(params);
-  const rawId = decodeURIComponent(resolvedParams.id || "me");
+  const rawId = decodeURIComponent(resolvedParams.username || resolvedParams.id || "me");
   const cleanId = rawId.startsWith("@") ? rawId.slice(1) : rawId;
 
   const isMyProfile = cleanId === "me" || cleanId === "get-my-profile" || cleanId === "my-profile";
 
-  // Dynamic backend profile state
+  // Auth & dynamic profile state
+  const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [profileData, setProfileData] = useState<any | null>(null);
 
   useEffect(() => {
-    async function loadProfile() {
+    async function verifyAuthAndLoadProfile() {
+      setIsLoadingAuth(true);
       try {
+        // 1. Verify user authentication status via backend auth API
+        const authRes = await authApi.getMe();
+        if (!authRes || !authRes.success || !authRes.user) {
+          setIsAuthenticated(false);
+          router.push("/login");
+          return;
+        }
+
+        if (authRes.authorizationType === "incomplete" || authRes.isProfileCompleted === false) {
+          setIsAuthenticated(false);
+          router.push("/onboarding");
+          return;
+        }
+
+        setIsAuthenticated(true);
+
+        // 2. Fetch target profile data
         let response;
         if (isMyProfile) {
           response = await profileApi.getMyProfile();
         } else {
-          response = await profileApi.getProfileById(cleanId);
+          response = await profileApi.getProfileByUsername(cleanId);
         }
 
         if (response && response.success && response.user) {
@@ -83,13 +121,17 @@ export default function ProfilePage({ params }: PageProps) {
           }
         }
       } catch (err) {
-        console.warn("Could not fetch profile:", err);
+        console.warn("Could not verify auth or fetch profile:", err);
+        setIsAuthenticated(false);
+        router.push("/login");
+      } finally {
+        setIsLoadingAuth(false);
       }
     }
-    loadProfile();
-  }, [cleanId, isMyProfile]);
+    verifyAuthAndLoadProfile();
+  }, [cleanId, isMyProfile, router]);
 
-  // User status and rewards statistics directly from backend response (getProfileById / getMyProfile)
+  // User status and rewards statistics directly from backend response (getProfileByUsername / getMyProfile)
   const userStatus = profileData?.userStatus;
   const userRewards = profileData?.userRewards;
 
@@ -161,6 +203,154 @@ export default function ProfilePage({ params }: PageProps) {
   const [toast, setToast] = useState<string | null>(null);
   const [redeemedVouchers, setRedeemedVouchers] = useState<string[]>([]);
   const [localLedger, setLocalLedger] = useState<any[]>([]);
+
+  // Edit Profile Modal States
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [editUsername, setEditUsername] = useState<string>("");
+  const [editAvatarUrl, setEditAvatarUrl] = useState<string>("");
+  const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null);
+  const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null);
+
+  // Username validation state
+  const debouncedEditUsername = useDebounce(editUsername, 450);
+  const [isCheckingUsername, setIsCheckingUsername] = useState<boolean>(false);
+  const [usernameStatus, setUsernameStatus] = useState<{
+    available: boolean | null;
+    message: string;
+  }>({ available: null, message: "" });
+
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState<boolean>(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const handleOpenEditModal = () => {
+    const currentUsername = userObj?.username || "";
+    const currentAvatar = typeof userObj?.avatarUrl === "string" && userObj?.avatarUrl
+      ? userObj.avatarUrl
+      : typeof userObj?.avatar === "string" && userObj?.avatar
+      ? userObj.avatar
+      : userObj?.avatar?.url || "";
+
+    setEditUsername(currentUsername);
+    setEditAvatarUrl(currentAvatar);
+    setEditAvatarFile(null);
+    setEditAvatarPreview(null);
+    setUsernameStatus({ available: true, message: "" });
+    setEditError(null);
+    setIsEditModalOpen(true);
+  };
+
+  useEffect(() => {
+    if (!isEditModalOpen) return;
+
+    const trimmed = debouncedEditUsername.trim().toLowerCase();
+    const currentUsername = userObj?.username ? userObj.username.trim().toLowerCase() : "";
+
+    if (trimmed === currentUsername) {
+      setUsernameStatus({ available: true, message: "Current username" });
+      setIsCheckingUsername(false);
+      return;
+    }
+
+    if (!trimmed) {
+      setUsernameStatus({ available: false, message: "Username is required." });
+      setIsCheckingUsername(false);
+      return;
+    }
+
+    if (trimmed.length < 3 || trimmed.length > 30) {
+      setUsernameStatus({ available: false, message: "Username must be 3-30 characters." });
+      setIsCheckingUsername(false);
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+      setUsernameStatus({ available: false, message: "Only letters, numbers, and underscores allowed." });
+      setIsCheckingUsername(false);
+      return;
+    }
+
+    async function checkUniqueness() {
+      setIsCheckingUsername(true);
+      try {
+        const res = await authApi.checkUsername(trimmed);
+        if (res && res.success) {
+          setUsernameStatus({ available: true, message: "Username is available!" });
+        } else {
+          setUsernameStatus({ available: false, message: res?.message || "Username is already taken." });
+        }
+      } catch (err) {
+        setUsernameStatus({ available: false, message: "Error checking username availability." });
+      } finally {
+        setIsCheckingUsername(false);
+      }
+    }
+
+    checkUniqueness();
+  }, [debouncedEditUsername, isEditModalOpen, userObj?.username]);
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setEditError("Avatar image size must be under 5MB.");
+        return;
+      }
+      setEditAvatarFile(file);
+      setEditError(null);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setEditAvatarPreview(ev.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmittingEdit) return;
+
+    if (usernameStatus.available === false) {
+      setEditError(usernameStatus.message || "Please choose a valid username.");
+      return;
+    }
+
+    setIsSubmittingEdit(true);
+    setEditError(null);
+
+    try {
+      let res;
+      if (editAvatarFile) {
+        const formData = new FormData();
+        formData.append("username", editUsername.trim());
+        formData.append("avatar", editAvatarFile);
+        res = await profileApi.editProfile(formData);
+      } else {
+        const payload: any = { username: editUsername.trim() };
+        if (editAvatarPreview) {
+          payload.avatarUrl = editAvatarPreview;
+        } else if (editAvatarUrl) {
+          payload.avatarUrl = editAvatarUrl;
+        }
+        res = await profileApi.editProfile(payload);
+      }
+
+      if (res && res.success) {
+        triggerToast("Profile updated successfully!");
+        setIsEditModalOpen(false);
+        const updatedRes = await profileApi.getMyProfile();
+        if (updatedRes && updatedRes.success) {
+          setProfileData(updatedRes);
+        }
+      } else {
+        setEditError(res?.message || "Failed to update profile.");
+      }
+    } catch (err: any) {
+      console.error("Save profile error:", err);
+      setEditError(err?.message || "An unexpected error occurred while updating profile.");
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
 
   // Dynamically fetch full spot details via GET /api/v1/spots/:id route (getMarkedSpot)
   const handleOpenSpotDetails = async (item: CaseItem) => {
@@ -463,6 +653,22 @@ export default function ProfilePage({ params }: PageProps) {
     triggerToast(`Successfully redeemed "${v.title}"! -${v.cost} Karma`);
   };
 
+  if (isLoadingAuth || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col items-center justify-center p-4">
+        <div className="bg-white rounded-[24px] p-8 max-w-sm w-full text-center border border-[#E2E8F0] shadow-sm flex flex-col items-center gap-4 animate-pulse">
+          <div className="w-12 h-12 rounded-full bg-[#006948]/10 text-[#006948] flex items-center justify-center">
+            <span className="material-symbols-outlined text-2xl animate-spin">lock</span>
+          </div>
+          <div>
+            <h3 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e]">Authenticating Profile</h3>
+            <p className="text-xs text-[#6d7a72] mt-1 font-['JetBrains_Mono']">Verifying your civic session credentials...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] antialiased selection:bg-[#85f8c4] selection:text-[#002114] pb-24 md:pb-12">
       {/* Toast Notification */}
@@ -505,7 +711,7 @@ export default function ProfilePage({ params }: PageProps) {
             className="font-['JetBrains_Mono'] text-xs font-semibold text-[#3d4a42] hover:bg-[#00855d]/10 px-4 py-2 rounded-full transition-all duration-200"
             href="/reward"
           >
-            Quests
+            Rewards
           </Link>
 
           <Link
@@ -566,12 +772,12 @@ export default function ProfilePage({ params }: PageProps) {
             </div>
           </div>
 
-          <h2 className="font-['Hanken_Grotesk'] text-2xl md:text-3xl font-extrabold text-[#131b2e] mb-0.5">
+          <h2 className="font-[#131b2e] font-['Hanken_Grotesk'] text-2xl md:text-3xl font-extrabold mb-0.5">
             {displayName}
           </h2>
           <p className="font-['Inter'] text-sm text-[#6d7a72] mb-3">{handle}</p>
 
-          <div className="flex items-center gap-2 bg-[#F1F5F9] px-3.5 py-1.5 rounded-full mb-5 border border-[#E2E8F0]">
+          <div className="flex items-center gap-2 bg-[#F1F5F9] px-3.5 py-1.5 rounded-full mb-3 border border-[#E2E8F0]">
             <span className="material-symbols-outlined text-[#3B82F6] text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
               spa
             </span>
@@ -579,6 +785,16 @@ export default function ProfilePage({ params }: PageProps) {
               {userRole}
             </span>
           </div>
+
+          {isMyProfile && (
+            <button
+              onClick={handleOpenEditModal}
+              className="flex items-center gap-1.5 bg-[#006948] hover:bg-[#00855d] text-white font-['Inter'] text-xs font-semibold px-4 py-2 rounded-full transition-all cursor-pointer shadow-xs active:scale-95 mb-4"
+            >
+              <span className="material-symbols-outlined text-sm">edit</span>
+              <span>Edit Profile</span>
+            </button>
+          )}
 
           {/* Karma Progress Container */}
           <div className="w-full bg-[#F8FAFC] rounded-2xl p-4 mb-4 border border-[#E2E8F0]">
@@ -985,7 +1201,7 @@ export default function ProfilePage({ params }: PageProps) {
             )}
           </section>
         ) : (
-          /* OTHER USER PROFILE (/profile/:id): COMPLETED SPOTS ONLY STRICTLY FROM GETPROFILEBYID */
+          /* OTHER USER PROFILE (/profile/:username): COMPLETED SPOTS ONLY STRICTLY FROM GETPROFILEBYUSERNAME */
           <section className="mb-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -1450,6 +1666,137 @@ export default function ProfilePage({ params }: PageProps) {
           </div>
         </div>
       )}
+      {/* 9. EDIT PROFILE MODAL */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-[28px] max-w-md w-full p-6 border border-[#E2E8F0] shadow-2xl animate-enter">
+            <div className="flex justify-between items-center mb-5 pb-3 border-b border-[#E2E8F0]">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#006948] text-2xl">edit_note</span>
+                <h3 className="font-['Hanken_Grotesk'] text-xl font-bold text-[#131b2e]">Edit Profile</h3>
+              </div>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-[#F1F5F9] text-[#6d7a72] hover:text-[#0F172A] flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <span className="material-symbols-outlined text-base">close</span>
+              </button>
+            </div>
+
+            {editError && (
+              <div className="mb-4 bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] px-4 py-2.5 rounded-xl text-xs flex items-center gap-2">
+                <span className="material-symbols-outlined text-base">error</span>
+                <span>{editError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveProfile} className="flex flex-col gap-5">
+              {/* Avatar Selector Section */}
+              <div className="flex flex-col items-center gap-3 bg-[#F8FAFC] p-4 rounded-2xl border border-[#E2E8F0]">
+                <div className="relative group">
+                  <img
+                    src={editAvatarPreview || editAvatarUrl || userAvatar}
+                    alt="Avatar preview"
+                    className="w-20 h-20 rounded-full object-cover border-2 border-[#006948] shadow-md"
+                  />
+                  <label
+                    htmlFor="avatar-file-input"
+                    className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white"
+                  >
+                    <span className="material-symbols-outlined text-2xl">photo_camera</span>
+                  </label>
+                </div>
+                <input
+                  id="avatar-file-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarFileChange}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="avatar-file-input"
+                  className="text-xs font-semibold text-[#006948] hover:text-[#00855d] cursor-pointer flex items-center gap-1 bg-[#85f8c4]/30 px-3 py-1.5 rounded-full border border-[#006948]/20 transition-all"
+                >
+                  <span className="material-symbols-outlined text-sm">upload</span>
+                  <span>Change Profile Photo</span>
+                </label>
+                <p className="text-[10px] text-[#6d7a72] font-['JetBrains_Mono']">
+                  Supports JPG, PNG, WEBP (Max 5MB)
+                </p>
+              </div>
+
+              {/* Username Input Section */}
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="font-['JetBrains_Mono'] text-xs font-bold text-[#0F172A] uppercase tracking-wider">
+                  Username
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6d7a72] font-['JetBrains_Mono'] text-sm">
+                    @
+                  </span>
+                  <input
+                    type="text"
+                    value={editUsername}
+                    onChange={(e) => setEditUsername(e.target.value)}
+                    placeholder="username"
+                    className="w-full pl-8 pr-10 py-2.5 rounded-xl border border-[#CBD5E1] focus:border-[#006948] focus:ring-2 focus:ring-[#006948]/20 outline-none text-sm font-['Inter'] transition-all"
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                    {isCheckingUsername ? (
+                      <div className="w-4 h-4 border-2 border-[#006948] border-t-transparent rounded-full animate-spin" />
+                    ) : usernameStatus.available === true ? (
+                      <span className="material-symbols-outlined text-[#10B981] text-lg">check_circle</span>
+                    ) : usernameStatus.available === false ? (
+                      <span className="material-symbols-outlined text-[#EF4444] text-lg">cancel</span>
+                    ) : null}
+                  </div>
+                </div>
+                {usernameStatus.message && (
+                  <p
+                    className={`text-[11px] font-['Inter'] mt-0.5 ${
+                      usernameStatus.available ? "text-[#10B981]" : "text-[#EF4444]"
+                    }`}
+                  >
+                    {usernameStatus.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 mt-2 pt-3 border-t border-[#E2E8F0]">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="flex-1 bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#0F172A] font-['Inter'] text-xs font-semibold py-2.5 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEdit || isCheckingUsername || usernameStatus.available === false}
+                  className={`flex-1 font-['Inter'] text-xs font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    isSubmittingEdit || isCheckingUsername || usernameStatus.available === false
+                      ? "bg-[#CBD5E1] text-[#94A3B8] cursor-not-allowed"
+                      : "bg-[#006948] hover:bg-[#00855d] text-white shadow-xs active:scale-[0.98]"
+                  }`}
+                >
+                  {isSubmittingEdit ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-sm">save</span>
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* 10. MOBILE BOTTOM NAVIGATION BAR */}
       <nav className="md:hidden fixed bottom-0 w-full z-50 flex justify-around items-center px-4 py-2 bg-[#eaedff]/90 dark:bg-[#eaedff]/90 backdrop-blur-md rounded-t-2xl border-t border-[#dae2fd] shadow-lg">
@@ -1479,7 +1826,7 @@ export default function ProfilePage({ params }: PageProps) {
           href="/reward"
         >
           <span className="material-symbols-outlined">military_tech</span>
-          <span className="font-['JetBrains_Mono'] text-[10px] font-semibold mt-0.5">Quests</span>
+          <span className="font-['JetBrains_Mono'] text-[10px] font-semibold mt-0.5">Rewards</span>
         </Link>
         <Link
           className="flex flex-col items-center justify-center bg-[#00855d] text-white rounded-xl px-3 py-1.5 w-16 shadow-xs"

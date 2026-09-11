@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authApi, profileApi, feedsApi, FeedPost } from "@/lib/api";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
+import FeedCardSkeleton from "@/components/FeedCardSkeleton";
 
 interface Comment {
   id: string;
@@ -64,112 +65,6 @@ function formatTimeAgo(dateString?: string | Date): string {
   return date.toLocaleDateString();
 }
 
-// Initial fallback posts if database has 0 posts yet
-const INITIAL_FALLBACK_POSTS: FeedItem[] = [
-  {
-    id: "item-1",
-    cleanerName: "Rajesh Kumar",
-    cleanerUsername: "Rajesh Kumar",
-    cleanerAvatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    reporterName: "Aswin V.",
-    reporterUsername: "Aswin V.",
-    reporterAvatar:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    timestamp: "2 hrs ago",
-    ward: "Ward 14, Ottapalam",
-    beforeImg: DEFAULT_BEFORE_IMG,
-    afterImg: DEFAULT_AFTER_IMG,
-    geminiTime: "3.5 Hours",
-    xpBonus: 200,
-    cheersCount: 142,
-    isCheered: false,
-    caption:
-      "MG Road culvert cleared of plastic debris before monsoon rains. Great teamwork! 🌿🧹",
-    category: "nearby",
-    comments: [
-      {
-        id: "c-1",
-        author: "Anitha Menon",
-        avatar:
-          "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80",
-        text: "Awesome work! Drainage flow is so smooth now.",
-        timestamp: "1 hr ago",
-      },
-      {
-        id: "c-2",
-        author: "Kiran R.",
-        avatar:
-          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80",
-        text: "Kudos to Rajesh and Aswin! Real civic heroes.",
-        timestamp: "45m ago",
-      },
-    ],
-  },
-  {
-    id: "item-2",
-    cleanerName: "Sneha Patel",
-    cleanerAvatar:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    reporterName: "Amal R.",
-    reporterAvatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    timestamp: "4 hrs ago",
-    ward: "Ward 12, Park Street",
-    beforeImg:
-      "https://images.unsplash.com/photo-1604186837056-8e7c286756f2?w=800&auto=format&fit=crop&q=80",
-    afterImg:
-      "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800&auto=format&fit=crop&q=80",
-    geminiTime: "1.2 Hours",
-    xpBonus: 150,
-    cheersCount: 89,
-    isCheered: false,
-    caption:
-      "Park bench area restored and organic waste composted. Clean neighborhood vibes! ✨🌳",
-    category: "top",
-    comments: [
-      {
-        id: "c-3",
-        author: "Priya S.",
-        avatar:
-          "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&auto=format&fit=crop&q=80",
-        text: "Looks so clean and inviting now!",
-        timestamp: "2 hrs ago",
-      },
-    ],
-  },
-  {
-    id: "item-3",
-    cleanerName: "Kavita Sharma",
-    cleanerAvatar:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
-    reporterName: "Squad #7",
-    reporterAvatar:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-    timestamp: "Today, 8:00 AM",
-    ward: "Ward 14, Market Square",
-    beforeImg: DEFAULT_BEFORE_IMG,
-    afterImg: DEFAULT_AFTER_IMG,
-    geminiTime: "2.0 Hours",
-    xpBonus: 250,
-    cheersCount: 215,
-    isCheered: true,
-    caption:
-      "Weekend Market Cleanup Drive complete! 45kg of segregated plastics dispatched to recycling hub.",
-    category: "challenge",
-    comments: [
-      {
-        id: "c-4",
-        author: "Ranger Corp",
-        avatar:
-          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
-        text: "Verified! +250 Karma awarded to Squad #7.",
-        timestamp: "3 hrs ago",
-      },
-    ],
-  },
-];
-
 export default function FeedPage() {
   const router = useRouter();
 
@@ -177,7 +72,7 @@ export default function FeedPage() {
   const [basicInfo, setBasicInfo] = useState<any | null>(null);
 
   // Feed items & loading state
-  const [feedItems, setFeedItems] = useState<FeedItem[]>(INITIAL_FALLBACK_POSTS);
+  const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [isLoadingFeed, setIsLoadingFeed] = useState<boolean>(true);
 
 
@@ -214,8 +109,8 @@ export default function FeedPage() {
 
     const cleanerUser = post.CleanedUser;
     const reporterUser = post.SpotedUser;
-    const cleanerUserId = cleanerUser?._id || cleanerUser?.username || "Civic Cleaner";
-    const reporterUserId = reporterUser?._id || reporterUser?.username || "Civic Spotter";
+    const cleanerUserId = cleanerUser?.username || cleanerUser?._id || "Civic Cleaner";
+    const reporterUserId = reporterUser?.username || reporterUser?._id || "Civic Spotter";
 
     return {
       id: post._id,
@@ -235,15 +130,7 @@ export default function FeedPage() {
       isCheered: isLiked,
       caption: post.description || post.postName || "Civic spot cleaned up successfully!",
       category,
-      comments: [
-        {
-          id: `c-bot-${post._id}`,
-          author: "SafaiWatch Audit",
-          avatar: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
-          text: `Verified cleanup post for ${post.geolocation?.address || "this spot"}.`,
-          timestamp: formatTimeAgo(post.createdAt),
-        },
-      ],
+      comments: [],
       isBackendPost: true,
     };
   }, []);
@@ -254,19 +141,22 @@ export default function FeedPage() {
     let userLikes: any[] = [];
     let currentUserId: string | undefined = undefined;
 
-    // 1. Fetch user basic info
+    // 1. Check authorization status & fetch user basic info
     try {
+      const meRes = await authApi.getMe();
+      if (meRes && (meRes.authorizationType === "incomplete" || meRes.isProfileCompleted === false)) {
+        router.push("/onboarding");
+        return;
+      }
+
       const infoRes = await profileApi.getBasicInfo();
       if (infoRes && infoRes.success) {
         setBasicInfo(infoRes);
         currentUserId = infoRes.user?._id;
         userLikes = infoRes.userStatus?.userLikePosts || [];
-      } else {
-        const meRes = await authApi.getMe();
-        if (meRes && meRes.success) {
-          setBasicInfo(meRes);
-          currentUserId = meRes.user?._id;
-        }
+      } else if (meRes && meRes.success) {
+        setBasicInfo(meRes);
+        currentUserId = meRes.user?._id;
       }
     } catch (err) {
       console.warn("Could not fetch basic info:", err);
@@ -284,16 +174,15 @@ export default function FeedPage() {
         );
         setFeedItems(mappedBackendItems);
       } else {
-        // Fallback to sample posts if DB has 0 posts
-        setFeedItems(INITIAL_FALLBACK_POSTS);
+        setFeedItems([]);
       }
     } catch (err) {
       console.error("Failed to load posts from feeds controller:", err);
-      setFeedItems(INITIAL_FALLBACK_POSTS);
+      setFeedItems([]);
     } finally {
       setIsLoadingFeed(false);
     }
-  }, [mapPostToFeedItem]);
+  }, [mapPostToFeedItem, router]);
 
   useEffect(() => {
     loadFeedData();
@@ -615,14 +504,7 @@ export default function FeedPage() {
       {/* MAIN FEED CANVAS */}
       <main className="max-w-xl mx-auto px-4 md:px-0 flex flex-col gap-6 md:gap-8 mt-2">
         {isLoadingFeed ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <span className="material-symbols-outlined text-4xl text-[#006948] animate-spin">
-              progress_activity
-            </span>
-            <p className="text-xs font-['JetBrains_Mono'] text-[#6d7a72] font-bold">
-              Fetching latest civic cleanup posts...
-            </p>
-          </div>
+          <FeedCardSkeleton count={3} />
         ) : filteredFeed.length === 0 ? (
           <div className="bg-white rounded-[24px] p-8 text-center border border-[#E2E8F0] shadow-xs my-8">
             <span className="material-symbols-outlined text-4xl text-[#6d7a72] mb-2">search_off</span>
@@ -859,7 +741,7 @@ export default function FeedPage() {
           href="/reward"
         >
           <span className="material-symbols-outlined mb-0.5">military_tech</span>
-          <span className="font-['JetBrains_Mono'] text-[10px]">Quests</span>
+          <span className="font-['JetBrains_Mono'] text-[10px]">Rewards</span>
         </Link>
         <Link
           className="flex flex-col items-center justify-center text-[#3d4a42] hover:text-[#006948] transition-colors w-16"

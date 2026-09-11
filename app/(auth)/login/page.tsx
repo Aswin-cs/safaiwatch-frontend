@@ -72,21 +72,25 @@ export default function AuthPage() {
     return () => clearInterval(interval);
   }, [step, resendTimer]);
 
-  // Check if user is already authorized
+  // State for session status differentiation
+  const [isIncompleteAuth, setIsIncompleteAuth] = useState(false);
+
+  // Check if user is authorized (normal vs incomplete)
   useEffect(() => {
     async function checkAuthStatus() {
       try {
         const response = await authApi.getMe();
         if (response.success) {
-          if (response.isProfileCompleted) {
-            setIsAlreadySignedIn(true);
-            setCurrentUser(response.user);
-          } else if (response.user && response.user.email) {
-            router.push(`/onboarding?email=${encodeURIComponent(response.user.email)}`);
+          setIsAlreadySignedIn(true);
+          setCurrentUser(response.user);
+          if (response.isProfileCompleted || response.authorizationType === "normal") {
+            setIsIncompleteAuth(false);
+          } else {
+            setIsIncompleteAuth(true);
           }
         }
       } catch (err) {
-        // User not authorized, stay on login page
+        // User not authorized, stay on login form
       }
     }
     checkAuthStatus();
@@ -343,49 +347,74 @@ export default function AuthPage() {
             </div>
 
             <div>
-              <span className="font-mono text-[10px] font-bold text-[#006948] uppercase tracking-widest bg-[#006948]/10 px-2.5 py-0.5 rounded-full border border-[#006948]/20">
-                Already Signed In
+              <span
+                className={`font-mono text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full border ${
+                  isIncompleteAuth
+                    ? "bg-[#FFFBEB] text-[#D97706] border-[#FCD34D]"
+                    : "bg-[#006948]/10 text-[#006948] border-[#006948]/20"
+                }`}
+              >
+                {isIncompleteAuth ? "Incomplete Profile Authorization" : "Already Signed In"}
               </span>
               <h3 className="font-['Hanken_Grotesk'] text-xl font-extrabold text-[#131b2e] mt-1.5">
-                Welcome Back, {currentUser.name || currentUser.username || "Civic Hero"}!
+                {isIncompleteAuth
+                  ? `OTP Verified (${currentUser.email || "User"})`
+                  : `Welcome Back, ${currentUser.name || currentUser.username || "Civic Hero"}!`}
               </h3>
               <p className="text-xs text-[#6d7a72] mt-0.5 font-medium">
-                {currentUser.email}
+                {isIncompleteAuth
+                  ? "Your email is verified, but profile onboarding details are pending."
+                  : currentUser.email}
               </p>
             </div>
 
             <div className="w-full bg-[#f2f3ff] rounded-xl p-3.5 border border-[#bccac0]/30 text-xs flex flex-col gap-1.5 text-left">
               <div className="flex justify-between items-center">
-                <span className="text-[#6d7a72] font-semibold">Account Role:</span>
-                <span className="font-mono font-bold text-[#006948]">{currentUser.role || "Civic Member"}</span>
+                <span className="text-[#6d7a72] font-semibold">Auth Status:</span>
+                <span className="font-mono font-bold text-[#006948]">
+                  {isIncompleteAuth ? "Incomplete (Pending Onboarding)" : "Normal (Profile Completed)"}
+                </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-[#6d7a72] font-semibold">Session Status:</span>
+                <span className="text-[#6d7a72] font-semibold">Cookie Token:</span>
                 <span className="font-mono font-bold text-[#006948]">Active JWT Cookie</span>
               </div>
             </div>
 
             <div className="flex flex-col gap-2.5 w-full pt-1">
-              <Link
-                href="/"
-                className="btn-shimmer-hover w-full h-[48px] rounded-xl font-semibold text-xs flex items-center justify-center gap-2 bg-[#006948] hover:bg-[#00855d] text-white shadow-md transition-all cursor-pointer"
-              >
-                <span>Go to Home Page</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+              {isIncompleteAuth ? (
+                <Link
+                  href={`/onboarding?email=${encodeURIComponent(currentUser.email || "")}`}
+                  className="btn-shimmer-hover w-full h-[48px] rounded-xl font-semibold text-xs flex items-center justify-center gap-2 bg-[#006948] hover:bg-[#00855d] text-white shadow-md transition-all cursor-pointer"
+                >
+                  <span>Continue Onboarding Form</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/"
+                    className="btn-shimmer-hover w-full h-[48px] rounded-xl font-semibold text-xs flex items-center justify-center gap-2 bg-[#006948] hover:bg-[#00855d] text-white shadow-md transition-all cursor-pointer"
+                  >
+                    <span>Go to Home Page</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
 
-              <Link
-                href="/feed"
-                className="w-full h-[44px] rounded-xl font-semibold text-xs flex items-center justify-center gap-2 bg-white hover:bg-[#f2f3ff] text-[#131b2e] border border-[#bccac0]/60 transition-all cursor-pointer"
-              >
-                <span>Enter Civic Feed</span>
-              </Link>
+                  <Link
+                    href="/feed"
+                    className="w-full h-[44px] rounded-xl font-semibold text-xs flex items-center justify-center gap-2 bg-white hover:bg-[#f2f3ff] text-[#131b2e] border border-[#bccac0]/60 transition-all cursor-pointer"
+                  >
+                    <span>Enter Civic Feed</span>
+                  </Link>
+                </>
+              )}
 
               <button
                 type="button"
                 onClick={async () => {
                   await authApi.signOut();
                   setIsAlreadySignedIn(false);
+                  setIsIncompleteAuth(false);
                   setCurrentUser(null);
                 }}
                 className="w-full h-[40px] text-xs font-bold text-[#ba1a1a] hover:bg-[#ffdad6]/40 rounded-xl transition-all cursor-pointer"

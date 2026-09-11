@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import SafaiMap, { Report } from "@/components/map/SafaiMap";
 import { profileApi, authApi, spotsApi } from "@/lib/api";
 import {
@@ -31,9 +32,11 @@ import {
   Upload,
   AlertCircle,
   Eye,
+  Trash2,
 } from "lucide-react";
 
 export default function HomePage() {
+  const router = useRouter();
   // Authentication State: null = Checking session/cookies via API, true = Authenticated, false = Unauthenticated
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
@@ -91,6 +94,32 @@ export default function HomePage() {
   const [completeImageFile, setCompleteImageFile] = useState<File | null>(null);
   const [completeImagePreview, setCompleteImagePreview] = useState<string | null>(null);
   const [isCompletingSpot, setIsCompletingSpot] = useState<boolean>(false);
+
+  // Delete Spot Modal & Loading state
+  const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState<boolean>(false);
+  const [isDeletingSpot, setIsDeletingSpot] = useState<boolean>(false);
+
+  // Handle Delete Spot (delete API)
+  const handleDeleteSpot = async () => {
+    if (!selectedReport || isDeletingSpot) return;
+    setIsDeletingSpot(true);
+    try {
+      const res = await spotsApi.deleteSpot(selectedReport.id);
+      if (res && res.success) {
+        setReports((prev) => prev.filter((r) => r.id !== selectedReport.id));
+        setSelectedReport(null);
+        setIsSpotDetailModalOpen(false);
+        setIsDeleteConfirmModalOpen(false);
+      } else {
+        alert(res?.message || "Failed to delete spot.");
+      }
+    } catch (err: any) {
+      console.error("Failed to delete spot:", err);
+      alert(err?.message || "Failed to delete spot. Please try again.");
+    } finally {
+      setIsDeletingSpot(false);
+    }
+  };
 
   // Handle start/stop route navigation using leaflet-routing-machine
   const handleToggleNavigation = (report: Report) => {
@@ -205,6 +234,12 @@ export default function HomePage() {
   useEffect(() => {
     async function checkAuthSession() {
       try {
+        const meRes = await authApi.getMe();
+        if (meRes && (meRes.authorizationType === "incomplete" || meRes.isProfileCompleted === false)) {
+          router.push("/onboarding");
+          return;
+        }
+
         const res = await profileApi.getBasicInfo();
         if (res && res.success && res.user) {
           setIsAuthenticated(true);
@@ -246,7 +281,6 @@ export default function HomePage() {
           return;
         }
 
-        const meRes = await authApi.getMe();
         if (meRes && meRes.success && meRes.user) {
           setIsAuthenticated(true);
           const meAvatar =
@@ -275,7 +309,7 @@ export default function HomePage() {
     }
 
     checkAuthSession();
-  }, []);
+  }, [router]);
 
   // Fetch real spots from backend API on mount when authenticated
   useEffect(() => {
@@ -1152,6 +1186,17 @@ export default function HomePage() {
                 </button>
               );
             })()}
+
+            {isReportedByCurrentUser && !selectedReport.isCompleted && (
+              <button
+                onClick={() => setIsDeleteConfirmModalOpen(true)}
+                className="bg-red-50 hover:bg-red-100 text-red-600 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-3 rounded-xl border border-red-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                title="Delete Spot"
+              >
+                <Trash2 className="w-4 h-4 text-red-600" />
+                <span>Delete</span>
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1746,6 +1791,71 @@ export default function HomePage() {
                   </button>
                 );
               })()}
+
+              {isReportedByCurrentUser && !selectedReport.isCompleted && (
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteConfirmModalOpen(true)}
+                  className="py-2.5 px-4 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold text-sm border border-red-200 shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                  title="Delete Spot"
+                >
+                  <Trash2 className="w-4 h-4 text-red-600" />
+                  <span>Delete</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Spot Confirmation Modal */}
+      {isDeleteConfirmModalOpen && selectedReport && (
+        <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4 animate-enter">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 border border-slate-200 shadow-2xl relative text-center">
+            <button
+              onClick={() => setIsDeleteConfirmModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-200">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <h3 className="font-['Hanken_Grotesk'] text-lg font-extrabold text-slate-900 mb-1">
+              Delete This Spot?
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-6">
+              Are you sure you want to delete this marked spot? This action will remove the spot permanently and update your user profile.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setIsDeleteConfirmModalOpen(false)}
+                className="flex-1 py-2.5 px-4 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteSpot}
+                disabled={isDeletingSpot}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+              >
+                {isDeletingSpot ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 text-white" />
+                    <span>Confirm Delete</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

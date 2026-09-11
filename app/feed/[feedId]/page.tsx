@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect, use, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { authApi, profileApi, feedsApi, FeedPost } from "@/lib/api";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
+import FeedCardSkeleton from "@/components/FeedCardSkeleton";
 
 interface PageProps {
   params: Promise<{ feedId: string }>;
@@ -46,6 +48,7 @@ function formatTimeAgo(dateString?: string | Date): string {
 }
 
 export default function SingleFeedPostPage({ params }: PageProps) {
+  const router = useRouter();
   const resolvedParams = use(params);
   const feedId = resolvedParams.feedId || "item-1";
 
@@ -66,29 +69,7 @@ export default function SingleFeedPostPage({ params }: PageProps) {
     }, 3500);
   };
 
-  const [comments, setComments] = useState<Comment[]>([
-    {
-      id: "c-1",
-      author: "Anitha Menon",
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80",
-      text: "Awesome work! Drainage flow is so smooth now.",
-      timestamp: "1 hr ago",
-    },
-    {
-      id: "c-2",
-      author: "Kiran R.",
-      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80",
-      text: "Kudos to Rajesh and Aswin! Real civic heroes.",
-      timestamp: "45m ago",
-    },
-    {
-      id: "c-3",
-      author: "Ward Supervisor #14",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
-      text: "Audit approved. Ward cleanliness score updated to Grade A.",
-      timestamp: "30m ago",
-    },
-  ]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [newCommentInput, setNewCommentInput] = useState<string>("");
 
   const fetchPostDetails = useCallback(async () => {
@@ -98,6 +79,12 @@ export default function SingleFeedPostPage({ params }: PageProps) {
     let currentUserId: string | undefined = undefined;
 
     try {
+      const meRes = await authApi.getMe();
+      if (meRes && (meRes.authorizationType === "incomplete" || meRes.isProfileCompleted === false)) {
+        router.push("/onboarding");
+        return;
+      }
+
       const profileRes = await profileApi.getBasicInfo();
       if (profileRes && profileRes.success) {
         currentUser = profileRes.user;
@@ -132,7 +119,7 @@ export default function SingleFeedPostPage({ params }: PageProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [feedId]);
+  }, [feedId, router]);
 
   useEffect(() => {
     fetchPostDetails();
@@ -198,11 +185,11 @@ export default function SingleFeedPostPage({ params }: PageProps) {
   const cleanerUser = postData?.CleanedUser;
   const reporterUser = postData?.SpotedUser;
   const cleanerName = cleanerUser?.username || cleanerUser?.name || "Rajesh Kumar";
-  const cleanerUserId = cleanerUser?._id || cleanerUser?.username || "Rajesh Kumar";
+  const cleanerUserId = cleanerUser?.username || cleanerUser?._id || "Rajesh Kumar";
   const cleanerAvatar = getAvatarUrl(cleanerUser) || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80";
 
   const reporterName = reporterUser?.username || reporterUser?.name || "Aswin V.";
-  const reporterUserId = reporterUser?._id || reporterUser?.username || "Aswin V.";
+  const reporterUserId = reporterUser?.username || reporterUser?._id || "Aswin V.";
   const reporterAvatar = getAvatarUrl(reporterUser) || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80";
 
   const beforeImg = postData?.imageBefore || DEFAULT_BEFORE_IMG;
@@ -252,14 +239,7 @@ export default function SingleFeedPostPage({ params }: PageProps) {
       {/* MAIN CONTAINER */}
       <main className="max-w-3xl mx-auto px-4 md:px-6 py-6 flex flex-col gap-6">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <span className="material-symbols-outlined text-4xl text-[#006948] animate-spin">
-              progress_activity
-            </span>
-            <p className="text-xs font-['JetBrains_Mono'] text-[#6d7a72] font-bold">
-              Loading post details...
-            </p>
-          </div>
+          <FeedCardSkeleton count={1} />
         ) : (
           <article className="feed-card bg-white rounded-[24px] overflow-hidden flex flex-col shadow-sm border border-[#E2E8F0]">
             {/* Dual Attribution Header */}
@@ -458,7 +438,7 @@ export default function SingleFeedPostPage({ params }: PageProps) {
         </Link>
         <Link className="flex flex-col items-center justify-center text-[#3d4a42] w-16" href="/reward">
           <span className="material-symbols-outlined mb-0.5">military_tech</span>
-          <span className="font-['JetBrains_Mono'] text-[10px]">Quests</span>
+          <span className="font-['JetBrains_Mono'] text-[10px]">Rewards</span>
         </Link>
         <Link className="flex flex-col items-center justify-center text-[#3d4a42] w-16" href="/profile">
           <span className="material-symbols-outlined mb-0.5">person</span>

@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { profileApi } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { profileApi, authApi } from "@/lib/api";
 
 interface HistoryItem {
   id: string;
@@ -29,6 +30,7 @@ interface HistoryItem {
 }
 
 export default function HistoryPage() {
+  const router = useRouter();
   const [userRole, setUserRole] = useState<string>("Civilian");
   const [historyData, setHistoryData] = useState<{
     markedSpots: HistoryItem[];
@@ -62,7 +64,18 @@ export default function HistoryPage() {
   const fetchHistory = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await profileApi.getUserHistory();
+      const meRes = await authApi.getMe();
+      if (!meRes || !meRes.success || !meRes.user) {
+        router.push("/login");
+        return;
+      }
+
+      if (meRes.authorizationType === "incomplete" || meRes.isProfileCompleted === false) {
+        router.push("/onboarding");
+        return;
+      }
+
+      const res: any = await profileApi.getUserHistory();
       if (res && res.success && res.history) {
         if (res.role) setUserRole(res.role);
         setHistoryData({
@@ -83,7 +96,7 @@ export default function HistoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     fetchHistory();
@@ -481,13 +494,13 @@ export default function HistoryPage() {
               </button>
             </div>
           ) : (
-            filteredHistory.map((item) => {
+            filteredHistory.map((item, index) => {
               const badgeStyle = getCategoryBadgeStyle(item.type);
               const categoryIcon = getCategoryIcon(item.type);
 
               return (
                 <article
-                  key={item.id}
+                  key={`${item.id}-${index}`}
                   onClick={() => setSelectedItem(item)}
                   className="bg-white rounded-2xl border border-[#E2E8F0] p-4 flex flex-col sm:flex-row gap-4 hover:border-[#006948]/50 transition-all shadow-xs cursor-pointer group"
                 >

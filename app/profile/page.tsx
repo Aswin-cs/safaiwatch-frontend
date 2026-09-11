@@ -1,5 +1,5 @@
-import ProfilePage from "./[id]/page";
+import ProfilePage from "./[username]/page";
 
 export default function MyProfilePage() {
-  return <ProfilePage params={Promise.resolve({ id: "me" })} />;
+  return <ProfilePage params={Promise.resolve({ username: "me" })} />;
 }

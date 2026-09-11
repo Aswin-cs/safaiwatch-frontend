@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { profileApi } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { profileApi, authApi } from "@/lib/api";
 
 interface RewardItem {
   id: string;
@@ -27,6 +28,7 @@ interface ClaimedReward {
 }
 
 export default function RewardPage() {
+  const router = useRouter();
   // Real Backend Sync State from UserRewards Model
   const [karmaBalance, setKarmaBalance] = useState<number>(850);
   const [sellingPoints, setSellingPoints] = useState<number>(650);
@@ -79,6 +81,17 @@ export default function RewardPage() {
   useEffect(() => {
     async function loadRewardsData() {
       try {
+        const meRes = await authApi.getMe();
+        if (!meRes || !meRes.success || !meRes.user) {
+          router.push("/login");
+          return;
+        }
+
+        if (meRes.authorizationType === "incomplete" || meRes.isProfileCompleted === false) {
+          router.push("/onboarding");
+          return;
+        }
+
         const response = await profileApi.getMyProfile();
         if (response && response.success && response.userRewards) {
           const ur = response.userRewards;
@@ -111,7 +124,7 @@ export default function RewardPage() {
       }
     }
     loadRewardsData();
-  }, []);
+  }, [router]);
 
   const triggerToast = (msg: string) => {
     setToast(msg);
