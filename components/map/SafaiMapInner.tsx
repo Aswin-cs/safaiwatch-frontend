@@ -50,6 +50,7 @@ export interface Report {
   isCompleted?: boolean;
   isAssignedBy?: any[];
   isCompletedBy?: any[];
+  critcal?: string;
 }
 
 export interface SafaiMapInnerProps {
@@ -389,9 +390,9 @@ export default function SafaiMapInner({
         )}
 
         {/* Existing Reports Layer */}
-        {reports.map((report) => (
+        {reports.map((report, index) => (
           <Marker
-            key={report.id}
+            key={`${report.id}-${index}`}
             position={[report.lat, report.lng]}
             icon={createCustomMarkerIcon(report.status)}
             eventHandlers={{

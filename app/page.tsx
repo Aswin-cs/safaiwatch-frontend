@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import SafaiMap, { Report } from "@/components/map/SafaiMap";
 import { profileApi, authApi, spotsApi } from "@/lib/api";
+import { socket } from "@/lib/socket";
 import {
   Shield,
   Map as MapIcon,
@@ -142,12 +143,18 @@ export default function HomePage() {
     try {
       const res = await spotsApi.assignSpot(report.id);
       if (res && res.success) {
-        // Update selected report to reflect assignment
+        // Use populated spot from response if available
+        const returnedSpot = res.spot;
+        const updatedIsAssignedBy = returnedSpot?.isAssignedBy || [
+          ...(report.isAssignedBy || []),
+          { assignedBy: { _id: userProfile?._id, username: userProfile?.username || userProfile?.name, avatar: userProfile?.avatarUrl, role: userProfile?.role }, assignedAt: new Date().toISOString() },
+        ];
         const updatedReport: Report = {
           ...report,
           status: "claimed" as Report["status"],
           severity: "Claimed",
-          isAssignedBy: [...(report.isAssignedBy || []), { assignedBy: userProfile?._id, assignedAt: new Date().toISOString() }],
+          isAssignedBy: updatedIsAssignedBy,
+          critcal: returnedSpot?.critcal || report.critcal,
         };
         setSelectedReport(updatedReport);
         // Update reports list
@@ -311,6 +318,46 @@ export default function HomePage() {
     checkAuthSession();
   }, [router]);
 
+  const deduplicateReports = (items: Report[]): Report[] => {
+    const seen = new Set<string>();
+    const result: Report[] = [];
+    for (const item of items) {
+      const key = String(item.id);
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(item);
+      }
+    }
+    return result;
+  };
+
+  const mapSpotToReport = (spot: any): Report => {
+    const hasAssignments = Array.isArray(spot.isAssignedBy) && spot.isAssignedBy.length > 0;
+    let spotStatus: Report["status"] = "critical";
+    if (spot.isCompleted) {
+      spotStatus = "resolved";
+    } else if (hasAssignments) {
+      spotStatus = "claimed";
+    }
+    return {
+      id: spot._id || `spot-${Math.random()}`,
+      lat: Array.isArray(spot.coordinates) && spot.coordinates.length === 2 ? spot.coordinates[1] : 28.6139,
+      lng: Array.isArray(spot.coordinates) && spot.coordinates.length === 2 ? spot.coordinates[0] : 77.209,
+      title: spot.description || spot.address || "Marked Spot",
+      status: spotStatus,
+      severity: spot.isCompleted ? "Resolved" : hasAssignments ? "Claimed" : (spot.critcal || "High"),
+      category: spot.address || "Waste Spot",
+      distance: spot.address || "Reported Spot",
+      image: spot.image,
+      markedBy: spot.markedBy,
+      markedAt: spot.markedAt,
+      isCompleted: spot.isCompleted,
+      isAssignedBy: spot.isAssignedBy,
+      isCompletedBy: spot.isCompletedBy,
+      critcal: spot.critcal,
+    };
+  };
+
   // Fetch real spots from backend API on mount when authenticated
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -319,23 +366,8 @@ export default function HomePage() {
       try {
         const res = await spotsApi.getAllSpots();
         if (res && res.success && Array.isArray(res.spots)) {
-          const mappedReports: Report[] = res.spots.map((spot: any) => ({
-            id: spot._id || `spot-${Math.random()}`,
-            lat: Array.isArray(spot.coordinates) && spot.coordinates.length === 2 ? spot.coordinates[1] : 28.6139,
-            lng: Array.isArray(spot.coordinates) && spot.coordinates.length === 2 ? spot.coordinates[0] : 77.209,
-            title: spot.description || spot.address || "Marked Spot",
-            status: spot.isCompleted ? "resolved" : "critical",
-            severity: spot.critcal || "High",
-            category: spot.address || "Waste Spot",
-            distance: spot.address || "Reported Spot",
-            image: spot.image,
-            markedBy: spot.markedBy,
-            markedAt: spot.markedAt,
-            isCompleted: spot.isCompleted,
-            isAssignedBy: spot.isAssignedBy,
-            isCompletedBy: spot.isCompletedBy,
-          }));
-          setReports(mappedReports);
+          const mappedReports: Report[] = res.spots.map((spot: any) => mapSpotToReport(spot));
+          setReports(deduplicateReports(mappedReports));
         }
       } catch (err) {
         console.warn("Failed to load backend spots:", err);
@@ -343,6 +375,49 @@ export default function HomePage() {
     }
 
     loadBackendSpots();
+  }, [isAuthenticated]);
+
+  // Socket.IO real-time event listeners for spots update across connected users
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const onSpotCreated = (data: { spot: any }) => {
+      if (!data?.spot?._id) return;
+      const newReport = mapSpotToReport(data.spot);
+      setReports((prev) => deduplicateReports([newReport, ...prev]));
+    };
+
+    const onSpotAssigned = (data: { spot: any }) => {
+      if (!data?.spot?._id) return;
+      const updatedReport = mapSpotToReport(data.spot);
+      setReports((prev) => prev.map((r) => (String(r.id) === String(updatedReport.id) ? updatedReport : r)));
+      setSelectedReport((prev) => (String(prev?.id) === String(updatedReport.id) ? updatedReport : prev));
+    };
+
+    const onSpotCompleted = (data: { spot: any }) => {
+      if (!data?.spot?._id) return;
+      const updatedReport = mapSpotToReport(data.spot);
+      setReports((prev) => prev.map((r) => (String(r.id) === String(updatedReport.id) ? updatedReport : r)));
+      setSelectedReport((prev) => (String(prev?.id) === String(updatedReport.id) ? updatedReport : prev));
+    };
+
+    const onSpotDeleted = (data: { spotId: string }) => {
+      if (!data?.spotId) return;
+      setReports((prev) => prev.filter((r) => String(r.id) !== String(data.spotId)));
+      setSelectedReport((prev) => (String(prev?.id) === String(data.spotId) ? null : prev));
+    };
+
+    socket.on("spot:created", onSpotCreated);
+    socket.on("spot:assigned", onSpotAssigned);
+    socket.on("spot:completed", onSpotCompleted);
+    socket.on("spot:deleted", onSpotDeleted);
+
+    return () => {
+      socket.off("spot:created", onSpotCreated);
+      socket.off("spot:assigned", onSpotAssigned);
+      socket.off("spot:completed", onSpotCompleted);
+      socket.off("spot:deleted", onSpotDeleted);
+    };
   }, [isAuthenticated]);
 
   // Handle map coordinate selection from Leaflet click event
@@ -361,14 +436,18 @@ export default function HomePage() {
         const res = await spotsApi.getSpotById(report.id);
         if (res && res.success && res.spot) {
           const fullSpot = res.spot;
+          const hasAssignments = Array.isArray(fullSpot.isAssignedBy) && fullSpot.isAssignedBy.length > 0;
+          let spotStatus: Report["status"] = "critical";
+          if (fullSpot.isCompleted) spotStatus = "resolved";
+          else if (hasAssignments) spotStatus = "claimed";
           const updatedReport: Report = {
             ...report,
             id: fullSpot._id || report.id,
             lat: Array.isArray(fullSpot.coordinates) && fullSpot.coordinates.length === 2 ? fullSpot.coordinates[1] : report.lat,
             lng: Array.isArray(fullSpot.coordinates) && fullSpot.coordinates.length === 2 ? fullSpot.coordinates[0] : report.lng,
             title: fullSpot.description || fullSpot.address || report.title,
-            status: fullSpot.isCompleted ? "resolved" : "critical",
-            severity: fullSpot.critcal || report.severity || "High",
+            status: spotStatus,
+            severity: fullSpot.isCompleted ? "Resolved" : hasAssignments ? "Claimed" : (fullSpot.critcal || report.severity || "High"),
             category: fullSpot.address || report.category,
             image: fullSpot.image || report.image,
             markedBy: fullSpot.markedBy || report.markedBy,
@@ -376,6 +455,7 @@ export default function HomePage() {
             isCompleted: fullSpot.isCompleted ?? report.isCompleted,
             isAssignedBy: fullSpot.isAssignedBy || report.isAssignedBy,
             isCompletedBy: fullSpot.isCompletedBy || report.isCompletedBy,
+            critcal: fullSpot.critcal || report.critcal,
             volunteersNeeded: 3,
           };
           setSelectedReport(updatedReport);
@@ -504,7 +584,7 @@ export default function HomePage() {
           distance: "Just pinned",
         };
 
-        setReports((prev) => [newReport, ...prev]);
+        setReports((prev) => deduplicateReports([newReport, ...prev]));
         setSelectedReport(newReport);
         setSubmitSuccess("Spot marked successfully with uploaded image!");
 
@@ -908,6 +988,44 @@ export default function HomePage() {
     };
   };
 
+  // Helper: max assignments allowed based on criticality level
+  const getMaxAssignmentsByLevel = (critcal?: string): number => {
+    switch (critcal) {
+      case 'Very High': return 4;
+      case 'High': return 3;
+      case 'Medium': return 2;
+      case 'Low':
+      default: return 1;
+    }
+  };
+
+  // Helper: extract assigned user details from isAssignedBy array
+  const getAssignedByDetails = (isAssignedByArr?: any[]) => {
+    if (!isAssignedByArr || !Array.isArray(isAssignedByArr) || isAssignedByArr.length === 0) {
+      return null;
+    }
+    return isAssignedByArr.map((entry: any) => {
+      const userObj = entry.assignedBy || entry;
+      const assignedAt = entry.assignedAt || null;
+      if (!userObj) return null;
+      if (typeof userObj === "string") {
+        return { _id: userObj, username: "Civic Ranger", avatarUrl: "", role: "Coordinator", assignedAt };
+      }
+      const avatarUrl =
+        typeof userObj.avatar === "string"
+          ? userObj.avatar
+          : userObj.avatar?.url || userObj.avatarUrl || "";
+      return {
+        _id: userObj._id || userObj.id || "",
+        username: userObj.username || userObj.name || "Civic Ranger",
+        avatarUrl,
+        role: userObj.role || "Coordinator",
+        email: userObj.email || "",
+        assignedAt,
+      };
+    }).filter(Boolean);
+  };
+
   const currentUserId = userProfile?._id;
   const markedByUserId = selectedReport ? getMarkedByUserId(selectedReport.markedBy) : null;
   const isReportedByCurrentUser = Boolean(
@@ -916,6 +1034,13 @@ export default function HomePage() {
   const isClaimableRole = ["Coordinator", "Hybrid"].includes(userProfile?.role || "");
   const markedByDetails = selectedReport ? getMarkedByDetails(selectedReport.markedBy) : null;
   const completedByDetails = selectedReport ? getCompletedByDetails(selectedReport.isCompletedBy) : null;
+  const assignedByDetailsList = selectedReport ? getAssignedByDetails(selectedReport.isAssignedBy) : null;
+  const isCurrentUserAssigned = Boolean(
+    currentUserId && assignedByDetailsList && assignedByDetailsList.some((a: any) => String(a._id) === String(currentUserId))
+  );
+  const maxAssignments = selectedReport ? getMaxAssignmentsByLevel((selectedReport as any).critcal) : 1;
+  const currentAssignmentCount = assignedByDetailsList ? assignedByDetailsList.length : 0;
+  const isSlotsAvailable = currentAssignmentCount < maxAssignments;
 
   // 3. AUTHENTICATED STATE: SHOW STITCH MAP DASHBOARD FOR AUTHENTICATED USERS
   return (
@@ -1111,8 +1236,49 @@ export default function HomePage() {
                 </Link>
               )}
 
+              {/* Assigned Users Section */}
+              {assignedByDetailsList && assignedByDetailsList.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  {assignedByDetailsList.map((assignedUser: any, idx: number) => (
+                    <Link
+                      key={assignedUser._id || idx}
+                      href={`/profile/${encodeURIComponent(assignedUser._id || assignedUser.username)}`}
+                      className="flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50/80 px-2.5 py-1 rounded-xl border border-indigo-200/60 hover:bg-indigo-100/80 hover:border-indigo-300 transition-colors cursor-pointer"
+                      title={`View profile of @${assignedUser.username}`}
+                    >
+                      <div className="w-5 h-5 rounded-full bg-indigo-200 flex items-center justify-center overflow-hidden shrink-0 border border-indigo-400/30">
+                        {assignedUser.avatarUrl ? (
+                          <img
+                            src={assignedUser.avatarUrl}
+                            alt={assignedUser.username}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src =
+                                "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80";
+                            }}
+                          />
+                        ) : (
+                          <User className="w-3 h-3 text-indigo-600" />
+                        )}
+                      </div>
+                      <span className="font-semibold text-indigo-900 text-[11px] truncate">
+                        Assigned to @{assignedUser.username}
+                      </span>
+                      {String(assignedUser._id) === String(currentUserId) && (
+                        <span className="ml-auto text-[9px] font-bold text-indigo-800 bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200">
+                          You
+                        </span>
+                      )}
+                    </Link>
+                  ))}
+                  <span className="font-mono text-[10px] font-semibold text-indigo-600 px-1">
+                    📋 {currentAssignmentCount}/{maxAssignments} slot{maxAssignments > 1 ? 's' : ''} filled
+                  </span>
+                </div>
+              )}
+
               <div className="flex gap-2 flex-wrap text-xs">
-                {selectedReport.volunteersNeeded ? (
+                {!assignedByDetailsList?.length && selectedReport.volunteersNeeded ? (
                   <span className="font-mono text-[11px] font-semibold bg-[#006948]/10 text-[#006948] px-2.5 py-0.5 rounded-full border border-[#006948]/20">
                     👥 Needs {selectedReport.volunteersNeeded} Helpers
                   </span>
@@ -1151,10 +1317,11 @@ export default function HomePage() {
               </button>
             )}
 
-            {!isReportedByCurrentUser && !selectedReport.isCompleted && isClaimableRole && (() => {
-              const isAssigned = selectedReport.isAssignedBy && selectedReport.isAssignedBy.length > 0;
-              if (isAssigned) {
-                // Spot has been assigned → show "Complete Spot"
+            {!selectedReport.isCompleted && (() => {
+              const hasAssignments = selectedReport.isAssignedBy && selectedReport.isAssignedBy.length > 0;
+
+              // If current user is assigned → show "Complete Spot"
+              if (isCurrentUserAssigned) {
                 return (
                   <button
                     onClick={() => setIsCompleteModalOpen(true)}
@@ -1165,26 +1332,64 @@ export default function HomePage() {
                   </button>
                 );
               }
-              // Spot is unassigned → show "Claim Spot"
-              return (
-                <button
-                  onClick={() => handleClaimSpot(selectedReport)}
-                  disabled={isClaimingSpot}
-                  className="flex-1 bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 active:scale-95"
-                >
-                  {isClaimingSpot ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Claiming...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4 text-[#85f8c4]" />
-                      <span>Claim Spot</span>
-                    </>
-                  )}
-                </button>
-              );
+
+              // If spot has assignments but current user is NOT assigned → show info badge
+              if (hasAssignments && !isCurrentUserAssigned) {
+                // If slots are still available and user can claim
+                if (isSlotsAvailable && isClaimableRole && !isReportedByCurrentUser) {
+                  return (
+                    <button
+                      onClick={() => handleClaimSpot(selectedReport)}
+                      disabled={isClaimingSpot}
+                      className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 active:scale-95"
+                    >
+                      {isClaimingSpot ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Claiming...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4 text-indigo-200" />
+                          <span>Join ({currentAssignmentCount}/{maxAssignments})</span>
+                        </>
+                      )}
+                    </button>
+                  );
+                }
+                // No slots or not claimable → show assigned info
+                return (
+                  <span className="flex-1 bg-indigo-50 text-indigo-700 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-indigo-200 flex items-center justify-center gap-1.5">
+                    <Users className="w-4 h-4 text-indigo-500" />
+                    <span>Assigned ({currentAssignmentCount}/{maxAssignments})</span>
+                  </span>
+                );
+              }
+
+              // Unassigned spot → show "Claim Spot" for eligible users
+              if (!isReportedByCurrentUser && isClaimableRole) {
+                return (
+                  <button
+                    onClick={() => handleClaimSpot(selectedReport)}
+                    disabled={isClaimingSpot}
+                    className="flex-1 bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 active:scale-95"
+                  >
+                    {isClaimingSpot ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Claiming...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4 text-[#85f8c4]" />
+                        <span>Claim Spot</span>
+                      </>
+                    )}
+                  </button>
+                );
+              }
+
+              return null;
             })()}
 
             {isReportedByCurrentUser && !selectedReport.isCompleted && (
@@ -1700,6 +1905,68 @@ export default function HomePage() {
                 </div>
               )}
 
+              {/* Assigned Users Section in Detail Modal */}
+              {assignedByDetailsList && assignedByDetailsList.length > 0 && (
+                <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-indigo-800 flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-indigo-600" />
+                      Assigned Users ({currentAssignmentCount}/{maxAssignments} slots)
+                    </span>
+                    {isSlotsAvailable && (
+                      <span className="text-[9px] font-mono font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full border border-indigo-200">
+                        {maxAssignments - currentAssignmentCount} slot{(maxAssignments - currentAssignmentCount) > 1 ? 's' : ''} open
+                      </span>
+                    )}
+                  </div>
+                  {assignedByDetailsList.map((assignedUser: any, idx: number) => (
+                    <Link
+                      key={assignedUser._id || idx}
+                      href={`/profile/${encodeURIComponent(assignedUser._id || assignedUser.username)}`}
+                      className="flex items-center gap-3 hover:bg-indigo-100/60 rounded-xl p-1.5 transition-colors cursor-pointer"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-indigo-100 border-2 border-indigo-400/40 overflow-hidden flex items-center justify-center shrink-0">
+                        {assignedUser.avatarUrl ? (
+                          <img
+                            src={assignedUser.avatarUrl}
+                            alt={assignedUser.username}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src =
+                                "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80";
+                            }}
+                          />
+                        ) : (
+                          <User className="w-4 h-4 text-indigo-600" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-['Hanken_Grotesk'] text-sm font-extrabold text-slate-900">
+                            {assignedUser.username}
+                          </span>
+                          <span className="text-[10px] font-mono font-extrabold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full uppercase border border-indigo-200">
+                            {assignedUser.role}
+                          </span>
+                          {String(assignedUser._id) === String(currentUserId) && (
+                            <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">
+                              You
+                            </span>
+                          )}
+                        </div>
+                        {assignedUser.assignedAt && (
+                          <span className="text-[11px] text-indigo-600 font-mono block mt-0.5">
+                            Assigned on {new Date(assignedUser.assignedAt).toLocaleDateString("en-US", {
+                              month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit",
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+
               <div>
                 <span className="text-xs font-semibold text-slate-500 block mb-1">Address / Location</span>
                 <p className="font-bold text-slate-900 text-sm bg-white p-3 rounded-xl border border-slate-200">
@@ -1753,9 +2020,10 @@ export default function HomePage() {
                 </button>
               )}
 
-              {!isReportedByCurrentUser && !selectedReport.isCompleted && isClaimableRole && (() => {
-                const isAssigned = selectedReport.isAssignedBy && selectedReport.isAssignedBy.length > 0;
-                if (isAssigned) {
+              {!selectedReport.isCompleted && (() => {
+                const hasAssignments = selectedReport.isAssignedBy && selectedReport.isAssignedBy.length > 0;
+
+                if (isCurrentUserAssigned) {
                   return (
                     <button
                       type="button"
@@ -1770,26 +2038,62 @@ export default function HomePage() {
                     </button>
                   );
                 }
-                return (
-                  <button
-                    type="button"
-                    onClick={() => handleClaimSpot(selectedReport)}
-                    disabled={isClaimingSpot}
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-[#006948] hover:bg-[#00855d] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 active:scale-95"
-                  >
-                    {isClaimingSpot ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Claiming...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-4 h-4 text-[#85f8c4]" />
-                        <span>Claim Spot</span>
-                      </>
-                    )}
-                  </button>
-                );
+
+                if (hasAssignments && !isCurrentUserAssigned) {
+                  if (isSlotsAvailable && isClaimableRole && !isReportedByCurrentUser) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => handleClaimSpot(selectedReport)}
+                        disabled={isClaimingSpot}
+                        className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 active:scale-95"
+                      >
+                        {isClaimingSpot ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <span>Claiming...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4 text-indigo-200" />
+                            <span>Join ({currentAssignmentCount}/{maxAssignments})</span>
+                          </>
+                        )}
+                      </button>
+                    );
+                  }
+                  return (
+                    <span className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-50 text-indigo-700 font-bold text-sm border border-indigo-200 flex items-center justify-center gap-2">
+                      <Users className="w-4 h-4 text-indigo-500" />
+                      <span>Assigned ({currentAssignmentCount}/{maxAssignments})</span>
+                    </span>
+                  );
+                }
+
+                if (!isReportedByCurrentUser && isClaimableRole) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => handleClaimSpot(selectedReport)}
+                      disabled={isClaimingSpot}
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-[#006948] hover:bg-[#00855d] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 active:scale-95"
+                    >
+                      {isClaimingSpot ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Claiming...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4 text-[#85f8c4]" />
+                          <span>Claim Spot</span>
+                        </>
+                      )}
+                    </button>
+                  );
+                }
+
+                return null;
               })()}
 
               {isReportedByCurrentUser && !selectedReport.isCompleted && (
