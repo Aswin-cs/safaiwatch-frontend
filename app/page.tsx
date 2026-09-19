@@ -34,6 +34,14 @@ import {
   AlertCircle,
   Eye,
   Trash2,
+  Zap,
+  Filter,
+  AlertTriangle,
+  Clock,
+  Activity,
+  Radio,
+  SlidersHorizontal,
+  ChevronDown,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -95,6 +103,10 @@ export default function HomePage() {
   const [completeImageFile, setCompleteImageFile] = useState<File | null>(null);
   const [completeImagePreview, setCompleteImagePreview] = useState<string | null>(null);
   const [isCompletingSpot, setIsCompletingSpot] = useState<boolean>(false);
+
+  // Uber-style Map Filter state: "all" | "critical" | "assigned" | "resolved"
+  const [activeFilter, setActiveFilter] = useState<"all" | "critical" | "assigned" | "resolved">("all");
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false);
 
   // Delete Spot Modal & Loading state
   const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState<boolean>(false);
@@ -1042,13 +1054,25 @@ export default function HomePage() {
   const currentAssignmentCount = assignedByDetailsList ? assignedByDetailsList.length : 0;
   const isSlotsAvailable = currentAssignmentCount < maxAssignments;
 
+  // Filter reports according to activeFilter chip selection
+  const filteredReports = reports.filter((r) => {
+    if (activeFilter === "critical") return r.status === "critical" || r.severity === "High" || r.critcal === "Very High" || r.critcal === "High";
+    if (activeFilter === "assigned") return r.status === "claimed" || (r.isAssignedBy && r.isAssignedBy.length > 0);
+    if (activeFilter === "resolved") return r.status === "resolved" || r.isCompleted;
+    return true;
+  });
+
+  const criticalCount = reports.filter((r) => r.status === "critical" || r.severity === "High" || r.critcal === "Very High" || r.critcal === "High").length;
+  const assignedCount = reports.filter((r) => r.status === "claimed" || (r.isAssignedBy && r.isAssignedBy.length > 0)).length;
+  const resolvedCount = reports.filter((r) => r.status === "resolved" || r.isCompleted).length;
+
   // 3. AUTHENTICATED STATE: SHOW STITCH MAP DASHBOARD FOR AUTHENTICATED USERS
   return (
     <div className="h-screen w-full overflow-hidden relative bg-[#faf8ff] text-[#131b2e] font-sans antialiased select-none">
       {/* Dynamic Leaflet & OpenStreetMap Background Canvas */}
       <div className="absolute inset-0 w-full h-full z-0">
         <SafaiMap
-          reports={reports}
+          reports={filteredReports}
           selectedCoordinates={droppedCoordinates}
           routingTarget={routingTarget}
           onSelectCoordinates={handleSelectCoordinates}
@@ -1058,32 +1082,44 @@ export default function HomePage() {
         />
       </div>
 
-      {/* Floating Top App Bar (Stitch Specification - Centered with max-width on wider screens) */}
-      <header className="fixed top-0 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-xl flex justify-between items-center rounded-full mt-4 h-14 px-4 bg-[#faf8ff]/85 backdrop-blur-md border border-[#bccac0]/30 shadow-md transition-transform hover:scale-[0.99]">
-        {/* Left Brand & Location Info */}
-        <div className="flex items-center gap-2 text-[#006948]">
-          <MapPin className="w-5 h-5 text-[#006948]" />
+      {/* Ultra-Stylish Floating Command Bar (Uber/Apple Style) */}
+      <header className="fixed top-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-xl flex items-center justify-between px-4 py-2.5 bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-full shadow-[0_12px_40px_rgba(15,23,42,0.1)] transition-all hover:shadow-[0_16px_45px_rgba(15,23,42,0.14)]">
+        {/* Left Brand & Live Status */}
+        <div className="flex items-center gap-3">
           <div className="flex flex-col">
-            <span className="font-['Hanken_Grotesk'] font-bold text-sm text-[#131b2e] leading-tight">
-              Ward 14 · Central Sector
-            </span>
-            <span className="text-[10px] font-mono text-emerald-700 font-medium">
-              Geotagged & Live
+            <div className="flex items-center gap-2">
+              <span className="font-['Hanken_Grotesk'] font-extrabold text-xs text-[#131b2e] tracking-wider uppercase">
+                SafaiWatch Dispatch
+              </span>
+              <span className="bg-emerald-500 text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs tracking-wider">
+                <Radio className="w-2.5 h-2.5 animate-pulse text-white" />
+                LIVE
+              </span>
+            </div>
+            <span className="text-[11px] text-[#006948] font-mono font-bold flex items-center gap-1 mt-0.5">
+              <MapPin className="w-3 h-3 text-[#006948]" /> Ward 14 · Central Sector
             </span>
           </div>
         </div>
 
-        {/* Right Citizen Profile Avatar */}
-        <div className="flex items-center gap-3">
+        {/* Right Controls */}
+        <div className="flex items-center gap-2.5">
+          {/* Active Counter Pill */}
+          <div className="hidden sm:flex items-center gap-1.5 bg-slate-100/90 text-slate-800 text-xs font-mono font-bold px-3 py-1 rounded-full border border-slate-200 shadow-xs">
+            <Flame className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
+            <span>{reports.length} Spots</span>
+          </div>
+
+          {/* User Profile Avatar */}
           <Link
             href="/profile"
-            title={userProfile?.name ? `View profile of ${userProfile.name}` : "View Profile"}
-            className="relative w-10 h-10 rounded-full bg-emerald-100 overflow-hidden border-2 border-[#006948]/30 shadow-sm cursor-pointer hover:ring-2 hover:ring-[#006948] transition-all flex items-center justify-center shrink-0"
+            title={userProfile?.name ? `Profile of ${userProfile.name}` : "View Profile"}
+            className="relative w-9 h-9 rounded-full overflow-hidden ring-2 ring-[#006948]/30 shadow-sm hover:ring-[#006948] transition-all cursor-pointer flex items-center justify-center shrink-0"
           >
             {userProfile?.avatarUrl ? (
               <img
                 src={userProfile.avatarUrl}
-                alt={userProfile.name || "Civic Ranger Profile"}
+                alt={userProfile.name || "Civic Ranger"}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src =
@@ -1091,25 +1127,230 @@ export default function HomePage() {
                 }}
               />
             ) : (
-              <User className="w-5 h-5 text-[#006948]" />
+              <User className="w-4 h-4 text-[#006948]" />
             )}
-            <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" title="Active Civic Ranger"></div>
+            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white"></div>
           </Link>
         </div>
       </header>
 
+      {/* Mobile Filter Button Trigger (Visible only on small screens < 640px) */}
+      <div className="fixed top-19 left-1/2 -translate-x-1/2 z-40 flex sm:hidden justify-center px-1">
+        <button
+          onClick={() => setIsFilterModalOpen(!isFilterModalOpen)}
+          className="px-4 py-2 rounded-full bg-white/95 backdrop-blur-2xl text-[#131b2e] border border-slate-200/90 shadow-md font-['Hanken_Grotesk'] text-xs font-extrabold flex items-center gap-2 transition-all active:scale-95 cursor-pointer hover:border-[#006948]"
+        >
+          <SlidersHorizontal className="w-4 h-4 text-[#006948]" />
+          <span>Filter Spots</span>
+          <span className="bg-[#006948]/10 text-[#006948] font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold border border-[#006948]/20">
+            {activeFilter === "all"
+              ? `All (${reports.length})`
+              : activeFilter === "critical"
+              ? `Critical (${criticalCount})`
+              : activeFilter === "assigned"
+              ? `Assigned (${assignedCount})`
+              : `Resolved (${resolvedCount})`}
+          </span>
+          <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-300 ${isFilterModalOpen ? "rotate-180 text-[#006948]" : ""}`} />
+        </button>
+      </div>
 
+      {/* Desktop Filter Chips Bar (Visible on sm and larger screens >= 640px) */}
+      <div className="fixed top-19 left-1/2 -translate-x-1/2 z-35 w-[calc(100%-1.5rem)] max-w-xl hidden sm:flex items-center gap-2.5 overflow-x-auto hide-scrollbar no-scrollbar py-1 px-1">
+        <button
+          onClick={() => setActiveFilter("all")}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${
+            activeFilter === "all"
+              ? "bg-[#131b2e] text-white border-[#131b2e] font-extrabold scale-105 shadow-md"
+              : "bg-white/95 backdrop-blur-md text-slate-700 border-slate-200/90 hover:bg-slate-50 hover:border-slate-300"
+          }`}
+        >
+          <Filter className={`w-3.5 h-3.5 ${activeFilter === "all" ? "text-emerald-400" : "text-[#006948]"}`} />
+          <span>All Spots</span>
+          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+            activeFilter === "all" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-800"
+          }`}>
+            {reports.length}
+          </span>
+        </button>
 
-      {/* Interactive Pin Drop Instruction Banner */}
+        <button
+          onClick={() => setActiveFilter("critical")}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${
+            activeFilter === "critical"
+              ? "bg-red-600 text-white border-red-600 font-extrabold scale-105 shadow-md"
+              : "bg-white/95 backdrop-blur-md text-red-600 border-red-200/80 hover:bg-red-50 hover:border-red-300"
+          }`}
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span>Critical</span>
+          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+            activeFilter === "critical" ? "bg-white/20 text-white" : "bg-red-100 text-red-700"
+          }`}>
+            {criticalCount}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveFilter("assigned")}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${
+            activeFilter === "assigned"
+              ? "bg-indigo-600 text-white border-indigo-600 font-extrabold scale-105 shadow-md"
+              : "bg-white/95 backdrop-blur-md text-indigo-600 border-indigo-200/80 hover:bg-indigo-50 hover:border-indigo-300"
+          }`}
+        >
+          <Navigation className="w-3.5 h-3.5" />
+          <span>Assigned</span>
+          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+            activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-700"
+          }`}>
+            {assignedCount}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveFilter("resolved")}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${
+            activeFilter === "resolved"
+              ? "bg-[#006948] text-white border-[#006948] font-extrabold scale-105 shadow-md"
+              : "bg-white/95 backdrop-blur-md text-emerald-700 border-emerald-200/80 hover:bg-emerald-50 hover:border-emerald-300"
+          }`}
+        >
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          <span>Resolved</span>
+          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+            activeFilter === "resolved" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+          }`}>
+            {resolvedCount}
+          </span>
+        </button>
+      </div>
+
+      {/* Floating Animated Rectangle Filter Box (Grows when open, shrinks when closed) */}
+      {isFilterModalOpen && (
+        <>
+          {/* Backdrop overlay to close when clicking outside */}
+          <div
+            onClick={() => setIsFilterModalOpen(false)}
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] sm:hidden animate-enter"
+          />
+
+          <div className="fixed top-30 left-1/2 -translate-x-1/2 z-50 w-72 bg-white/95 backdrop-blur-2xl rounded-2xl border border-slate-200/90 shadow-[0_20px_50px_rgba(15,23,42,0.2)] p-3 flex flex-col gap-2 transition-all duration-300 animate-enter origin-top sm:hidden">
+            <div className="flex items-center justify-between px-1 pb-1.5 border-b border-slate-100 mb-0.5">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                Filter Options
+              </span>
+              <button
+                onClick={() => setIsFilterModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 p-0.5 rounded-md hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <button
+                onClick={() => {
+                  setActiveFilter("all");
+                  setIsFilterModalOpen(false);
+                }}
+                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${
+                  activeFilter === "all"
+                    ? "bg-[#131b2e] text-white border-[#131b2e] shadow-sm font-extrabold"
+                    : "bg-slate-50 text-slate-800 border-slate-200/80 hover:bg-slate-100"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Filter className={`w-3.5 h-3.5 ${activeFilter === "all" ? "text-emerald-400" : "text-[#006948]"}`} />
+                  <span className="text-xs font-extrabold">All Spots</span>
+                </div>
+                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  activeFilter === "all" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-900"
+                }`}>
+                  {reports.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveFilter("critical");
+                  setIsFilterModalOpen(false);
+                }}
+                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${
+                  activeFilter === "critical"
+                    ? "bg-red-600 text-white border-red-600 shadow-sm font-extrabold"
+                    : "bg-slate-50 text-red-700 border-slate-200/80 hover:bg-red-50"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <span className="text-xs font-extrabold">Critical Severity</span>
+                </div>
+                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  activeFilter === "critical" ? "bg-white/20 text-white" : "bg-red-100 text-red-700"
+                }`}>
+                  {criticalCount}
+                </span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveFilter("assigned");
+                  setIsFilterModalOpen(false);
+                }}
+                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${
+                  activeFilter === "assigned"
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm font-extrabold"
+                    : "bg-slate-50 text-indigo-700 border-slate-200/80 hover:bg-indigo-50"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Navigation className="w-3.5 h-3.5" />
+                  <span className="text-xs font-extrabold">Assigned / In-Progress</span>
+                </div>
+                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-700"
+                }`}>
+                  {assignedCount}
+                </span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveFilter("resolved");
+                  setIsFilterModalOpen(false);
+                }}
+                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${
+                  activeFilter === "resolved"
+                    ? "bg-[#006948] text-white border-[#006948] shadow-sm font-extrabold"
+                    : "bg-slate-50 text-emerald-800 border-slate-200/80 hover:bg-emerald-50"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span className="text-xs font-extrabold">Cleaned / Resolved</span>
+                </div>
+                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  activeFilter === "resolved" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+                }`}>
+                  {resolvedCount}
+                </span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Interactive Pin Drop Instruction Banner (White Theme) */}
       {droppedCoordinates && (
-        <div className="absolute top-[170px] left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-md bg-[#006948] text-white rounded-2xl p-4 shadow-xl flex items-center justify-between animate-enter border border-[#85f8c4]/30">
+        <div className="fixed top-32 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-md bg-white/95 backdrop-blur-xl text-[#131b2e] rounded-2xl p-4 shadow-2xl flex items-center justify-between animate-enter border border-slate-200">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-              <MapPin className="w-5 h-5 text-[#85f8c4]" />
+            <div className="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0 border border-emerald-200 text-[#006948]">
+              <MapPin className="w-5 h-5" />
             </div>
             <div>
-              <p className="font-bold text-xs">Pin Dropped on Map!</p>
-              <p className="text-[11px] font-mono text-[#85f8c4]">
+              <p className="font-bold text-xs text-[#131b2e]">Pin Dropped on Map!</p>
+              <p className="text-[11px] font-mono text-[#006948] font-bold">
                 {droppedCoordinates[0].toFixed(4)}, {droppedCoordinates[1].toFixed(4)}
               </p>
             </div>
@@ -1118,13 +1359,13 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsReportModalOpen(true)}
-              className="bg-[#85f8c4] text-[#002114] font-bold text-xs px-3 py-1.5 rounded-xl hover:bg-white transition-colors cursor-pointer"
+              className="bg-[#006948] text-white font-bold text-xs px-3.5 py-2 rounded-xl hover:bg-[#00855d] transition-colors cursor-pointer shadow-md"
             >
               Report Site
             </button>
             <button
               onClick={() => setDroppedCoordinates(null)}
-              className="p-1 hover:bg-white/20 rounded-lg text-white"
+              className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700"
             >
               <X className="w-4 h-4" />
             </button>
@@ -1132,42 +1373,52 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Active Spot Preview / Bottom Sheet Card */}
+      {/* Uber Style Bottom Sheet Selected Spot Card (White Theme) */}
       {selectedReport && !droppedCoordinates && (
-        <div className="absolute bottom-[96px] left-1/2 -translate-x-1/2 z-30 w-11/12 max-w-lg bg-[#faf8ff] border border-[#bccac0]/40 rounded-3xl shadow-[0_25px_60px_rgba(15,23,42,0.18)] p-4 sm:p-5 flex flex-col gap-3.5 transition-all animate-enter">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-35 w-[calc(100%-1.5rem)] max-w-lg bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[28px] shadow-[0_20px_50px_rgba(15,23,42,0.12)] p-4 sm:p-5 flex flex-col gap-3.5 transition-all animate-enter">
+          {/* Drag Handle Indicator */}
+          <div className="w-12 h-1 bg-slate-300 rounded-full mx-auto -mt-1 mb-1"></div>
+
           {/* Header Row */}
-          <div className="flex items-start justify-between">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span
-                className={`text-[10px] font-mono font-extrabold px-2.5 py-0.5 rounded-full uppercase border ${
+                className={`text-[10px] font-mono font-extrabold px-2.5 py-1 rounded-lg uppercase flex items-center gap-1 border ${
                   selectedReport.status === "critical"
-                    ? "bg-red-100 text-red-700 border-red-200"
-                    : selectedReport.status === "moderate"
-                    ? "bg-amber-100 text-amber-800 border-amber-200"
+                    ? "bg-red-50 text-red-700 border-red-200"
                     : selectedReport.status === "claimed"
-                    ? "bg-indigo-100 text-indigo-800 border-indigo-200"
-                    : "bg-emerald-100 text-emerald-800 border-emerald-200"
+                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
                 }`}
               >
-                {selectedReport.severity || selectedReport.status}
+                {selectedReport.status === "critical" ? (
+                  <AlertTriangle className="w-3 h-3 text-red-600" />
+                ) : selectedReport.status === "claimed" ? (
+                  <Clock className="w-3 h-3 text-indigo-600" />
+                ) : (
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                )}
+                <span>{selectedReport.severity || selectedReport.status}</span>
               </span>
-              <span className="text-xs text-[#6d7a72] font-mono font-medium">
-                📍 {selectedReport.distance || "Ward 14 Spot"}
+
+              <span className="text-xs text-slate-500 font-mono font-medium flex items-center gap-1">
+                <Navigation className="w-3 h-3 text-[#006948]" />
+                <span>{selectedReport.distance || "Ward 14 Spot"}</span>
               </span>
             </div>
 
             <button
               onClick={() => setSelectedReport(null)}
-              className="text-[#6d7a72] hover:text-[#131b2e] p-1 rounded-full hover:bg-slate-200/50 transition-colors"
+              className="text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Main Card Content with Garbage Photo */}
+          {/* Card Media & Details */}
           <div className="flex flex-col sm:flex-row gap-3.5 items-stretch">
             {selectedReport.image ? (
-              <div className="relative sm:w-36 h-32 sm:h-auto rounded-2xl overflow-hidden border border-slate-300/80 bg-slate-900 shrink-0 shadow-sm group">
+              <div className="relative sm:w-36 h-32 sm:h-auto rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shrink-0 shadow-xs">
                 <img
                   src={selectedReport.image}
                   alt={selectedReport.title}
@@ -1177,15 +1428,15 @@ export default function HomePage() {
                       "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=400&auto=format&fit=crop&q=80";
                   }}
                 />
-                <div className="absolute top-1.5 left-1.5 bg-black/60 backdrop-blur-sm text-emerald-300 font-mono text-[9px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 border border-emerald-500/30">
+                <div className="absolute top-1.5 left-1.5 bg-black/70 backdrop-blur-md text-emerald-300 font-mono text-[9px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 border border-emerald-500/30">
                   <Camera className="w-3 h-3 text-emerald-400" />
-                  <span>Geotag Photo</span>
+                  <span>Geotagged</span>
                 </div>
               </div>
             ) : (
-              <div className="sm:w-36 h-28 sm:h-auto rounded-2xl bg-gradient-to-br from-[#006948] to-slate-900 flex flex-col items-center justify-center p-3 text-white text-center shrink-0 border border-emerald-800/30">
-                <Camera className="w-6 h-6 text-[#85f8c4] mb-1" />
-                <span className="text-[10px] font-mono text-[#85f8c4] font-bold uppercase tracking-wider">
+              <div className="sm:w-36 h-28 sm:h-auto rounded-2xl bg-emerald-950 flex flex-col items-center justify-center p-3 text-white text-center shrink-0 border border-emerald-900">
+                <Camera className="w-6 h-6 text-emerald-400 mb-1" />
+                <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider">
                   No Image
                 </span>
               </div>
@@ -1197,8 +1448,8 @@ export default function HomePage() {
                   {selectedReport.title}
                 </h3>
                 {selectedReport.category && (
-                  <p className="text-xs text-[#6d7a72] mt-1 flex items-center gap-1">
-                    <span className="font-semibold">Category:</span> {selectedReport.category}
+                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                    <span className="font-semibold text-slate-700">Category:</span> {selectedReport.category}
                   </p>
                 )}
               </div>
@@ -1207,10 +1458,10 @@ export default function HomePage() {
               {markedByDetails && (
                 <Link
                   href={`/profile/${encodeURIComponent(markedByDetails._id || markedByDetails.username)}`}
-                  className="flex items-center gap-2 text-xs text-slate-600 bg-emerald-50/80 px-2.5 py-1 rounded-xl border border-emerald-200/60 hover:bg-emerald-100/80 hover:border-emerald-300 transition-colors cursor-pointer"
+                  className="flex items-center gap-2 text-xs text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-xl border border-slate-200 hover:bg-slate-200/80 transition-colors cursor-pointer"
                   title={`View profile of @${markedByDetails.username}`}
                 >
-                  <div className="w-5 h-5 rounded-full bg-emerald-200 flex items-center justify-center overflow-hidden shrink-0 border border-[#006948]/30">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden shrink-0 border border-emerald-400/40">
                     {markedByDetails.avatarUrl ? (
                       <img
                         src={markedByDetails.avatarUrl}
@@ -1236,14 +1487,14 @@ export default function HomePage() {
                 </Link>
               )}
 
-              {/* Assigned Users Section */}
+              {/* Assigned Rangers */}
               {assignedByDetailsList && assignedByDetailsList.length > 0 && (
                 <div className="flex flex-col gap-1.5">
                   {assignedByDetailsList.map((assignedUser: any, idx: number) => (
                     <Link
                       key={assignedUser._id || idx}
                       href={`/profile/${encodeURIComponent(assignedUser._id || assignedUser.username)}`}
-                      className="flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50/80 px-2.5 py-1 rounded-xl border border-indigo-200/60 hover:bg-indigo-100/80 hover:border-indigo-300 transition-colors cursor-pointer"
+                      className="flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50/80 px-2.5 py-1 rounded-xl border border-indigo-200/60 hover:bg-indigo-100/80 transition-colors cursor-pointer"
                       title={`View profile of @${assignedUser.username}`}
                     >
                       <div className="w-5 h-5 rounded-full bg-indigo-200 flex items-center justify-center overflow-hidden shrink-0 border border-indigo-400/30">
@@ -1276,25 +1527,17 @@ export default function HomePage() {
                   </span>
                 </div>
               )}
-
-              <div className="flex gap-2 flex-wrap text-xs">
-                {!assignedByDetailsList?.length && selectedReport.volunteersNeeded ? (
-                  <span className="font-mono text-[11px] font-semibold bg-[#006948]/10 text-[#006948] px-2.5 py-0.5 rounded-full border border-[#006948]/20">
-                    👥 Needs {selectedReport.volunteersNeeded} Helpers
-                  </span>
-                ) : null}
-              </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
+          {/* Action Dispatch Buttons */}
           <div className="flex gap-2 sm:gap-3 pt-1">
             <button
               onClick={() => setIsSpotDetailModalOpen(true)}
-              className="flex-1 bg-[#4b41e1]/10 hover:bg-[#4b41e1]/20 text-[#4b41e1] font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-[#4b41e1]/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <Eye className="w-4 h-4 text-[#4b41e1]" />
-              <span>View Details</span>
+              <Eye className="w-4 h-4 text-slate-700" />
+              <span>Details</span>
             </button>
 
             {routingTarget &&
@@ -1302,7 +1545,7 @@ export default function HomePage() {
             routingTarget[1] === selectedReport.lng ? (
               <button
                 onClick={() => setRoutingTarget(null)}
-                className="flex-1 bg-red-500 hover:bg-red-600 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-red-400/30 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-red-500 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95"
               >
                 <X className="w-4 h-4 text-white" />
                 <span>Close Route</span>
@@ -1310,9 +1553,9 @@ export default function HomePage() {
             ) : (
               <button
                 onClick={() => handleToggleNavigation(selectedReport)}
-                className="flex-1 bg-[#dae2fd]/60 hover:bg-[#006948] text-[#131b2e] hover:text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-[#bccac0]/30 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs group"
+                className="flex-1 bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md group"
               >
-                <Navigation className="w-4 h-4 text-[#4b41e1] group-hover:text-white transition-colors" />
+                <Navigation className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
                 <span>Navigate</span>
               </button>
             )}
@@ -1320,12 +1563,11 @@ export default function HomePage() {
             {!selectedReport.isCompleted && (() => {
               const hasAssignments = selectedReport.isAssignedBy && selectedReport.isAssignedBy.length > 0;
 
-              // If current user is assigned → show "Complete Spot"
               if (isCurrentUserAssigned) {
                 return (
                   <button
                     onClick={() => setIsCompleteModalOpen(true)}
-                    className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                    className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
                   >
                     <CheckCircle2 className="w-4 h-4 text-white" />
                     <span>Complete Spot</span>
@@ -1333,15 +1575,13 @@ export default function HomePage() {
                 );
               }
 
-              // If spot has assignments but current user is NOT assigned → show info badge
               if (hasAssignments && !isCurrentUserAssigned) {
-                // If slots are still available and user can claim
                 if (isSlotsAvailable && isClaimableRole && !isReportedByCurrentUser) {
                   return (
                     <button
                       onClick={() => handleClaimSpot(selectedReport)}
                       disabled={isClaimingSpot}
-                      className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 active:scale-95"
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 active:scale-95"
                     >
                       {isClaimingSpot ? (
                         <>
@@ -1357,7 +1597,6 @@ export default function HomePage() {
                     </button>
                   );
                 }
-                // No slots or not claimable → show assigned info
                 return (
                   <span className="flex-1 bg-indigo-50 text-indigo-700 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-indigo-200 flex items-center justify-center gap-1.5">
                     <Users className="w-4 h-4 text-indigo-500" />
@@ -1366,13 +1605,12 @@ export default function HomePage() {
                 );
               }
 
-              // Unassigned spot → show "Claim Spot" for eligible users
               if (!isReportedByCurrentUser && isClaimableRole) {
                 return (
                   <button
                     onClick={() => handleClaimSpot(selectedReport)}
                     disabled={isClaimingSpot}
-                    className="flex-1 bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 active:scale-95"
+                    className="flex-1 bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 active:scale-95"
                   >
                     {isClaimingSpot ? (
                       <>
@@ -1382,7 +1620,7 @@ export default function HomePage() {
                     ) : (
                       <>
                         <CheckCircle className="w-4 h-4 text-[#85f8c4]" />
-                        <span>Claim Spot</span>
+                        <span>Claim Dispatch</span>
                       </>
                     )}
                   </button>
@@ -1406,72 +1644,65 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Floating AI Assistant FAB Button */}
+      {/* Floating AI Assistant FAB Button (White Theme) */}
       <button
         onClick={() => setIsAiModalOpen(true)}
-        className="absolute bottom-[96px] right-4 z-30 w-13 h-13 bg-[#4b41e1] text-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform cursor-pointer border-2 border-white"
+        className="fixed bottom-20 right-4 z-30 w-12 h-12 bg-white text-slate-800 rounded-full shadow-[0_10px_25px_rgba(15,23,42,0.15)] flex items-center justify-center hover:scale-110 transition-transform cursor-pointer border border-slate-200/90"
         title="Ask SafaiWatch AI Assistant"
       >
-        <Bot className="w-6 h-6 text-white" />
-        <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-[#4b41e1]"></div>
+        <Bot className="w-6 h-6 text-[#006948]" />
+        <div className="absolute top-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"></div>
       </button>
 
-      {/* Floating Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 sm:bottom-4 left-1/2 -translate-x-1/2 w-full sm:w-[calc(100%-2rem)] max-w-lg z-40 flex justify-around items-center px-6 pb-safe sm:pb-0 bg-[#faf8ff]/95 backdrop-blur-md h-16 sm:rounded-full rounded-t-3xl border-t sm:border border-[#bccac0]/30 shadow-[0_8px_30px_rgba(15,23,42,0.12)] transition-all">
+      {/* Floating Uber Style Bottom Dock Navigation Bar (White Theme) */}
+      <nav className="fixed bottom-2 left-1/2 -translate-x-1/2 w-[94%] max-w-md z-40 flex justify-around items-center px-4 py-2 bg-white/95 backdrop-blur-xl rounded-full border border-slate-200/90 shadow-[0_12px_35px_rgba(15,23,42,0.12)] transition-all">
         {/* Map Tab */}
         <button
           onClick={() => setActiveTab("map")}
           className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === "map"
-              ? "text-[#006948] scale-110 font-bold"
-              : "text-[#6d7a72] hover:text-[#006948]"
+            activeTab === "map" ? "text-[#006948] scale-110 font-extrabold" : "text-slate-500 hover:text-[#006948]"
           }`}
         >
-          <MapIcon className="w-6 h-6" />
+          <MapIcon className="w-5 h-5" />
           <span className="text-[10px] mt-0.5">Map</span>
         </button>
 
-        {/* Explore / Feed Tab */}
+        {/* Explore Tab */}
         <Link
           href="/feed"
-          className="flex flex-col items-center justify-center text-[#6d7a72] hover:text-[#006948] transition-all cursor-pointer"
+          className="flex flex-col items-center justify-center text-slate-500 hover:text-[#006948] transition-all cursor-pointer"
         >
-          <Compass className="w-6 h-6" />
+          <Compass className="w-5 h-5" />
           <span className="text-[10px] mt-0.5">Explore</span>
         </Link>
 
-        {/* Add Report Pin Button */}
+        {/* Plus Action Dispatch Button */}
         <button
           onClick={() => {
             setActiveTab("add");
-            alert("Click anywhere on the map to drop a pin and report waste!");
+            alert("Click anywhere on the map to drop a geotagged pin!");
           }}
-          className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === "add"
-              ? "text-[#006948] scale-110 font-bold"
-              : "text-[#6d7a72] hover:text-[#006948]"
-          }`}
+          className="relative -top-3 w-12 h-12 rounded-full bg-[#006948] hover:bg-[#00855d] text-white flex items-center justify-center shadow-[0_4px_20px_rgba(0,105,72,0.35)] transition-transform hover:scale-105 cursor-pointer border-2 border-white"
+          title="Report Spot"
         >
-          <div className="w-10 h-10 rounded-full bg-[#006948] text-white flex items-center justify-center shadow-md">
-            <PlusCircle className="w-6 h-6 text-[#85f8c4]" />
-          </div>
+          <PlusCircle className="w-7 h-7 text-[#85f8c4]" />
         </button>
 
-        {/* Leaderboard / Rewards Tab */}
+        {/* Ranks Tab */}
         <Link
           href="/rewards"
-          className="flex flex-col items-center justify-center text-[#6d7a72] hover:text-[#006948] transition-all cursor-pointer"
+          className="flex flex-col items-center justify-center text-slate-500 hover:text-[#006948] transition-all cursor-pointer"
         >
-          <Trophy className="w-6 h-6" />
+          <Trophy className="w-5 h-5" />
           <span className="text-[10px] mt-0.5">Ranks</span>
         </Link>
 
         {/* Profile Tab */}
         <Link
           href="/profile"
-          className="flex flex-col items-center justify-center text-[#6d7a72] hover:text-[#006948] transition-all cursor-pointer"
+          className="flex flex-col items-center justify-center text-slate-500 hover:text-[#006948] transition-all cursor-pointer"
         >
-          <User className="w-6 h-6" />
+          <User className="w-5 h-5" />
           <span className="text-[10px] mt-0.5">Profile</span>
         </Link>
       </nav>

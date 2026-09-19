@@ -421,13 +421,6 @@ export default function FeedPage() {
               />
             </div>
 
-            {/* User XP Pill */}
-            <div className="hidden md:flex items-center gap-2 bg-[#dae2fd]/30 px-3 py-1.5 rounded-full border border-[#dae2fd]">
-              <span className="font-['JetBrains_Mono'] text-xs text-[#006948] font-bold">
-                {streaksCount} 🔥 • {karmaPoints} XP
-              </span>
-            </div>
-
             {/* Profile Avatar link */}
             <Link
               href={userProfileLink}

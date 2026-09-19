@@ -71,6 +71,35 @@ function useDebounce<T>(value: T, delay: number = 450): T {
   return debouncedValue;
 }
 
+function formatUserFriendlyDate(dateVal?: string | Date): string {
+  if (!dateVal) return "Unlocked";
+  if (typeof dateVal === "string" && dateVal === "Unlocked") return "Unlocked";
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return String(dateVal);
+
+    const dateFormatted = d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
+    if (typeof dateVal === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+      return dateFormatted;
+    }
+
+    const timeFormatted = d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    return `${dateFormatted} at ${timeFormatted}`;
+  } catch (e) {
+    return String(dateVal);
+  }
+}
+
 export default function ProfilePage({ params }: PageProps) {
   const router = useRouter();
   const resolvedParams = use(params);
@@ -571,23 +600,38 @@ export default function ProfilePage({ params }: PageProps) {
     },
   ];
 
-  // Dynamically map fetched badges strictly from backend userRewards.badges
-  const fetchedBadges: Trophy[] = Array.isArray(userRewards?.badges)
-    ? userRewards.badges.map((b: any, idx: number) => ({
-        id: b.id || b._id || `badge-${idx}`,
-        name: b.name || b.title || "Civic Badge",
-        subtitle: b.subtitle || b.category || "Achievement",
-        levelTag: b.levelTag || "LV. 1",
-        isUnlocked: b.isUnlocked !== undefined ? b.isUnlocked : true,
-        type: b.type || (b.isUnlocked ? "gold" : "locked"),
-        icon: b.icon || "security",
-        description: b.description || "Earned for active participation in local ward cleanliness.",
-        unlockedDate: b.unlockedDate || b.dateUnlocked,
-        progressPercent: b.progressPercent,
-      }))
-    : (isMyProfile ? trophies : []);
+  const BADGE_CONFIG: Record<string, { icon: string; type: "gold" | "silver" | "bronze"; levelTag: string; subtitle: string; description: string }> = {
+    "The Beginner": { icon: "spa", type: "bronze", levelTag: "LV. 1", subtitle: "First Step", description: "Submitted your first verified civic spot report to kick off your sanitation journey." },
+    "The Explorer": { icon: "explore", type: "bronze", levelTag: "LV. 1", subtitle: "Spot Explorer", description: "Actively mapped and reported 10+ sanitation spots across your local ward." },
+    "The Spy": { icon: "visibility", type: "silver", levelTag: "LV. 2", subtitle: "Civic Spotter", description: "Kept a vigilant eye on unassigned neighborhood sanitation spots." },
+    "Eye of the eagle": { icon: "center_focus_strong", type: "silver", levelTag: "LV. 2", subtitle: "Precision Spotter", description: "Demonstrated high accuracy in spot location tagging and coordinator assignment." },
+    "The Hero": { icon: "shield", type: "silver", levelTag: "LV. 3", subtitle: "Ward Defender", description: "Earned 100+ Karma points by taking active responsibility for ward cleanliness." },
+    "The Icon": { icon: "workspace_premium", type: "gold", levelTag: "LV. 4", subtitle: "Community Leader", description: "A celebrated civic champion with 200+ Karma points in community service." },
+    "The King": { icon: "military_tech", type: "gold", levelTag: "LV. 5", subtitle: "Sanitation King", description: "Crowned Ward Champion with over 400 Karma points and 100+ spot contributions." },
+    "The Legend": { icon: "auto_awesome", type: "gold", levelTag: "MAX LV.", subtitle: "Civic Legend", description: "Achieved legendary status with 1000+ Karma points and supreme ward leadership." }
+  };
 
-  const unlockedCount = fetchedBadges.filter((t) => t.isUnlocked).length;
+  // Only map and display the badges that the user has actually earned
+  const userEarnedBadges: any[] = Array.isArray(userRewards?.badges) ? userRewards.badges : [];
+
+  const fetchedBadges: Trophy[] = userEarnedBadges.map((b: any, idx: number) => {
+    const bName = typeof b === "string" ? b : (b?.name || b?.title || "Civic Badge");
+    const cfg = BADGE_CONFIG[bName] || BADGE_CONFIG[bName.trim()] || {};
+
+    return {
+      id: b._id || b.id || `badge-${idx}`,
+      name: bName,
+      subtitle: b.subtitle || cfg.subtitle || "Achievement",
+      levelTag: b.levelTag || cfg.levelTag || "LV. 1",
+      isUnlocked: true,
+      type: b.type || cfg.type || "gold",
+      icon: b.icon || cfg.icon || "military_tech",
+      description: b.description || cfg.description || "Earned for active participation in local ward cleanliness.",
+      unlockedDate: b.dateEarned || b.dateUnlocked || b.unlockedDate || "Unlocked",
+    };
+  });
+
+  const unlockedCount = fetchedBadges.length;
 
   const rawCases: CaseItem[] = (
     Array.isArray(userStatus?.cases)
@@ -738,12 +782,13 @@ export default function ProfilePage({ params }: PageProps) {
         <h1 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e]">
           {isMyProfile ? "My Profile" : "Civic Profile"}
         </h1>
-        <button
-          onClick={() => triggerToast("Profile Settings & Notification Preferences")}
+        <Link
+          href="/history"
+          title="View Activity History"
           className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] active:scale-95 transition-transform text-[#0F172A]"
         >
           <span className="material-symbols-outlined">settings</span>
-        </button>
+        </Link>
       </div>
 
       {/* MAIN CONTENT CONTAINER */}
@@ -849,7 +894,7 @@ export default function ProfilePage({ params }: PageProps) {
 
               <Link
                 href="/history"
-                className="w-full sm:w-auto bg-[#0F172A] hover:bg-[#1E293B] text-white font-['Inter'] text-sm font-semibold px-6 py-3.5 rounded-xl flex justify-center items-center gap-2 active:scale-[0.98] transition-all shadow-sm cursor-pointer border border-[#334155]"
+                className="hidden md:flex w-full sm:w-auto bg-[#0F172A] hover:bg-[#1E293B] text-white font-['Inter'] text-sm font-semibold px-6 py-3.5 rounded-xl justify-center items-center gap-2 active:scale-[0.98] transition-all shadow-sm cursor-pointer border border-[#334155]"
               >
                 <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>
                   history
@@ -868,7 +913,7 @@ export default function ProfilePage({ params }: PageProps) {
               <p className="text-xs text-[#6d7a72] font-['Inter'] mt-0.5">Click any medal to view accomplishment details</p>
             </div>
             <span className="bg-[#F1F5F9] text-[#475569] font-['JetBrains_Mono'] text-[11px] font-bold px-3 py-1 rounded-full border border-[#CBD5E1]">
-              {fetchedBadges.length > 0 ? `${unlockedCount} / ${fetchedBadges.length} UNLOCKED` : "0 BADGES"}
+              {fetchedBadges.length > 0 ? `${fetchedBadges.length} ${fetchedBadges.length === 1 ? "BADGE EARNED" : "BADGES EARNED"}` : "0 BADGES EARNED"}
             </span>
           </div>
 
@@ -1363,7 +1408,7 @@ export default function ProfilePage({ params }: PageProps) {
                     <span className="material-symbols-outlined text-base font-bold">verified</span>
                     UNLOCKED
                   </span>
-                  <span>{selectedTrophy.unlockedDate}</span>
+                  <span>{formatUserFriendlyDate(selectedTrophy.unlockedDate)}</span>
                 </div>
               ) : (
                 <div className="w-full mt-4 text-left">
