@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import SafaiMap, { Report } from "@/components/map/SafaiMap";
+import ReportWasteSpotModal from "@/components/ReportWasteSpotModal";
 import { profileApi, authApi, spotsApi } from "@/lib/api";
 import { socket } from "@/lib/socket";
 import {
@@ -1703,219 +1704,28 @@ export default function HomePage() {
           className="flex flex-col items-center justify-center text-slate-500 hover:text-[#006948] transition-all cursor-pointer"
         >
           <User className="w-5 h-5" />
-          <span className="text-[10px] mt-0.5">Profile</span>
         </Link>
       </nav>
 
       {/* New Waste Site Reporting Modal */}
-      {isReportModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-enter overflow-y-auto">
-          <div className="bg-[#faf8ff] rounded-3xl max-w-md w-full p-6 border border-slate-200 shadow-2xl relative my-8">
-            <button
-              onClick={() => {
-                setIsReportModalOpen(false);
-                setSubmitError(null);
-                setSubmitSuccess(null);
-              }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-[#006948]/10 text-[#006948] rounded-xl flex items-center justify-center shrink-0">
-                <Camera className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-['Hanken_Grotesk'] text-lg font-extrabold text-slate-900 leading-tight">
-                  Report Waste Location
-                </h3>
-                <p className="text-xs text-slate-500 font-mono mt-0.5">
-                  Coordinates: {droppedCoordinates ? `${droppedCoordinates[0].toFixed(5)}, ${droppedCoordinates[1].toFixed(5)}` : "Select pin on map"}
-                </p>
-              </div>
-            </div>
-
-            {!isSpotReportingRole && (
-              <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3.5 text-xs flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold">Role Access Restriction</p>
-                  <p className="mt-0.5 text-amber-800">
-                    Spot reporting is only available for <strong>Civilian</strong> and <strong>Hybrid</strong> user roles. Coordinator accounts manage and resolve reported spots.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {submitError && (
-              <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-                <span>{submitError}</span>
-              </div>
-            )}
-
-            {submitSuccess && (
-              <div className="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl p-3 text-xs flex items-center gap-2 font-semibold">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>{submitSuccess}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateReport} className="flex flex-col gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Location Address / Locality <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g., Near Sector 14 Public Park Gate"
-                  value={newReportAddress}
-                  onChange={(e) => setNewReportAddress(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#006948] bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Incident Description <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  required
-                  rows={2}
-                  placeholder="Describe the waste type, accumulation size, or hazard level..."
-                  value={newReportTitle}
-                  onChange={(e) => setNewReportTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#006948] bg-white resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Waste Category
-                  </label>
-                  <select
-                    value={newReportCategory}
-                    onChange={(e) => setNewReportCategory(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-[#006948] bg-white font-medium"
-                  >
-                    <option value="Plastic Debris">Plastic Debris</option>
-                    <option value="Organic Waste & Trash">Organic Waste &amp; Trash</option>
-                    <option value="Drain & Sewage Silt">Drain &amp; Sewage Silt</option>
-                    <option value="Construction Debris">Construction Debris</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Criticality Level
-                  </label>
-                  <select
-                    value={newReportCritical}
-                    onChange={(e) => setNewReportCritical(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-[#006948] bg-white font-medium"
-                  >
-                    <option value="Low">Low Severity</option>
-                    <option value="Medium">Medium Severity</option>
-                    <option value="High">High Severity</option>
-                    <option value="Very High">Very High Severity</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Image Upload Component */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Upload Spot Photo <span className="text-red-500">*</span>
-                </label>
-
-                <input
-                  type="file"
-                  accept="image/*"
-                  id="spot-image-upload"
-                  onChange={handleImageFileChange}
-                  className="hidden"
-                />
-
-                {imagePreviewUrl ? (
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-300 bg-slate-900 group h-36 flex items-center justify-center">
-                    <img
-                      src={imagePreviewUrl}
-                      alt="Selected waste spot preview"
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <label
-                        htmlFor="spot-image-upload"
-                        className="bg-white/90 text-slate-900 font-bold text-xs px-3 py-1.5 rounded-xl cursor-pointer hover:bg-white transition-colors"
-                      >
-                        Change Photo
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedImageFile(null);
-                          setImagePreviewUrl(null);
-                        }}
-                        className="bg-red-600 text-[#ffffff] font-bold text-xs px-3 py-1.5 rounded-xl hover:bg-red-700 transition-colors"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <label
-                    htmlFor="spot-image-upload"
-                    className="flex flex-col items-center justify-center p-5 border-2 border-dashed border-slate-300 hover:border-[#006948] rounded-2xl bg-white hover:bg-[#006948]/5 transition-all cursor-pointer text-center group"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-[#006948]/10 text-[#006948] flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                      <Upload className="w-5 h-5" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-800">
-                      Click to upload spot photo
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-mono mt-0.5">
-                      JPG, PNG or WEBP (Max 5MB)
-                    </span>
-                  </label>
-                )}
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsReportModalOpen(false);
-                    setSubmitError(null);
-                    setSubmitSuccess(null);
-                  }}
-                  disabled={isSubmitting}
-                  className="flex-1 py-2.5 px-4 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm hover:bg-slate-100 disabled:opacity-50 transition-colors"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !isSpotReportingRole}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-[#006948] hover:bg-[#00855d] text-white font-bold text-sm shadow-md disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Uploading...</span>
-                    </>
-                  ) : (
-                    <span>Submit Spot Report</span>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ReportWasteSpotModal
+        isOpen={isReportModalOpen}
+        onClose={() => {
+          setIsReportModalOpen(false);
+          setDroppedCoordinates(null);
+        }}
+        droppedCoordinates={droppedCoordinates}
+        userRole={userProfile?.role}
+        onSuccess={(createdSpot) => {
+          if (createdSpot) {
+            const newReport: Report = mapSpotToReport(createdSpot);
+            setReports((prev) => deduplicateReports([newReport, ...prev]));
+            setSelectedReport(newReport);
+          }
+          setIsReportModalOpen(false);
+          setDroppedCoordinates(null);
+        }}
+      />
 
       {/* AI Assistant Chat Modal */}
       {isAiModalOpen && (

@@ -48,8 +48,10 @@ function OnboardingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Pre-fill email from URL if available
+  // Pre-fill email and provider from URL if available
   const emailParam = searchParams.get("email") || "";
+  const providerParam = (searchParams.get("provider") as "google" | "email") || "email";
+  const [provider, setProvider] = useState<"google" | "email">(providerParam);
 
   // State management
   const [username, setUsername] = useState("");
@@ -108,6 +110,7 @@ function OnboardingContent() {
           if (res.user) {
             if (res.user.email && !emailParam) setEmail(res.user.email);
             if (res.user.username) setUsername(res.user.username);
+            if (res.user.provider) setProvider(res.user.provider as "google" | "email");
             if (res.user.avatarUrl || res.user.avatar?.url) {
               setAvatarPreview(res.user.avatarUrl || res.user.avatar?.url);
             }
@@ -291,6 +294,9 @@ function OnboardingContent() {
     try {
       let response;
 
+      const effectiveProvider = provider || (searchParams.get("provider") as "google" | "email") || "email";
+      const effectiveProviderId = currentUser?.providerId || (effectiveProvider === "google" ? "google_account" : "email123");
+
       if (avatarFile) {
         const formData = new FormData();
         formData.append("username", username.trim());
@@ -299,8 +305,8 @@ function OnboardingContent() {
         formData.append("address", address.trim());
         formData.append("role", selectedRole);
         formData.append("geolocation", JSON.stringify({ type: "Point", coordinates: coords }));
-        formData.append("provider", "email");
-        formData.append("providerId", "email123");
+        formData.append("provider", effectiveProvider);
+        formData.append("providerId", effectiveProviderId);
         formData.append("avatar", avatarFile);
 
         response = await authApi.signUpCompletion(formData);
@@ -315,8 +321,8 @@ function OnboardingContent() {
             type: "Point" as const,
             coordinates: coords,
           },
-          provider: "email" as const,
-          providerId: "email123",
+          provider: effectiveProvider,
+          providerId: effectiveProviderId,
           avatarUrl: avatarPreview || undefined,
         };
 

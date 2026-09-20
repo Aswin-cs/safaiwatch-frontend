@@ -4,6 +4,7 @@ import React, { useState, use, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authApi, profileApi, spotsApi } from "@/lib/api";
+import HoldButton from "@/components/HoldButton";
 
 interface PageProps {
   params: Promise<{ username?: string; id?: string }>;
@@ -250,6 +251,22 @@ export default function ProfilePage({ params }: PageProps) {
 
   const [isSubmittingEdit, setIsSubmittingEdit] = useState<boolean>(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // Sign out state and handler
+  const [isSigningOut, setIsSigningOut] = useState<boolean>(false);
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await authApi.signOut();
+      triggerToast("Signed out successfully!");
+      router.push("/login");
+    } catch (err) {
+      console.error("Sign out error:", err);
+      router.push("/login");
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   const handleOpenEditModal = () => {
     const currentUsername = userObj?.username || "";
@@ -766,8 +783,30 @@ export default function ProfilePage({ params }: PageProps) {
           </Link>
         </div>
 
-        <div className="font-['Inter'] text-xs font-semibold text-[#3d4a42] bg-[#f2f3ff] px-3.5 py-1.5 rounded-full border border-[#dae2fd]">
-          <span className="text-[#006948] font-bold">{karmaBalance} XP</span>
+        <div className="flex items-center gap-2">
+          <div className="font-['Inter'] text-xs font-semibold text-[#3d4a42] bg-[#f2f3ff] px-3.5 py-1.5 rounded-full border border-[#dae2fd]">
+            <span className="text-[#006948] font-bold">{karmaBalance} XP</span>
+          </div>
+
+          {isMyProfile && (
+            <HoldButton
+              doneLabel="Signed Out"
+              backgroundColor="#FEF2F2"
+              fillColor="#DC2626"
+              textColor="#DC2626"
+              fillTextColor="#ffffff"
+              size="sm"
+              radius={9999}
+              holdTime={1500}
+              disabled={isSigningOut}
+              onHold={handleSignOut}
+              icon={<span className="material-symbols-outlined text-sm">logout</span>}
+              doneIcon={<span className="material-symbols-outlined text-sm">check_circle</span>}
+              className="border border-[#FCA5A5]/40"
+            >
+              Sign Out
+            </HoldButton>
+          )}
         </div>
       </div>
 
@@ -782,13 +821,33 @@ export default function ProfilePage({ params }: PageProps) {
         <h1 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e]">
           {isMyProfile ? "My Profile" : "Civic Profile"}
         </h1>
-        <Link
-          href="/history"
-          title="View Activity History"
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] active:scale-95 transition-transform text-[#0F172A]"
-        >
-          <span className="material-symbols-outlined">settings</span>
-        </Link>
+        {isMyProfile ? (
+          <HoldButton
+            doneLabel="Signed Out"
+            backgroundColor="#FEF2F2"
+            fillColor="#DC2626"
+            textColor="#DC2626"
+            fillTextColor="#ffffff"
+            size="sm"
+            radius={9999}
+            holdTime={1500}
+            disabled={isSigningOut}
+            onHold={handleSignOut}
+            icon={<span className="material-symbols-outlined text-sm">logout</span>}
+            doneIcon={<span className="material-symbols-outlined text-sm">check_circle</span>}
+            className="border border-[#FCA5A5]/40"
+          >
+            Sign Out
+          </HoldButton>
+        ) : (
+          <Link
+            href="/history"
+            title="View Activity History"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] active:scale-95 transition-transform text-[#0F172A]"
+          >
+            <span className="material-symbols-outlined">settings</span>
+          </Link>
+        )}
       </div>
 
       {/* MAIN CONTENT CONTAINER */}
@@ -832,13 +891,33 @@ export default function ProfilePage({ params }: PageProps) {
           </div>
 
           {isMyProfile && (
-            <button
-              onClick={handleOpenEditModal}
-              className="flex items-center gap-1.5 bg-[#006948] hover:bg-[#00855d] text-white font-['Inter'] text-xs font-semibold px-4 py-2 rounded-full transition-all cursor-pointer shadow-xs active:scale-95 mb-4"
-            >
-              <span className="material-symbols-outlined text-sm">edit</span>
-              <span>Edit Profile</span>
-            </button>
+            <div className="flex items-center gap-2 mb-4">
+              <button
+                onClick={handleOpenEditModal}
+                className="flex items-center gap-1.5 bg-[#006948] hover:bg-[#00855d] text-white font-['Inter'] text-xs font-semibold px-4 py-2 rounded-full transition-all cursor-pointer shadow-xs active:scale-95"
+              >
+                <span className="material-symbols-outlined text-sm">edit</span>
+                <span>Edit Profile</span>
+              </button>
+
+              <HoldButton
+                doneLabel="Signed Out"
+                backgroundColor="#FEF2F2"
+                fillColor="#DC2626"
+                textColor="#DC2626"
+                fillTextColor="#ffffff"
+                size="sm"
+                radius={9999}
+                holdTime={1500}
+                disabled={isSigningOut}
+                onHold={handleSignOut}
+                icon={<span className="material-symbols-outlined text-sm">logout</span>}
+                doneIcon={<span className="material-symbols-outlined text-sm">check_circle</span>}
+                className="border border-[#FCA5A5]/40"
+              >
+                Sign Out
+              </HoldButton>
+            </div>
           )}
 
           {/* Karma Progress Container */}

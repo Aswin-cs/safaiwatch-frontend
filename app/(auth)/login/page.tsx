@@ -75,6 +75,21 @@ export default function AuthPage() {
   // State for session status differentiation
   const [isIncompleteAuth, setIsIncompleteAuth] = useState(false);
 
+  // Check for error URL search params (e.g. Google OAuth redirect errors)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const err = params.get("error");
+      if (err === "google_config_missing") {
+        setErrorMessage("Google OAuth is not fully configured on the server. Please check backend GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.");
+      } else if (err === "google_auth_failed") {
+        setErrorMessage("Google authentication was cancelled or failed. Please try again.");
+      } else if (err === "google_email_missing") {
+        setErrorMessage("Could not retrieve email from Google profile. Please try another sign-in method.");
+      }
+    }
+  }, []);
+
   // Check if user is authorized (normal vs incomplete)
   useEffect(() => {
     async function checkAuthStatus() {
