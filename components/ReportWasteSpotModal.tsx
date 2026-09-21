@@ -26,12 +26,11 @@ export default function ReportWasteSpotModal({
     droppedCoordinates ? [droppedCoordinates[0], droppedCoordinates[1]] : [11.7284, 76.2841]
   );
   const [isRecalibrating, setIsRecalibrating] = useState<boolean>(false);
-  const [address, setAddress] = useState<string>("MG Road Junction, Ward 14");
   const [description, setDescription] = useState<string>("");
 
   // Category & Severity State
   const [wasteCategory, setWasteCategory] = useState<string>("Plastics & Wraps");
-  const [severity, setSeverity] = useState<"low" | "medium" | "high">("medium");
+  const [severity, setSeverity] = useState<"low" | "medium" | "high" | "very_high">("medium");
 
   // File Upload State
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -42,14 +41,59 @@ export default function ReportWasteSpotModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Synchronize droppedCoordinates when opened
+  // Synchronize droppedCoordinates or fetch current live GPS spot location when opened
   useEffect(() => {
+    if (!isOpen) return;
+
     if (droppedCoordinates) {
       setCoords([droppedCoordinates[0], droppedCoordinates[1]]);
+    } else if (typeof window !== "undefined" && "geolocation" in navigator) {
+      setIsRecalibrating(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setCoords([pos.coords.latitude, pos.coords.longitude]);
+          setIsRecalibrating(false);
+        },
+        (err) => {
+          console.warn("GPS error fetching current spot location:", err);
+          setIsRecalibrating(false);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
     }
-  }, [droppedCoordinates]);
+  }, [isOpen, droppedCoordinates]);
 
   if (!isOpen) return null;
+
+  const normalizedRole = (userRole || "").trim().toLowerCase();
+  const isCoordinator = normalizedRole === "coordinator";
+
+  if (isCoordinator) {
+    return (
+      <div className="fixed inset-0 z-50 bg-[#131b2e]/70 backdrop-blur-md flex justify-center items-center p-4 animate-enter">
+        <div className="w-full max-w-md bg-[#faf8ff] text-[#131b2e] rounded-3xl shadow-2xl border border-[#dae2fd] overflow-hidden p-6 flex flex-col items-center text-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-[#ffdad6] text-[#93000a] flex items-center justify-center border border-[#ffb4ab]">
+            <span className="material-symbols-outlined text-3xl">block</span>
+          </div>
+          <div>
+            <h3 className="text-lg font-['Hanken_Grotesk'] font-bold text-[#131b2e]">
+              Action Restricted for Coordinators
+            </h3>
+            <p className="text-xs font-['Inter'] text-[#3d4a42] mt-2 leading-relaxed">
+              Waste spot reporting is exclusively available for <strong>Civilian</strong> and <strong>Hybrid</strong> user roles. Coordinators are not allowed to submit waste spot reports.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-3 px-5 rounded-xl bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] font-bold text-sm transition-all cursor-pointer shadow-md"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Real-time GPS Recalibration
   const handleRecalibrateGps = () => {
@@ -99,15 +143,24 @@ export default function ReportWasteSpotModal({
       criticalValue: "Low",
     },
     medium: {
-      title: "Municipal Crew SLA < 6 Hours",
+      title: "Municipal Crew SLA < 12 Hours",
       desc: "Dispatched directly to Ward 14 Sanitation Unit",
       icon: "timer",
+      colorBg: "bg-[#fef3c7]",
+      colorText: "text-[#78350f]",
+      badgeColor: "text-[#d97706]",
+      criticalValue: "Medium",
+    },
+    high: {
+      title: "Priority Crew SLA < 4 Hours",
+      desc: "Escalated to Urgent Sanitation Squad",
+      icon: "warning",
       colorBg: "bg-[#ffdbce]",
       colorText: "text-[#370e00]",
       badgeColor: "text-[#a33900]",
       criticalValue: "High",
     },
-    high: {
+    very_high: {
       title: "Emergency Team SLA < 45 Mins",
       desc: "Escalated to Hazardous Response & Pollution Board",
       icon: "e911_emergency",
@@ -135,11 +188,12 @@ export default function ReportWasteSpotModal({
     setSuccessMsg(null);
 
     try {
+      const formattedGeoLocation = `Lat ${coords[0].toFixed(6)}, Lng ${coords[1].toFixed(6)}`;
       const formData = new FormData();
-      formData.append("address", address || "MG Road Junction, Ward 14");
+      formData.append("address", formattedGeoLocation);
       formData.append(
         "description",
-        description.trim() || `${wasteCategory} reported at ${address || "Ward 14 Locality"}`
+        description.trim() || `${wasteCategory} reported at ${formattedGeoLocation}`
       );
       formData.append("critical", currentSla.criticalValue);
       formData.append("image", imageFile);
@@ -200,16 +254,7 @@ export default function ReportWasteSpotModal({
           </div>
         </header>
 
-        {/* Progress Tracker Ribbon */}
-        <div className="w-full bg-[#e2e7ff] px-4 py-2 flex flex-col gap-1 shrink-0">
-          <div className="flex items-center justify-between text-[11px] font-['JetBrains_Mono'] font-bold text-[#005137]">
-            <span>STEP 2 OF 4: LIVENESS &amp; SPOT PROOF</span>
-            <span>50%</span>
-          </div>
-          <div className="w-full h-1.5 bg-[#dae2fd] rounded-full overflow-hidden">
-            <div className="h-full bg-[#006948] rounded-full transition-all duration-500 w-1/2"></div>
-          </div>
-        </div>
+
 
         {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
@@ -267,7 +312,7 @@ export default function ReportWasteSpotModal({
                   </span>
 
                   <span className="bg-black/60 backdrop-blur-md text-white font-['JetBrains_Mono'] text-[10px] font-bold px-2 py-1 rounded-full">
-                    GNSS: 11.728°N
+                    GNSS: {coords[0].toFixed(4)}°N, {coords[1].toFixed(4)}°E
                   </span>
                 </div>
 
@@ -319,11 +364,10 @@ export default function ReportWasteSpotModal({
               <button
                 type="button"
                 onClick={() => setVerificationMode("hand")}
-                className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-['Hanken_Grotesk'] font-bold transition-all cursor-pointer ${
-                  verificationMode === "hand"
-                    ? "bg-white text-[#006948] shadow-xs"
-                    : "text-[#3d4a42] hover:text-[#131b2e]"
-                }`}
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-['Hanken_Grotesk'] font-bold transition-all cursor-pointer ${verificationMode === "hand"
+                  ? "bg-white text-[#006948] shadow-xs"
+                  : "text-[#3d4a42] hover:text-[#131b2e]"
+                  }`}
               >
                 <span className="material-symbols-outlined text-[16px]">front_hand</span>
                 <span>Hand Gesture</span>
@@ -332,11 +376,10 @@ export default function ReportWasteSpotModal({
               <button
                 type="button"
                 onClick={() => setVerificationMode("code")}
-                className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-['Hanken_Grotesk'] font-bold transition-all cursor-pointer ${
-                  verificationMode === "code"
-                    ? "bg-white text-[#006948] shadow-xs"
-                    : "text-[#3d4a42] hover:text-[#131b2e]"
-                }`}
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-['Hanken_Grotesk'] font-bold transition-all cursor-pointer ${verificationMode === "code"
+                  ? "bg-white text-[#006948] shadow-xs"
+                  : "text-[#3d4a42] hover:text-[#131b2e]"
+                  }`}
               >
                 <span className="material-symbols-outlined text-[16px]">draw</span>
                 <span>Code Word</span>
@@ -432,15 +475,16 @@ export default function ReportWasteSpotModal({
               <div className="flex flex-col min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-['Hanken_Grotesk'] font-bold text-[#131b2e] truncate">
-                    {address}
+                    GPS Coordinates
                   </h3>
                   <span className="inline-flex items-center gap-1 text-[10px] font-['JetBrains_Mono'] bg-[#85f8c4] text-[#002114] px-1.5 py-0.5 rounded font-bold whitespace-nowrap">
                     RTK GNSS
                   </span>
                 </div>
-                <span className="font-['JetBrains_Mono'] text-xs text-[#3d4a42] mt-0.5">
-                  {coords[0].toFixed(4)}° N, {coords[1].toFixed(4)}° E
-                </span>
+                <div className="font-['JetBrains_Mono'] text-xs font-bold text-[#006948] mt-0.5 flex items-center gap-3">
+                  <span>Lat: {coords[0].toFixed(6)}° N</span>
+                  <span>Lng: {coords[1].toFixed(6)}° E</span>
+                </div>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="inline-flex items-center gap-1 text-[11px] text-[#006948] font-semibold">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#006948]"></span>
@@ -449,21 +493,6 @@ export default function ReportWasteSpotModal({
                   <span className="text-[11px] text-[#3d4a42] font-['JetBrains_Mono']">• Drain Sector B</span>
                 </div>
               </div>
-            </div>
-
-            {/* Address Editable Input */}
-            <div className="mt-1">
-              <label className="block text-[11px] font-['JetBrains_Mono'] font-bold text-[#3d4a42] mb-1">
-                LOCATION / LANDMARK ADDRESS
-              </label>
-              <input
-                type="text"
-                required
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="e.g., MG Road Junction, Near Sector 14 Gate"
-                className="w-full bg-[#faf8ff] text-[#131b2e] text-xs font-semibold rounded-xl border border-[#bccac0]/60 px-3 py-2 focus:outline-none focus:border-[#006948] transition-all"
-              />
             </div>
           </div>
 
@@ -479,6 +508,7 @@ export default function ReportWasteSpotModal({
                 onChange={(e) => setWasteCategory(e.target.value)}
                 className="w-full appearance-none bg-white text-[#131b2e] text-sm font-semibold rounded-xl border border-[#bccac0]/60 px-3.5 py-2.5 pr-10 shadow-xs focus:outline-none focus:border-[#006948] transition-all cursor-pointer"
               >
+                <option value="Mixed Waste">Mixed Waste</option>
                 <option value="Plastics & Wraps">Plastics &amp; Wraps</option>
                 <option value="Organic / Food Waste">Organic / Food Waste</option>
                 <option value="E-Waste & Batteries">E-Waste &amp; Batteries</option>
@@ -517,16 +547,15 @@ export default function ReportWasteSpotModal({
             </div>
 
             {/* Segmented Risk Buttons */}
-            <div className="grid grid-cols-3 gap-2 bg-[#f2f3ff] p-1.5 rounded-2xl">
+            <div className="grid grid-cols-4 gap-1 bg-[#f2f3ff] p-1.5 rounded-2xl">
               {/* Low Risk */}
               <button
                 type="button"
                 onClick={() => setSeverity("low")}
-                className={`sev-btn py-2 px-2 rounded-xl text-center flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                  severity === "low"
-                    ? "bg-white shadow-md text-[#131b2e]"
-                    : "bg-transparent text-[#3d4a42] hover:text-[#131b2e]"
-                }`}
+                className={`sev-btn py-2 px-1 rounded-xl text-center flex flex-col items-center gap-1 transition-all cursor-pointer ${severity === "low"
+                  ? "bg-white shadow-md text-[#131b2e]"
+                  : "bg-transparent text-[#3d4a42] hover:text-[#131b2e]"
+                  }`}
               >
                 <div className="w-2.5 h-2.5 rounded-full bg-[#006948]"></div>
                 <span className={`text-xs font-['Hanken_Grotesk'] leading-none ${severity === "low" ? "font-bold text-[#006948]" : "font-semibold"}`}>
@@ -539,32 +568,46 @@ export default function ReportWasteSpotModal({
               <button
                 type="button"
                 onClick={() => setSeverity("medium")}
-                className={`sev-btn py-2 px-2 rounded-xl text-center flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                  severity === "medium"
-                    ? "bg-white shadow-md text-[#131b2e]"
-                    : "bg-transparent text-[#3d4a42] hover:text-[#131b2e]"
-                }`}
+                className={`sev-btn py-2 px-1 rounded-xl text-center flex flex-col items-center gap-1 transition-all cursor-pointer ${severity === "medium"
+                  ? "bg-white shadow-md text-[#131b2e]"
+                  : "bg-transparent text-[#3d4a42] hover:text-[#131b2e]"
+                  }`}
               >
-                <div className="w-2.5 h-2.5 rounded-full bg-[#a33900] animate-pulse"></div>
-                <span className={`text-xs font-['Hanken_Grotesk'] leading-none ${severity === "medium" ? "font-bold text-[#a33900]" : "font-semibold"}`}>
+                <div className="w-2.5 h-2.5 rounded-full bg-[#d97706] animate-pulse"></div>
+                <span className={`text-xs font-['Hanken_Grotesk'] leading-none ${severity === "medium" ? "font-bold text-[#d97706]" : "font-semibold"}`}>
                   Medium
                 </span>
                 <span className="text-[9px] font-['JetBrains_Mono'] text-[#3d4a42] leading-none">Blocking Drain</span>
               </button>
 
-              {/* Critical / High Risk */}
+              {/* High Risk */}
               <button
                 type="button"
                 onClick={() => setSeverity("high")}
-                className={`sev-btn py-2 px-2 rounded-xl text-center flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                  severity === "high"
-                    ? "bg-white shadow-md text-[#131b2e]"
-                    : "bg-transparent text-[#3d4a42] hover:text-[#131b2e]"
-                }`}
+                className={`sev-btn py-2 px-1 rounded-xl text-center flex flex-col items-center gap-1 transition-all cursor-pointer ${severity === "high"
+                  ? "bg-white shadow-md text-[#131b2e]"
+                  : "bg-transparent text-[#3d4a42] hover:text-[#131b2e]"
+                  }`}
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-[#a33900]"></div>
+                <span className={`text-xs font-['Hanken_Grotesk'] leading-none ${severity === "high" ? "font-bold text-[#a33900]" : "font-semibold"}`}>
+                  High
+                </span>
+                <span className="text-[9px] font-['JetBrains_Mono'] text-[#3d4a42] leading-none">Hazardous</span>
+              </button>
+
+              {/* Very High Risk */}
+              <button
+                type="button"
+                onClick={() => setSeverity("very_high")}
+                className={`sev-btn py-2 px-1 rounded-xl text-center flex flex-col items-center gap-1 transition-all cursor-pointer ${severity === "very_high"
+                  ? "bg-white shadow-md text-[#131b2e]"
+                  : "bg-transparent text-[#3d4a42] hover:text-[#131b2e]"
+                  }`}
               >
                 <div className="w-2.5 h-2.5 rounded-full bg-[#ba1a1a]"></div>
-                <span className={`text-xs font-['Hanken_Grotesk'] leading-none ${severity === "high" ? "font-bold text-[#ba1a1a]" : "font-semibold"}`}>
-                  Critical
+                <span className={`text-xs font-['Hanken_Grotesk'] leading-none ${severity === "very_high" ? "font-bold text-[#ba1a1a]" : "font-semibold"}`}>
+                  Very High
                 </span>
                 <span className="text-[9px] font-['JetBrains_Mono'] text-[#3d4a42] leading-none">Toxic / Water</span>
               </button>
