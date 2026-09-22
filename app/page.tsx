@@ -74,6 +74,9 @@ export default function HomePage() {
   // Selected Coordinates when user clicks on map to report a waste site
   const [droppedCoordinates, setDroppedCoordinates] = useState<[number, number] | null>(null);
 
+  // Role Restriction Notice toast state (for restricted actions like Coordinator attempting to report spot)
+  const [roleNotice, setRoleNotice] = useState<string | null>(null);
+
   // New Waste Report Modal state
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [newReportTitle, setNewReportTitle] = useState<string>("");
@@ -268,8 +271,8 @@ export default function HomePage() {
             typeof u.avatarUrl === "string" && u.avatarUrl
               ? u.avatarUrl
               : typeof u.avatar === "string" && u.avatar
-              ? u.avatar
-              : u.avatar?.url || u.avatarUrl?.url || "";
+                ? u.avatar
+                : u.avatar?.url || u.avatarUrl?.url || "";
 
           setUserProfile({
             _id: u._id || u.id,
@@ -288,8 +291,8 @@ export default function HomePage() {
                   typeof fu.avatarUrl === "string" && fu.avatarUrl
                     ? fu.avatarUrl
                     : typeof fu.avatar === "string" && fu.avatar
-                    ? fu.avatar
-                    : fu.avatar?.url || fu.avatarUrl?.url || "";
+                      ? fu.avatar
+                      : fu.avatar?.url || fu.avatarUrl?.url || "";
                 setUserProfile((prev) => (prev ? {
                   ...prev,
                   _id: fu._id || fu.id || prev._id,
@@ -307,8 +310,8 @@ export default function HomePage() {
             typeof meRes.user.avatarUrl === "string" && meRes.user.avatarUrl
               ? meRes.user.avatarUrl
               : typeof meRes.user.avatar === "string" && meRes.user.avatar
-              ? meRes.user.avatar
-              : meRes.user.avatar?.url || meRes.user.avatarUrl?.url || "";
+                ? meRes.user.avatar
+                : meRes.user.avatar?.url || meRes.user.avatarUrl?.url || "";
 
           setUserProfile({
             _id: meRes.user._id || meRes.user.id,
@@ -352,6 +355,30 @@ export default function HomePage() {
     } else if (hasAssignments) {
       spotStatus = "claimed";
     }
+
+    const rawCategory = spot.category || spot.wasteCategory || spot.wasteType;
+    let computedWasteType = rawCategory;
+    if (!computedWasteType || computedWasteType.startsWith("Lat ") || computedWasteType === "Waste Spot") {
+      const desc = spot.description || "";
+      const knownCategories = [
+        "Plastics & Wraps",
+        "Organic / Food Waste",
+        "E-Waste & Batteries",
+        "Construction Debris & Rubble",
+        "Medical & Hazardous Residue",
+        "Mixed Waste",
+        "Plastic Debris",
+      ];
+      const found = knownCategories.find((cat) => desc.toLowerCase().includes(cat.toLowerCase()));
+      computedWasteType = found || "Mixed Waste";
+    }
+
+    const spotAddress =
+      spot.address ||
+      (Array.isArray(spot.coordinates) && spot.coordinates.length === 2
+        ? `Lat ${spot.coordinates[1].toFixed(6)}, Lng ${spot.coordinates[0].toFixed(6)}`
+        : "Ward 14 Spot");
+
     return {
       id: spot._id || `spot-${Math.random()}`,
       lat: Array.isArray(spot.coordinates) && spot.coordinates.length === 2 ? spot.coordinates[1] : 28.6139,
@@ -359,8 +386,10 @@ export default function HomePage() {
       title: spot.description || spot.address || "Marked Spot",
       status: spotStatus,
       severity: spot.isCompleted ? "Resolved" : hasAssignments ? "Claimed" : (spot.critcal || "High"),
-      category: spot.address || "Waste Spot",
-      distance: spot.address || "Reported Spot",
+      category: computedWasteType,
+      wasteType: computedWasteType,
+      address: spotAddress,
+      distance: spotAddress,
       image: spot.image,
       markedBy: spot.markedBy,
       markedAt: spot.markedAt,
@@ -435,6 +464,16 @@ export default function HomePage() {
 
   // Handle map coordinate selection from Leaflet click event
   const handleSelectCoordinates = (coords: [number, number]) => {
+    const isCoordinator = (userProfile?.role || "").trim().toLowerCase() === "coordinator";
+    if (isCoordinator) {
+      setRoleNotice(
+        "Waste spot reporting is not available for Coordinators. Coordinators can view, claim, assign, and complete spots."
+      );
+      setSelectedReport(null);
+      setDroppedCoordinates(null);
+      return;
+    }
+    setRoleNotice(null);
     setDroppedCoordinates(coords);
     setSelectedReport(null);
   };
@@ -454,21 +493,7 @@ export default function HomePage() {
           if (fullSpot.isCompleted) spotStatus = "resolved";
           else if (hasAssignments) spotStatus = "claimed";
           const updatedReport: Report = {
-            ...report,
-            id: fullSpot._id || report.id,
-            lat: Array.isArray(fullSpot.coordinates) && fullSpot.coordinates.length === 2 ? fullSpot.coordinates[1] : report.lat,
-            lng: Array.isArray(fullSpot.coordinates) && fullSpot.coordinates.length === 2 ? fullSpot.coordinates[0] : report.lng,
-            title: fullSpot.description || fullSpot.address || report.title,
-            status: spotStatus,
-            severity: fullSpot.isCompleted ? "Resolved" : hasAssignments ? "Claimed" : (fullSpot.critcal || report.severity || "High"),
-            category: fullSpot.address || report.category,
-            image: fullSpot.image || report.image,
-            markedBy: fullSpot.markedBy || report.markedBy,
-            markedAt: fullSpot.markedAt || report.markedAt,
-            isCompleted: fullSpot.isCompleted ?? report.isCompleted,
-            isAssignedBy: fullSpot.isAssignedBy || report.isAssignedBy,
-            isCompletedBy: fullSpot.isCompletedBy || report.isCompletedBy,
-            critcal: fullSpot.critcal || report.critcal,
+            ...mapSpotToReport(fullSpot),
             volunteersNeeded: 3,
           };
           setSelectedReport(updatedReport);
@@ -477,13 +502,13 @@ export default function HomePage() {
             prev.map((r) =>
               r.id === report.id
                 ? {
-                    ...r,
-                    image: fullSpot.image || r.image,
-                    title: fullSpot.description || r.title,
-                    markedBy: fullSpot.markedBy || r.markedBy,
-                    markedAt: fullSpot.markedAt || r.markedAt,
-                    isCompleted: fullSpot.isCompleted ?? r.isCompleted,
-                  }
+                  ...r,
+                  image: fullSpot.image || r.image,
+                  title: fullSpot.description || r.title,
+                  markedBy: fullSpot.markedBy || r.markedBy,
+                  markedAt: fullSpot.markedAt || r.markedAt,
+                  isCompleted: fullSpot.isCompleted ?? r.isCompleted,
+                }
                 : r
             )
           );
@@ -575,11 +600,11 @@ export default function HomePage() {
           createdSpot?.markedBy ||
           (userProfile
             ? {
-                _id: userProfile._id,
-                username: userProfile.username || userProfile.name,
-                avatar: userProfile.avatarUrl,
-                role: userProfile.role,
-              }
+              _id: userProfile._id,
+              username: userProfile.username || userProfile.name,
+              avatar: userProfile.avatarUrl,
+              role: userProfile.role,
+            }
             : null);
 
         const newReport: Report = {
@@ -1147,10 +1172,10 @@ export default function HomePage() {
             {activeFilter === "all"
               ? `All (${reports.length})`
               : activeFilter === "critical"
-              ? `Critical (${criticalCount})`
-              : activeFilter === "assigned"
-              ? `Assigned (${assignedCount})`
-              : `Resolved (${resolvedCount})`}
+                ? `Critical (${criticalCount})`
+                : activeFilter === "assigned"
+                  ? `Assigned (${assignedCount})`
+                  : `Resolved (${resolvedCount})`}
           </span>
           <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-300 ${isFilterModalOpen ? "rotate-180 text-[#006948]" : ""}`} />
         </button>
@@ -1160,68 +1185,60 @@ export default function HomePage() {
       <div className="fixed top-19 left-1/2 -translate-x-1/2 z-35 w-[calc(100%-1.5rem)] max-w-xl hidden sm:flex items-center gap-2.5 overflow-x-auto hide-scrollbar no-scrollbar py-1 px-1">
         <button
           onClick={() => setActiveFilter("all")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${
-            activeFilter === "all"
-              ? "bg-[#131b2e] text-white border-[#131b2e] font-extrabold scale-105 shadow-md"
-              : "bg-white/95 backdrop-blur-md text-slate-700 border-slate-200/90 hover:bg-slate-50 hover:border-slate-300"
-          }`}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${activeFilter === "all"
+            ? "bg-[#131b2e] text-white border-[#131b2e] font-extrabold scale-105 shadow-md"
+            : "bg-white/95 backdrop-blur-md text-slate-700 border-slate-200/90 hover:bg-slate-50 hover:border-slate-300"
+            }`}
         >
           <Filter className={`w-3.5 h-3.5 ${activeFilter === "all" ? "text-emerald-400" : "text-[#006948]"}`} />
           <span>All Spots</span>
-          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
-            activeFilter === "all" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-800"
-          }`}>
+          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeFilter === "all" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-800"
+            }`}>
             {reports.length}
           </span>
         </button>
 
         <button
           onClick={() => setActiveFilter("critical")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${
-            activeFilter === "critical"
-              ? "bg-red-600 text-white border-red-600 font-extrabold scale-105 shadow-md"
-              : "bg-white/95 backdrop-blur-md text-red-600 border-red-200/80 hover:bg-red-50 hover:border-red-300"
-          }`}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${activeFilter === "critical"
+            ? "bg-red-600 text-white border-red-600 font-extrabold scale-105 shadow-md"
+            : "bg-white/95 backdrop-blur-md text-red-600 border-red-200/80 hover:bg-red-50 hover:border-red-300"
+            }`}
         >
           <AlertTriangle className="w-3.5 h-3.5" />
           <span>Critical</span>
-          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
-            activeFilter === "critical" ? "bg-white/20 text-white" : "bg-red-100 text-red-700"
-          }`}>
+          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeFilter === "critical" ? "bg-white/20 text-white" : "bg-red-100 text-red-700"
+            }`}>
             {criticalCount}
           </span>
         </button>
 
         <button
           onClick={() => setActiveFilter("assigned")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${
-            activeFilter === "assigned"
-              ? "bg-indigo-600 text-white border-indigo-600 font-extrabold scale-105 shadow-md"
-              : "bg-white/95 backdrop-blur-md text-indigo-600 border-indigo-200/80 hover:bg-indigo-50 hover:border-indigo-300"
-          }`}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${activeFilter === "assigned"
+            ? "bg-indigo-600 text-white border-indigo-600 font-extrabold scale-105 shadow-md"
+            : "bg-white/95 backdrop-blur-md text-indigo-600 border-indigo-200/80 hover:bg-indigo-50 hover:border-indigo-300"
+            }`}
         >
           <Navigation className="w-3.5 h-3.5" />
           <span>Assigned</span>
-          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
-            activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-700"
-          }`}>
+          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-700"
+            }`}>
             {assignedCount}
           </span>
         </button>
 
         <button
           onClick={() => setActiveFilter("resolved")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${
-            activeFilter === "resolved"
-              ? "bg-[#006948] text-white border-[#006948] font-extrabold scale-105 shadow-md"
-              : "bg-white/95 backdrop-blur-md text-emerald-700 border-emerald-200/80 hover:bg-emerald-50 hover:border-emerald-300"
-          }`}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${activeFilter === "resolved"
+            ? "bg-[#006948] text-white border-[#006948] font-extrabold scale-105 shadow-md"
+            : "bg-white/95 backdrop-blur-md text-emerald-700 border-emerald-200/80 hover:bg-emerald-50 hover:border-emerald-300"
+            }`}
         >
           <CheckCircle2 className="w-3.5 h-3.5" />
           <span>Resolved</span>
-          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
-            activeFilter === "resolved" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
-          }`}>
+          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeFilter === "resolved" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+            }`}>
             {resolvedCount}
           </span>
         </button>
@@ -1255,19 +1272,17 @@ export default function HomePage() {
                   setActiveFilter("all");
                   setIsFilterModalOpen(false);
                 }}
-                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${
-                  activeFilter === "all"
-                    ? "bg-[#131b2e] text-white border-[#131b2e] shadow-sm font-extrabold"
-                    : "bg-slate-50 text-slate-800 border-slate-200/80 hover:bg-slate-100"
-                }`}
+                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${activeFilter === "all"
+                  ? "bg-[#131b2e] text-white border-[#131b2e] shadow-sm font-extrabold"
+                  : "bg-slate-50 text-slate-800 border-slate-200/80 hover:bg-slate-100"
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <Filter className={`w-3.5 h-3.5 ${activeFilter === "all" ? "text-emerald-400" : "text-[#006948]"}`} />
                   <span className="text-xs font-extrabold">All Spots</span>
                 </div>
-                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                  activeFilter === "all" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-900"
-                }`}>
+                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${activeFilter === "all" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-900"
+                  }`}>
                   {reports.length}
                 </span>
               </button>
@@ -1277,19 +1292,17 @@ export default function HomePage() {
                   setActiveFilter("critical");
                   setIsFilterModalOpen(false);
                 }}
-                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${
-                  activeFilter === "critical"
-                    ? "bg-red-600 text-white border-red-600 shadow-sm font-extrabold"
-                    : "bg-slate-50 text-red-700 border-slate-200/80 hover:bg-red-50"
-                }`}
+                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${activeFilter === "critical"
+                  ? "bg-red-600 text-white border-red-600 shadow-sm font-extrabold"
+                  : "bg-slate-50 text-red-700 border-slate-200/80 hover:bg-red-50"
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-3.5 h-3.5" />
                   <span className="text-xs font-extrabold">Critical Severity</span>
                 </div>
-                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                  activeFilter === "critical" ? "bg-white/20 text-white" : "bg-red-100 text-red-700"
-                }`}>
+                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${activeFilter === "critical" ? "bg-white/20 text-white" : "bg-red-100 text-red-700"
+                  }`}>
                   {criticalCount}
                 </span>
               </button>
@@ -1299,19 +1312,17 @@ export default function HomePage() {
                   setActiveFilter("assigned");
                   setIsFilterModalOpen(false);
                 }}
-                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${
-                  activeFilter === "assigned"
-                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm font-extrabold"
-                    : "bg-slate-50 text-indigo-700 border-slate-200/80 hover:bg-indigo-50"
-                }`}
+                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${activeFilter === "assigned"
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm font-extrabold"
+                  : "bg-slate-50 text-indigo-700 border-slate-200/80 hover:bg-indigo-50"
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <Navigation className="w-3.5 h-3.5" />
                   <span className="text-xs font-extrabold">Assigned / In-Progress</span>
                 </div>
-                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                  activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-700"
-                }`}>
+                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-700"
+                  }`}>
                   {assignedCount}
                 </span>
               </button>
@@ -1321,19 +1332,17 @@ export default function HomePage() {
                   setActiveFilter("resolved");
                   setIsFilterModalOpen(false);
                 }}
-                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${
-                  activeFilter === "resolved"
-                    ? "bg-[#006948] text-white border-[#006948] shadow-sm font-extrabold"
-                    : "bg-slate-50 text-emerald-800 border-slate-200/80 hover:bg-emerald-50"
-                }`}
+                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${activeFilter === "resolved"
+                  ? "bg-[#006948] text-white border-[#006948] shadow-sm font-extrabold"
+                  : "bg-slate-50 text-emerald-800 border-slate-200/80 hover:bg-emerald-50"
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span className="text-xs font-extrabold">Cleaned / Resolved</span>
                 </div>
-                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                  activeFilter === "resolved" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
-                }`}>
+                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${activeFilter === "resolved" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+                  }`}>
                   {resolvedCount}
                 </span>
               </button>
@@ -1342,8 +1351,28 @@ export default function HomePage() {
         </>
       )}
 
+      {/* Role Restriction Toast Notice (e.g. for Coordinators) */}
+      {roleNotice && (
+        <div className="fixed top-32 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-md bg-amber-500/95 backdrop-blur-xl text-white rounded-2xl p-3.5 shadow-2xl flex items-center justify-between animate-enter border border-amber-400">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-amber-600/60 rounded-xl flex items-center justify-center shrink-0 border border-amber-300/40 text-white">
+              <AlertCircle className="w-4 h-4" />
+            </div>
+            <p className="font-bold text-xs leading-snug">
+              {roleNotice}
+            </p>
+          </div>
+          <button
+            onClick={() => setRoleNotice(null)}
+            className="p-1 hover:bg-amber-600/50 rounded-lg text-white/80 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Interactive Pin Drop Instruction Banner (White Theme) */}
-      {droppedCoordinates && (
+      {droppedCoordinates && (userProfile?.role || "").trim().toLowerCase() !== "coordinator" && (
         <div className="fixed top-32 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-md bg-white/95 backdrop-blur-xl text-[#131b2e] rounded-2xl p-4 shadow-2xl flex items-center justify-between animate-enter border border-slate-200">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0 border border-emerald-200 text-[#006948]">
@@ -1384,13 +1413,12 @@ export default function HomePage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span
-                className={`text-[10px] font-mono font-extrabold px-2.5 py-1 rounded-lg uppercase flex items-center gap-1 border ${
-                  selectedReport.status === "critical"
-                    ? "bg-red-50 text-red-700 border-red-200"
-                    : selectedReport.status === "claimed"
+                className={`text-[10px] font-mono font-extrabold px-2.5 py-1 rounded-lg uppercase flex items-center gap-1 border ${selectedReport.status === "critical"
+                  ? "bg-red-50 text-red-700 border-red-200"
+                  : selectedReport.status === "claimed"
                     ? "bg-indigo-50 text-indigo-700 border-indigo-200"
                     : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                }`}
+                  }`}
               >
                 {selectedReport.status === "critical" ? (
                   <AlertTriangle className="w-3 h-3 text-red-600" />
@@ -1449,8 +1477,9 @@ export default function HomePage() {
                   {selectedReport.title}
                 </h3>
                 {selectedReport.category && (
-                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                    <span className="font-semibold text-slate-700">Category:</span> {selectedReport.category}
+                  <p className="text-xs text-[#006948] font-semibold mt-1 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#006948]"></span>
+                    <span>Waste Type: <strong>{selectedReport.wasteType || selectedReport.category}</strong></span>
                   </p>
                 )}
               </div>
@@ -1458,7 +1487,7 @@ export default function HomePage() {
               {/* Marked By Summary */}
               {markedByDetails && (
                 <Link
-                  href={`/profile/${encodeURIComponent(markedByDetails._id || markedByDetails.username)}`}
+                  href={`/profile/${encodeURIComponent(markedByDetails.username)}`}
                   className="flex items-center gap-2 text-xs text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-xl border border-slate-200 hover:bg-slate-200/80 transition-colors cursor-pointer"
                   title={`View profile of @${markedByDetails.username}`}
                 >
@@ -1494,7 +1523,7 @@ export default function HomePage() {
                   {assignedByDetailsList.map((assignedUser: any, idx: number) => (
                     <Link
                       key={assignedUser._id || idx}
-                      href={`/profile/${encodeURIComponent(assignedUser._id || assignedUser.username)}`}
+                      href={`/profile/${encodeURIComponent(assignedUser.username)}`}
                       className="flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50/80 px-2.5 py-1 rounded-xl border border-indigo-200/60 hover:bg-indigo-100/80 transition-colors cursor-pointer"
                       title={`View profile of @${assignedUser.username}`}
                     >
@@ -1542,8 +1571,8 @@ export default function HomePage() {
             </button>
 
             {routingTarget &&
-            routingTarget[0] === selectedReport.lat &&
-            routingTarget[1] === selectedReport.lng ? (
+              routingTarget[0] === selectedReport.lat &&
+              routingTarget[1] === selectedReport.lng ? (
               <button
                 onClick={() => setRoutingTarget(null)}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-red-500 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95"
@@ -1660,9 +1689,8 @@ export default function HomePage() {
         {/* Map Tab */}
         <button
           onClick={() => setActiveTab("map")}
-          className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === "map" ? "text-[#006948] scale-110 font-extrabold" : "text-slate-500 hover:text-[#006948]"
-          }`}
+          className={`flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === "map" ? "text-[#006948] scale-110 font-extrabold" : "text-slate-500 hover:text-[#006948]"
+            }`}
         >
           <MapIcon className="w-5 h-5" />
           <span className="text-[10px] mt-0.5">Map</span>
@@ -1680,6 +1708,13 @@ export default function HomePage() {
         {/* Plus Action Dispatch Button */}
         <button
           onClick={() => {
+            const isCoordinator = (userProfile?.role || "").trim().toLowerCase() === "coordinator";
+            if (isCoordinator) {
+              setRoleNotice(
+                "Waste spot reporting is not available for Coordinators. Coordinators can view, claim, assign, and complete spots."
+              );
+              return;
+            }
             setActiveTab("add");
             alert("Click anywhere on the map to drop a geotagged pin!");
           }}
@@ -1825,15 +1860,14 @@ export default function HomePage() {
                 <div>
                   <span className="text-xs font-semibold text-slate-500 block mb-0.5">Status &amp; Severity</span>
                   <span
-                    className={`text-xs font-mono font-extrabold px-3 py-1 rounded-full uppercase border ${
-                      selectedReport.status === "critical"
-                        ? "bg-red-100 text-red-700 border-red-200"
-                        : selectedReport.status === "moderate"
+                    className={`text-xs font-mono font-extrabold px-3 py-1 rounded-full uppercase border ${selectedReport.status === "critical"
+                      ? "bg-red-100 text-red-700 border-red-200"
+                      : selectedReport.status === "moderate"
                         ? "bg-amber-100 text-amber-800 border-amber-200"
                         : selectedReport.status === "claimed"
-                        ? "bg-indigo-100 text-indigo-800 border-indigo-200"
-                        : "bg-emerald-100 text-emerald-800 border-emerald-200"
-                    }`}
+                          ? "bg-indigo-100 text-indigo-800 border-indigo-200"
+                          : "bg-emerald-100 text-emerald-800 border-emerald-200"
+                      }`}
                   >
                     {selectedReport.severity || selectedReport.status}
                   </span>
@@ -1848,54 +1882,74 @@ export default function HomePage() {
               </div>
 
               {/* Marked By / Reporter Card */}
-              {markedByDetails && (
-                <div className="bg-[#006948]/5 border border-[#006948]/20 rounded-2xl p-3.5 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full bg-emerald-100 border-2 border-[#006948]/40 overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
-                      {markedByDetails.avatarUrl ? (
-                        <img
-                          src={markedByDetails.avatarUrl}
-                          alt={markedByDetails.username}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80";
-                          }}
-                        />
-                      ) : (
-                        <User className="w-5 h-5 text-[#006948]" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-['Hanken_Grotesk'] text-sm font-extrabold text-slate-900">
-                          {markedByDetails.username}
-                        </span>
-                        <span className="text-[10px] font-mono font-extrabold bg-[#006948]/15 text-[#006948] px-2 py-0.5 rounded-full uppercase border border-[#006948]/25">
-                          {markedByDetails.role}
-                        </span>
+              {markedByDetails && (() => {
+                const cardInner = (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-full bg-emerald-100 border-2 border-[#006948]/40 overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
+                        {markedByDetails.avatarUrl ? (
+                          <img
+                            src={markedByDetails.avatarUrl}
+                            alt={markedByDetails.username}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src =
+                                "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80";
+                            }}
+                          />
+                        ) : (
+                          <User className="w-5 h-5 text-[#006948]" />
+                        )}
                       </div>
-                      <span className="text-[11px] text-slate-500 font-mono block mt-0.5">
-                        {selectedReport.markedAt
-                          ? `Marked on ${new Date(selectedReport.markedAt).toLocaleDateString("en-US", {
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-['Hanken_Grotesk'] text-sm font-extrabold text-slate-900 group-hover:text-[#006948] transition-colors">
+                            {markedByDetails.username}
+                          </span>
+                          <span className="text-[10px] font-mono font-extrabold bg-[#006948]/15 text-[#006948] px-2 py-0.5 rounded-full uppercase border border-[#006948]/25">
+                            {markedByDetails.role}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-mono block mt-0.5">
+                          {selectedReport.markedAt
+                            ? `Marked on ${new Date(selectedReport.markedAt).toLocaleDateString("en-US", {
                               month: "short",
                               day: "numeric",
                               year: "numeric",
                               hour: "2-digit",
                               minute: "2-digit",
                             })}`
-                          : "Reported Spot Creator"}
-                      </span>
+                            : "Reported Spot Creator"}
+                        </span>
+                      </div>
                     </div>
-                  </div>
 
-                  {isReportedByCurrentUser && (
-                    <span className="text-xs font-bold text-amber-800 bg-amber-100 px-3 py-1.5 rounded-xl border border-amber-300 shrink-0 shadow-xs">
-                      Your Spot
-                    </span>
-                  )}
-                </div>
-              )}
+                    {isReportedByCurrentUser ? (
+                      <span className="text-xs font-bold text-amber-800 bg-amber-100 px-3 py-1.5 rounded-xl border border-amber-300 shrink-0 shadow-xs">
+                        Your Spot
+                      </span>
+                    ) : (
+                      <span className="text-xs font-bold text-[#006948] bg-[#006948]/10 group-hover:bg-[#006948]/20 px-3 py-1.5 rounded-xl border border-[#006948]/30 shrink-0 shadow-xs flex items-center gap-1 transition-colors">
+                        View Profile &rarr;
+                      </span>
+                    )}
+                  </>
+                );
+
+                return !isReportedByCurrentUser ? (
+                  <Link
+                    href={`/profile/${encodeURIComponent(markedByDetails.username)}`}
+                    className="group bg-[#006948]/5 hover:bg-[#006948]/10 border border-[#006948]/20 hover:border-[#006948]/40 rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all cursor-pointer"
+                    title={`View profile of @${markedByDetails.username}`}
+                  >
+                    {cardInner}
+                  </Link>
+                ) : (
+                  <div className="bg-[#006948]/5 border border-[#006948]/20 rounded-2xl p-3.5 flex items-center justify-between gap-3">
+                    {cardInner}
+                  </div>
+                );
+              })()}
 
               {/* Completed By Card (shown if spot is completed) */}
               {(selectedReport.isCompleted || completedByDetails) && (
@@ -1928,12 +1982,12 @@ export default function HomePage() {
                       <span className="text-[11px] text-emerald-700 font-mono block mt-0.5">
                         {completedByDetails?.completedAt
                           ? `Completed on ${new Date(completedByDetails.completedAt).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}`
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}`
                           : "Resolved Spot Hero"}
                       </span>
                     </div>
@@ -2009,9 +2063,17 @@ export default function HomePage() {
               )}
 
               <div>
+                <span className="text-xs font-semibold text-slate-500 block mb-1">Waste Type / Category</span>
+                <div className="flex items-center gap-2 bg-[#006948]/10 border border-[#006948]/25 p-3 rounded-xl text-[#006948] font-bold text-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#006948]"></span>
+                  <span>{selectedReport.wasteType || selectedReport.category || "Mixed Waste"}</span>
+                </div>
+              </div>
+
+              <div>
                 <span className="text-xs font-semibold text-slate-500 block mb-1">Address / Location</span>
                 <p className="font-bold text-slate-900 text-sm bg-white p-3 rounded-xl border border-slate-200">
-                  {selectedReport.category || selectedReport.distance || "Ward 14 Locality"}
+                  {selectedReport.address || selectedReport.distance || "Ward 14 Locality"}
                 </p>
               </div>
 
@@ -2034,8 +2096,8 @@ export default function HomePage() {
               </button>
 
               {routingTarget &&
-              routingTarget[0] === selectedReport.lat &&
-              routingTarget[1] === selectedReport.lng ? (
+                routingTarget[0] === selectedReport.lat &&
+                routingTarget[1] === selectedReport.lng ? (
                 <button
                   type="button"
                   onClick={() => {

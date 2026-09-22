@@ -1087,87 +1087,164 @@ export default function ProfilePage({ params }: PageProps) {
           )}
         </section>
 
-        {/* 3. STREAK SANCTUARY SECTION (MY PROFILE ONLY) */}
-        {isMyProfile && (
-          <section className="bg-white rounded-[24px] p-6 border border-[#E2E8F0] premium-shadow">
-            <div className="flex justify-between items-start mb-6">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#FFF7ED] flex items-center justify-center text-[#F97316] shadow-xs">
-                  <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    local_fire_department
+        {/* 3. RE-DESIGNED PREMIUM STREAK SANCTUARY SECTION (MY PROFILE ONLY) */}
+        {isMyProfile && (() => {
+          const getStreakLevel = (count: number) => {
+            if (count >= 30) return { multiplier: "2.0x", title: "Neighborhood Titan", target: 50, xpBonus: "+500 XP" };
+            if (count >= 14) return { multiplier: "1.75x", title: "Civic Defender", target: 30, xpBonus: "+300 XP" };
+            if (count >= 7) return { multiplier: "1.5x", title: "Weekly Champion", target: 14, xpBonus: "+150 XP" };
+            if (count >= 3) return { multiplier: "1.25x", title: "Ranger Spotter", target: 7, xpBonus: "+75 XP" };
+            if (count > 0) return { multiplier: "1.1x", title: "Novice Ranger", target: 3, xpBonus: "+25 XP" };
+            return { multiplier: "1.0x", title: "Seedling", target: 3, xpBonus: "+25 XP" };
+          };
+
+          const currentStreakLevel = getStreakLevel(streaksCount);
+          const todayWeekDay = (weekDays || []).find((d: any) => d.isToday);
+          const isActiveToday = Boolean(todayWeekDay?.isActive);
+          const totalActiveDaysCount = Array.isArray(userRewards?.activeDays) ? userRewards.activeDays.length : (streaksCount > 0 ? streaksCount : 0);
+          const streakProgressPercent = Math.min(100, Math.round((streaksCount / currentStreakLevel.target) * 100));
+
+          return (
+            <section className="relative overflow-hidden bg-white text-slate-800 rounded-[24px] p-6 shadow-sm border border-[#E2E8F0] animate-enter">
+              {/* Header Status Bar */}
+              <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-5 border-b border-slate-100">
+                <div className="flex items-center gap-3.5">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
+                    isActiveToday
+                      ? "bg-gradient-to-br from-amber-500 to-orange-600 border-amber-400/40 text-white"
+                      : streaksCount > 0
+                      ? "bg-[#006948] border-emerald-600/40 text-white"
+                      : "bg-slate-100 border-slate-200 text-slate-400"
+                  }`}>
+                    <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                      {isActiveToday ? "local_fire_department" : streaksCount > 0 ? "bolt" : "ac_unit"}
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-['Hanken_Grotesk'] text-2xl font-extrabold text-[#0F172A] leading-none">
+                        {streaksCount} {streaksCount === 1 ? "Day" : "Days"} Streak
+                      </h3>
+                      <span className={`text-[10px] font-['JetBrains_Mono'] font-extrabold px-2.5 py-0.5 rounded-full uppercase border tracking-wider ${
+                        isActiveToday
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : streaksCount > 0
+                          ? "bg-amber-50 text-amber-700 border-amber-200"
+                          : "bg-slate-100 text-slate-600 border-slate-200"
+                      }`}>
+                        {isActiveToday ? "🔥 ACTIVE TODAY" : streaksCount > 0 ? "⚡ AT RISK (1 ACTION NEEDED)" : "❄️ START A NEW STREAK"}
+                      </span>
+                    </div>
+
+                    <p className="font-['Inter'] text-xs text-slate-500 mt-1 flex items-center gap-2">
+                      <span className="text-amber-600 font-bold flex items-center gap-1">
+                        <span className="material-symbols-outlined text-sm text-amber-500">bolt</span>
+                        {currentStreakLevel.multiplier} Karma Multiplier ({currentStreakLevel.title})
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Freeze Shield Pill */}
+                <button
+                  type="button"
+                  onClick={handleFreezeToggle}
+                  className="bg-blue-50 hover:bg-blue-100/80 text-[#2563EB] px-4 py-2 rounded-2xl flex items-center gap-2 border border-blue-200 transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0"
+                >
+                  <span className="material-symbols-outlined text-base text-[#2563EB]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    shield
+                  </span>
+                  <span className="font-['JetBrains_Mono'] text-xs font-extrabold tracking-wider">
+                    {freezeShields} FREEZE SHIELD{freezeShields !== 1 ? "S" : ""}
+                  </span>
+                </button>
+              </div>
+
+              {/* 7-Day Interactive Streak Calendar Nodes */}
+              <div className="relative z-10 mb-6">
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <span className="text-xs font-['JetBrains_Mono'] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-sm text-[#006948]">calendar_month</span>
+                    Weekly Activity Tracker
+                  </span>
+                  <span className="text-xs font-['JetBrains_Mono'] font-bold text-[#006948] bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/80">
+                    {totalActiveDaysCount} Total Active Days
                   </span>
                 </div>
-                <div>
-                  <h3 className="font-['Hanken_Grotesk'] text-xl font-bold text-[#131b2e]">
-                    {streaksCount > 0 ? `${streaksCount}-Day Activity Streak` : "Daily Activity Streak"}
-                  </h3>
-                  <p className="font-['Inter'] text-xs text-[#F97316] font-semibold flex items-center gap-1 mt-0.5">
-                    <span className="material-symbols-outlined text-sm">bolt</span>
-                    {karmaMultiplier} Karma multiplier active
-                  </p>
+
+                <div className="flex justify-between items-center px-2 py-3 bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] overflow-x-auto">
+                  {weekDays.map((item: any, idx: number) => {
+                    const isLast = idx === weekDays.length - 1;
+                    let circleClass = "bg-white text-slate-300 border border-slate-200";
+                    let icon = "remove";
+                    let labelColor = "text-slate-400";
+
+                    if (item.isToday) {
+                      labelColor = "text-amber-600 font-extrabold";
+                      if (item.isActive) {
+                        circleClass = "bg-gradient-to-br from-amber-500 to-orange-600 text-white border border-amber-400/40 scale-105 z-10";
+                        icon = "local_fire_department";
+                      } else {
+                        circleClass = "bg-amber-50 text-amber-600 border-2 border-amber-500 scale-105 z-10";
+                        icon = "local_fire_department";
+                      }
+                    } else if (item.isActive) {
+                      circleClass = "bg-[#006948] text-white border border-[#006948]";
+                      icon = "check";
+                    } else if (item.isPast) {
+                      circleClass = "bg-slate-100 text-slate-400 border border-slate-200";
+                      icon = "close";
+                    }
+
+                    return (
+                      <React.Fragment key={idx}>
+                        <div className="flex flex-col items-center gap-1.5 shrink-0 px-1 sm:px-2">
+                          <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center font-bold transition-all ${circleClass}`}>
+                            <span className="material-symbols-outlined text-lg font-bold" style={item.isToday || icon === "local_fire_department" ? { fontVariationSettings: "'FILL' 1" } : {}}>
+                              {icon}
+                            </span>
+                          </div>
+                          <span className={`font-['JetBrains_Mono'] text-[10px] font-bold ${labelColor}`}>{item.day}</span>
+                        </div>
+                        {!isLast && (
+                          <div className={`flex-1 h-[2px] mx-1 min-w-[8px] rounded-full ${item.isActive ? "bg-[#006948]" : "bg-slate-200"}`}></div>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
               </div>
 
-              <button
-                onClick={handleFreezeToggle}
-                className="bg-[#EFF6FF] hover:bg-[#DBEAFE] text-[#2563EB] px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-[#BFDBFE] transition-colors cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  shield
-                </span>
-                <span className="font-['JetBrains_Mono'] text-[10px] font-bold">{freezeShields} FREEZE</span>
-              </button>
-            </div>
+              {/* Streak Milestone Progression Card */}
+              <div className="relative z-10 bg-[#F8FAFC] rounded-2xl p-4 border border-[#E2E8F0] flex flex-col gap-2">
+                <div className="flex items-center justify-between text-xs flex-wrap gap-1">
+                  <span className="font-['Hanken_Grotesk'] font-bold text-slate-700 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-amber-500 text-base" style={{ fontVariationSettings: "'FILL' 1" }}>
+                      military_tech
+                    </span>
+                    <span>Next Milestone: <strong className="text-[#0F172A]">{currentStreakLevel.title}</strong> ({currentStreakLevel.target} Days)</span>
+                  </span>
+                  <span className="font-['JetBrains_Mono'] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/80">
+                    {currentStreakLevel.xpBonus}
+                  </span>
+                </div>
 
-            <div className="flex justify-between items-center mb-5 px-2 overflow-x-auto py-1">
-              {weekDays.map((item: any, idx: number) => {
-                const isLast = idx === weekDays.length - 1;
-                let circleClass = "bg-[#F1F5F9] text-[#94A3B8] border border-[#E2E8F0]";
-                let icon = "remove";
-                let labelColor = "text-[#6d7a72]";
+                <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden border border-slate-300/60">
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-500 via-orange-500 to-[#006948] rounded-full transition-all duration-500"
+                    style={{ width: `${streakProgressPercent}%` }}
+                  ></div>
+                </div>
 
-                if (item.isToday) {
-                  labelColor = "text-[#F97316] font-extrabold";
-                  if (item.isActive) {
-                    circleClass = "bg-[#F97316] text-white pulse-flame z-10 shadow-md";
-                    icon = "local_fire_department";
-                  } else {
-                    circleClass = "bg-[#FFF7ED] text-[#F97316] border-2 border-[#F97316] pulse-flame z-10 shadow-xs";
-                    icon = "local_fire_department";
-                  }
-                } else if (item.isActive) {
-                  circleClass = "bg-[#10B981] text-white shadow-xs";
-                  icon = "check";
-                } else if (item.isPast) {
-                  circleClass = "bg-[#F1F5F9] text-[#94A3B8] border border-[#CBD5E1]";
-                  icon = "close";
-                }
-
-                return (
-                  <React.Fragment key={idx}>
-                    <div className="flex flex-col items-center gap-1.5 shrink-0">
-                      <div className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center font-bold transition-all ${circleClass}`}>
-                        <span className="material-symbols-outlined text-base font-bold" style={item.isToday || icon === "local_fire_department" ? { fontVariationSettings: "'FILL' 1" } : {}}>
-                          {icon}
-                        </span>
-                      </div>
-                      <span className={`font-['JetBrains_Mono'] text-[10px] font-bold ${labelColor}`}>{item.day}</span>
-                    </div>
-                    {!isLast && (
-                      <div className={`flex-1 h-[2px] mx-1 md:mx-2 min-w-[8px] ${item.isActive ? "bg-[#10B981]" : "bg-[#E2E8F0]"}`}></div>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-
-            <div className="text-center pt-3 border-t border-[#E2E8F0]">
-              <span className="font-['Inter'] text-xs text-[#6d7a72]">
-                Longest Streak: <strong className="text-[#0F172A] font-bold">{longestStreak} {longestStreak === 1 ? "Day" : "Days"}</strong>
-              </span>
-            </div>
-          </section>
-        )}
+                <div className="flex justify-between items-center text-[10px] font-['JetBrains_Mono'] text-slate-500 font-bold pt-0.5">
+                  <span>Current: {streaksCount} Days</span>
+                  <span>Longest Record: <strong className="text-[#0F172A]">{longestStreak} Days</strong></span>
+                </div>
+              </div>
+            </section>
+          );
+        })()}
 
         {/* 4. CIVIC IMPACT BENTO GRID */}
         <section className="grid grid-cols-3 gap-3 md:gap-4">

@@ -259,6 +259,13 @@ export const spotsApi = {
       method: 'DELETE',
     });
   },
+
+  getRandomGestureVerification: async (params?: { userId?: string; coordinates?: [number, number] }) => {
+    return request<{ imageId?: string; imageUrl?: string }>('/api/v1/spots/gesture-verification', {
+      method: 'POST',
+      body: JSON.stringify(params || {}),
+    });
+  },
 };
 
 export interface FeedPost {

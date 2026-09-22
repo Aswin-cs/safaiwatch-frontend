@@ -21,6 +21,11 @@ export default function ReportWasteSpotModal({
   // Verification Mode Tab State
   const [verificationMode, setVerificationMode] = useState<"hand" | "code">("hand");
 
+  // Gesture Verification State
+  const [gestureImageUrl, setGestureImageUrl] = useState<string | null>(null);
+  const [gestureId, setGestureId] = useState<string | null>(null);
+  const [isLoadingGesture, setIsLoadingGesture] = useState<boolean>(false);
+
   // Telemetry / Location State
   const [coords, setCoords] = useState<[number, number]>(
     droppedCoordinates ? [droppedCoordinates[0], droppedCoordinates[1]] : [11.7284, 76.2841]
@@ -62,6 +67,37 @@ export default function ReportWasteSpotModal({
       );
     }
   }, [isOpen, droppedCoordinates]);
+
+  // Fetch random gesture verification photo and ID when modal is open and mode is "hand"
+  useEffect(() => {
+    if (!isOpen || verificationMode !== "hand") return;
+
+    let isMounted = true;
+    const fetchGesture = async () => {
+      setIsLoadingGesture(true);
+      try {
+        const geoCoords: [number, number] = [coords[1], coords[0]];
+        const res = await spotsApi.getRandomGestureVerification({ coordinates: geoCoords });
+        if (isMounted && res && res.success) {
+          const imgUrl = (res as any).imageUrl || (res as any).data?.imageUrl;
+          const imgId = (res as any).imageId || (res as any).data?.imageId;
+          if (imgUrl) setGestureImageUrl(imgUrl);
+          if (imgId) setGestureId(imgId);
+        }
+      } catch (err) {
+        console.error("Failed to fetch gesture verification photo:", err);
+      } finally {
+        if (isMounted) {
+          setIsLoadingGesture(false);
+        }
+      }
+    };
+
+    fetchGesture();
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, verificationMode, coords]);
 
   if (!isOpen) return null;
 
@@ -191,6 +227,8 @@ export default function ReportWasteSpotModal({
       const formattedGeoLocation = `Lat ${coords[0].toFixed(6)}, Lng ${coords[1].toFixed(6)}`;
       const formData = new FormData();
       formData.append("address", formattedGeoLocation);
+      formData.append("category", wasteCategory);
+      formData.append("wasteType", wasteCategory);
       formData.append(
         "description",
         description.trim() || `${wasteCategory} reported at ${formattedGeoLocation}`
@@ -202,6 +240,12 @@ export default function ReportWasteSpotModal({
       const geoCoords = [coords[1], coords[0]];
       formData.append("coordinates", JSON.stringify(geoCoords));
       formData.append("userLocation", JSON.stringify(geoCoords));
+
+      if (gestureId) {
+        formData.append("gestureVerificationId", gestureId);
+        formData.append("gestureImageId", gestureId);
+        formData.append("gestureId", gestureId);
+      }
 
       const res = await spotsApi.createSpot(formData);
 
@@ -389,20 +433,32 @@ export default function ReportWasteSpotModal({
             {/* Hand Gesture Content */}
             {verificationMode === "hand" ? (
               <div className="flex items-center gap-3.5 bg-[#f2f3ff] p-2.5 rounded-xl border border-[#dae2fd]/60">
-                <div className="relative w-20 h-24 rounded-lg overflow-hidden shrink-0 border border-[#bccac0]/40 bg-[#eaedff]">
-                  <img
-                    src="https://res.cloudinary.com/pwtmlbit/image/upload/v1789486427/gestures_Hand_holding_three_fingers_up_20260915102611.png"
-                    alt="Hand holding up 3 fingers instructional gesture"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        "https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80";
-                    }}
-                  />
+                <div className="relative w-20 h-24 rounded-lg overflow-hidden shrink-0 border border-[#bccac0]/40 bg-[#eaedff] flex items-center justify-center">
+                  {isLoadingGesture ? (
+                    <div className="flex flex-col items-center justify-center p-2 text-[#006948]">
+                      <span className="material-symbols-outlined text-2xl animate-spin">
+                        progress_activity
+                      </span>
+                      <span className="text-[9px] font-['JetBrains_Mono'] font-bold mt-1">Loading...</span>
+                    </div>
+                  ) : (
+                    <img
+                      src={
+                        gestureImageUrl ||
+                        "https://res.cloudinary.com/pwtmlbit/image/upload/v1789486427/gestures_Hand_holding_three_fingers_up_20260915102611.png"
+                      }
+                      alt="Instructional hand gesture for optical verification"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          "https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80";
+                      }}
+                    />
+                  )}
                 </div>
                 <div className="flex flex-col min-w-0 flex-1">
                   <div className="flex items-center gap-1 text-xs font-['Hanken_Grotesk'] font-bold text-[#131b2e] mb-0.5">
-                    <span>Raise 3 Fingers Clearly</span>
+                    <span>Perform Required Gesture</span>
                     <span className="text-xs">✌️☝️</span>
                   </div>
                   <p className="text-[11px] font-['Inter'] text-[#3d4a42] leading-tight mb-2">
@@ -410,7 +466,9 @@ export default function ReportWasteSpotModal({
                   </p>
                   <div className="inline-flex items-center gap-1.5 text-[10px] font-['JetBrains_Mono'] text-[#006948] font-bold">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#006948] animate-pulse"></span>
-                    <span>Optical Anti-Spoofing Active</span>
+                    <span>
+                      {gestureId ? `Verification ID: ${gestureId.slice(-6)}` : "Optical Anti-Spoofing Active"}
+                    </span>
                   </div>
                 </div>
               </div>

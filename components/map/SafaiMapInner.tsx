@@ -42,6 +42,8 @@ export interface Report {
   status: "critical" | "moderate" | "claimed" | "resolved";
   severity?: string;
   category?: string;
+  wasteType?: string;
+  address?: string;
   volunteersNeeded?: number;
   distance?: string;
   image?: string;
