@@ -26,6 +26,22 @@ export default function ReportWasteSpotModal({
   const [gestureId, setGestureId] = useState<string | null>(null);
   const [isLoadingGesture, setIsLoadingGesture] = useState<boolean>(false);
 
+  // Code Verification State
+  const [codeText, setCodeText] = useState<string | null>(null);
+  const [codeId, setCodeId] = useState<string | null>(null);
+  const [isLoadingCode, setIsLoadingCode] = useState<boolean>(false);
+
+  // Verification Countdown Timer State (3 mins = 180s for gesture, 5 mins = 300s for code)
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+
+  // Switch Lock State (max 4 mode switches allowed per modal session)
+  const [switchCount, setSwitchCount] = useState<number>(0);
+
+  // Refresh Quota State: max 3 refreshes before timer expiry, max 2 refreshes after timer expiry
+  const [refreshCountBeforeExpiry, setRefreshCountBeforeExpiry] = useState<number>(0);
+  const [refreshCountAfterExpiry, setRefreshCountAfterExpiry] = useState<number>(0);
+
   // Telemetry / Location State
   const [coords, setCoords] = useState<[number, number]>(
     droppedCoordinates ? [droppedCoordinates[0], droppedCoordinates[1]] : [11.7284, 76.2841]
@@ -46,9 +62,97 @@ export default function ReportWasteSpotModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Formatter for MM:SS timer display
+  const formatTimeLeft = (seconds: number | null): string => {
+    if (seconds === null) return "--:--";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
+  // Mode Switch Handler with 4-switch lock rule
+  const handleSelectMode = (newMode: "hand" | "code") => {
+    if (newMode === verificationMode) return;
+
+    if (switchCount >= 4) {
+      setErrorMsg("Maximum verification mode switches reached (4/4). Mode selection is locked.");
+      return;
+    }
+
+    setSwitchCount((prev) => prev + 1);
+    setVerificationMode(newMode);
+    setErrorMsg(null);
+  };
+
+  // Helper function to reset all form fields and states
+  const resetFormState = () => {
+    setDescription("");
+    setImageFile(null);
+    setImagePreview(null);
+    setWasteCategory("Plastics & Wraps");
+    setSeverity("medium");
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setGestureImageUrl(null);
+    setGestureId(null);
+    setCodeText(null);
+    setCodeId(null);
+    setTimeLeft(null);
+    setVerificationMode("hand");
+    setRefreshTrigger(0);
+    setSwitchCount(0);
+    setRefreshCountBeforeExpiry(0);
+    setRefreshCountAfterExpiry(0);
+  };
+
+  // Manual refresh handler for verification gesture/code with pre-expiry (3) and post-expiry (2) limits
+  const handleRefreshVerification = () => {
+    if (timeLeft === 0) {
+      if (refreshCountAfterExpiry >= 2) {
+        setErrorMsg("Maximum post-expiry refreshes reached (2/2). Please reopen the modal to restart verification.");
+        return;
+      }
+      setRefreshCountAfterExpiry((prev) => prev + 1);
+    } else {
+      if (refreshCountBeforeExpiry >= 3) {
+        setErrorMsg("Maximum pre-expiry refreshes reached (3/3). Please wait for timer to expire or submit report.");
+        return;
+      }
+      setRefreshCountBeforeExpiry((prev) => prev + 1);
+    }
+
+    setTimeLeft(null);
+    setGestureId(null);
+    setGestureImageUrl(null);
+    setCodeId(null);
+    setCodeText(null);
+    setErrorMsg(null);
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
+  // Countdown Timer Effect
+  useEffect(() => {
+    if (timeLeft === null || timeLeft <= 0) return;
+
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timeLeft]);
+
   // Synchronize droppedCoordinates or fetch current live GPS spot location when opened
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      resetFormState();
+      return;
+    }
 
     if (droppedCoordinates) {
       setCoords([droppedCoordinates[0], droppedCoordinates[1]]);
@@ -68,9 +172,9 @@ export default function ReportWasteSpotModal({
     }
   }, [isOpen, droppedCoordinates]);
 
-  // Fetch random gesture verification photo and ID when modal is open and mode is "hand"
+  // Fetch random gesture verification photo and ID when modal is open and mode is "hand" (3 mins = 180s)
   useEffect(() => {
-    if (!isOpen || verificationMode !== "hand") return;
+    if (!isOpen || verificationMode !== "hand" || isRecalibrating) return;
 
     let isMounted = true;
     const fetchGesture = async () => {
@@ -83,6 +187,7 @@ export default function ReportWasteSpotModal({
           const imgId = (res as any).imageId || (res as any).data?.imageId;
           if (imgUrl) setGestureImageUrl(imgUrl);
           if (imgId) setGestureId(imgId);
+          setTimeLeft(180); // 3 minutes for loaded gesture image
         }
       } catch (err) {
         console.error("Failed to fetch gesture verification photo:", err);
@@ -97,7 +202,39 @@ export default function ReportWasteSpotModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, verificationMode, coords]);
+  }, [isOpen, verificationMode, coords, isRecalibrating, refreshTrigger]);
+
+  // Fetch random code verification and ID when modal is open and mode is "code" (5 mins = 300s)
+  useEffect(() => {
+    if (!isOpen || verificationMode !== "code" || isRecalibrating) return;
+
+    let isMounted = true;
+    const fetchCode = async () => {
+      setIsLoadingCode(true);
+      try {
+        const geoCoords: [number, number] = [coords[1], coords[0]];
+        const res = await spotsApi.getRandomCodeVerification({ coordinates: geoCoords });
+        if (isMounted && res && res.success) {
+          const cVal = (res as any).code || (res as any).data?.code;
+          const cId = (res as any).verificationId || (res as any).data?.verificationId;
+          if (cVal) setCodeText(cVal);
+          if (cId) setCodeId(cId);
+          setTimeLeft(300); // 5 minutes for loaded verification code
+        }
+      } catch (err) {
+        console.error("Failed to fetch code verification:", err);
+      } finally {
+        if (isMounted) {
+          setIsLoadingCode(false);
+        }
+      }
+    };
+
+    fetchCode();
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, verificationMode, coords, isRecalibrating, refreshTrigger]);
 
   if (!isOpen) return null;
 
@@ -214,8 +351,20 @@ export default function ReportWasteSpotModal({
     e.preventDefault();
     if (isSubmitting) return;
 
+    const activeVerificationId = verificationMode === "hand" ? gestureId : (codeId || gestureId);
+
     if (!imageFile) {
       setErrorMsg("Please upload a photo of the waste spot to verify optical presence.");
+      return;
+    }
+
+    if (!activeVerificationId) {
+      setErrorMsg("Valid verification ID is required. Please wait for liveness verification to load.");
+      return;
+    }
+
+    if (timeLeft !== null && timeLeft <= 0) {
+      setErrorMsg("Verification token has expired (00:00). Please click 'Refresh' to generate a new verification token.");
       return;
     }
 
@@ -241,10 +390,14 @@ export default function ReportWasteSpotModal({
       formData.append("coordinates", JSON.stringify(geoCoords));
       formData.append("userLocation", JSON.stringify(geoCoords));
 
-      if (gestureId) {
-        formData.append("gestureVerificationId", gestureId);
-        formData.append("gestureImageId", gestureId);
-        formData.append("gestureId", gestureId);
+      const activeVerificationId = verificationMode === "hand" ? gestureId : (codeId || gestureId);
+      if (activeVerificationId) {
+        formData.append("verificationId", activeVerificationId);
+        formData.append("gestureVerificationId", activeVerificationId);
+        formData.append("gestureImageId", activeVerificationId);
+        formData.append("gestureId", activeVerificationId);
+        formData.append("codeId", activeVerificationId);
+        formData.append("type", verificationMode === "hand" ? "gesture" : "code");
       }
 
       const res = await spotsApi.createSpot(formData);
@@ -256,6 +409,7 @@ export default function ReportWasteSpotModal({
         }
         setTimeout(() => {
           setIsSubmitting(false);
+          resetFormState();
           onClose();
         }, 1200);
       } else {
@@ -401,33 +555,84 @@ export default function ReportWasteSpotModal({
                 <span className="material-symbols-outlined text-[16px]">verified_user</span>
                 <span>Liveness Verification</span>
               </div>
+
+              <button
+                type="button"
+                onClick={handleRefreshVerification}
+                disabled={isLoadingGesture || isLoadingCode || (timeLeft === 0 && refreshCountAfterExpiry >= 2) || (timeLeft !== 0 && refreshCountBeforeExpiry >= 3)}
+                className={`inline-flex items-center gap-1 text-[10px] font-['JetBrains_Mono'] font-bold py-1 px-2.5 rounded-lg transition-all ${
+                  (timeLeft === 0 && refreshCountAfterExpiry >= 2) || (timeLeft !== 0 && refreshCountBeforeExpiry >= 3)
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
+                    : "bg-[#f2f3ff] text-[#006948] hover:bg-[#006948]/10 cursor-pointer disabled:opacity-50"
+                }`}
+                title={
+                  timeLeft === 0
+                    ? `Post-expiry refreshes used: ${refreshCountAfterExpiry}/2`
+                    : `Pre-expiry refreshes used: ${refreshCountBeforeExpiry}/3`
+                }
+              >
+                <span className={`material-symbols-outlined text-[13px] ${isLoadingGesture || isLoadingCode ? "animate-spin" : ""}`}>
+                  {(timeLeft === 0 && refreshCountAfterExpiry >= 2) || (timeLeft !== 0 && refreshCountBeforeExpiry >= 3) ? "lock" : "autorenew"}
+                </span>
+                <span>
+                  {isLoadingGesture || isLoadingCode
+                    ? "Refreshing..."
+                    : timeLeft === 0
+                    ? refreshCountAfterExpiry >= 2
+                      ? "Limit (2/2)"
+                      : `Refresh (${refreshCountAfterExpiry}/2)`
+                    : refreshCountBeforeExpiry >= 3
+                    ? "Limit (3/3)"
+                    : `Refresh (${refreshCountBeforeExpiry}/3)`}
+                </span>
+              </button>
             </div>
 
             {/* Verification Mode Selector */}
-            <div className="grid grid-cols-2 p-1 bg-[#f2f3ff] rounded-xl gap-1">
-              <button
-                type="button"
-                onClick={() => setVerificationMode("hand")}
-                className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-['Hanken_Grotesk'] font-bold transition-all cursor-pointer ${verificationMode === "hand"
-                  ? "bg-white text-[#006948] shadow-xs"
-                  : "text-[#3d4a42] hover:text-[#131b2e]"
-                  }`}
-              >
-                <span className="material-symbols-outlined text-[16px]">front_hand</span>
-                <span>Hand Gesture</span>
-              </button>
+            <div className="flex flex-col gap-1">
+              <div className="grid grid-cols-2 p-1 bg-[#f2f3ff] rounded-xl gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleSelectMode("hand")}
+                  disabled={switchCount >= 4 && verificationMode !== "hand"}
+                  className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-['Hanken_Grotesk'] font-bold transition-all ${verificationMode === "hand"
+                    ? "bg-white text-[#006948] shadow-xs"
+                    : switchCount >= 4
+                      ? "text-gray-400 cursor-not-allowed opacity-50"
+                      : "text-[#3d4a42] hover:text-[#131b2e] cursor-pointer"
+                    }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">front_hand</span>
+                  <span>Hand Gesture (3 min)</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setVerificationMode("code")}
-                className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-['Hanken_Grotesk'] font-bold transition-all cursor-pointer ${verificationMode === "code"
-                  ? "bg-white text-[#006948] shadow-xs"
-                  : "text-[#3d4a42] hover:text-[#131b2e]"
-                  }`}
-              >
-                <span className="material-symbols-outlined text-[16px]">draw</span>
-                <span>Code Word</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectMode("code")}
+                  disabled={switchCount >= 4 && verificationMode !== "code"}
+                  className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-['Hanken_Grotesk'] font-bold transition-all ${verificationMode === "code"
+                    ? "bg-white text-[#006948] shadow-xs"
+                    : switchCount >= 4
+                      ? "text-gray-400 cursor-not-allowed opacity-50"
+                      : "text-[#3d4a42] hover:text-[#131b2e] cursor-pointer"
+                    }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">draw</span>
+                  <span>Code Word (5 min)</span>
+                </button>
+              </div>
+
+              {switchCount > 0 && (
+                <div className="flex items-center justify-between px-1 text-[10px] font-['JetBrains_Mono'] text-[#3d4a42]">
+                  <span>Mode switches: {switchCount}/4</span>
+                  {switchCount >= 4 && (
+                    <span className="text-[#ba1a1a] font-bold flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[12px]">lock</span>
+                      Mode selection locked (4/4 limit)
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Hand Gesture Content */}
@@ -464,35 +669,104 @@ export default function ReportWasteSpotModal({
                   <p className="text-[11px] font-['Inter'] text-[#3d4a42] leading-tight mb-2">
                     Extend index, middle, and ring fingers into the viewfinder box to fulfill optical presence proof.
                   </p>
-                  <div className="inline-flex items-center gap-1.5 text-[10px] font-['JetBrains_Mono'] text-[#006948] font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#006948] animate-pulse"></span>
-                    <span>
-                      {gestureId ? `Verification ID: ${gestureId.slice(-6)}` : "Optical Anti-Spoofing Active"}
-                    </span>
+                  
+                  <div className="flex items-center justify-between flex-wrap gap-1">
+                    <div className="inline-flex items-center gap-1.5 text-[10px] font-['JetBrains_Mono'] text-[#006948] font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#006948] animate-pulse"></span>
+                      <span>
+                        {gestureId ? `ID: ${gestureId.slice(-6)}` : "Optical Anti-Spoofing"}
+                      </span>
+                    </div>
+
+                    {timeLeft !== null && (
+                      <div className={`inline-flex items-center gap-1 text-[10px] font-['JetBrains_Mono'] font-bold px-2 py-0.5 rounded ${timeLeft === 0 ? "bg-[#ffdad6] text-[#93000a] animate-bounce" : "bg-[#006948]/15 text-[#006948]"}`}>
+                        <span className="material-symbols-outlined text-[13px]">{timeLeft === 0 ? "error" : "timer"}</span>
+                        <span>{timeLeft === 0 ? "Expired (00:00)" : `${formatTimeLeft(timeLeft)} remaining`}</span>
+                      </div>
+                    )}
                   </div>
+
+                  {timeLeft === 0 && (
+                    <button
+                      type="button"
+                      onClick={handleRefreshVerification}
+                      disabled={refreshCountAfterExpiry >= 2}
+                      className={`mt-1 text-[11px] font-['Hanken_Grotesk'] font-bold flex items-center gap-1 ${
+                        refreshCountAfterExpiry >= 2 ? "text-gray-400 cursor-not-allowed" : "text-[#ba1a1a] hover:underline cursor-pointer"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[13px]">{refreshCountAfterExpiry >= 2 ? "lock" : "refresh"}</span>
+                      <span>
+                        {refreshCountAfterExpiry >= 2
+                          ? "Post-expiry refresh limit reached (2/2). Reopen modal to restart."
+                          : `Token expired. Click to refresh gesture (${refreshCountAfterExpiry}/2 used).`}
+                      </span>
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
               /* Code Word Content */
               <div className="flex items-center gap-3.5 bg-[#f2f3ff] p-2.5 rounded-xl border border-[#dae2fd]/60">
                 <div className="w-20 h-24 rounded-lg border border-[#bccac0]/40 bg-[#dae2fd] flex flex-col items-center justify-center p-2 text-center shrink-0">
-                  <span className="material-symbols-outlined text-[#a33900] text-2xl">edit_note</span>
-                  <span className="font-['JetBrains_Mono'] font-bold text-xs text-[#131b2e] tracking-wider mt-1 bg-white px-1.5 py-0.5 rounded border border-[#bccac0]/40">
-                    &apos;OAK&apos;
-                  </span>
+                  {isLoadingCode ? (
+                    <div className="flex flex-col items-center justify-center p-2 text-[#a33900]">
+                      <span className="material-symbols-outlined text-2xl animate-spin">
+                        progress_activity
+                      </span>
+                      <span className="text-[9px] font-['JetBrains_Mono'] font-bold mt-1">Loading...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-[#a33900] text-2xl">edit_note</span>
+                      <span className="font-['JetBrains_Mono'] font-bold text-xs text-[#131b2e] tracking-wider mt-1 bg-white px-1.5 py-0.5 rounded border border-[#bccac0]/40">
+                        {codeText ? `'${codeText}'` : "'CODE'"}
+                      </span>
+                    </>
+                  )}
                 </div>
                 <div className="flex flex-col min-w-0 flex-1">
                   <div className="flex items-center gap-1 text-xs font-['Hanken_Grotesk'] font-bold text-[#131b2e] mb-0.5">
-                    <span>Write Daily Code &apos;OAK&apos;</span>
+                    <span>Write Daily Code {codeText ? `'${codeText}'` : ""}</span>
                     <span className="text-xs">📝</span>
                   </div>
                   <p className="text-[11px] font-['Inter'] text-[#3d4a42] leading-tight mb-2">
-                    Write the word <strong>OAK</strong> on paper, cardboard or chalk-slate and place visibly beside the waste pile.
+                    Write the word <strong>{codeText || "CODE"}</strong> on paper, cardboard or chalk-slate and place visibly beside the waste pile.
                   </p>
-                  <div className="inline-flex items-center gap-1.5 text-[10px] font-['JetBrains_Mono'] text-[#a33900] font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#a33900] animate-pulse"></span>
-                    <span>Valid for next 14 mins</span>
+
+                  <div className="flex items-center justify-between flex-wrap gap-1">
+                    <div className="inline-flex items-center gap-1.5 text-[10px] font-['JetBrains_Mono'] text-[#a33900] font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#a33900] animate-pulse"></span>
+                      <span>
+                        {codeId ? `ID: ${codeId.slice(-6)}` : "Code Verification"}
+                      </span>
+                    </div>
+
+                    {timeLeft !== null && (
+                      <div className={`inline-flex items-center gap-1 text-[10px] font-['JetBrains_Mono'] font-bold px-2 py-0.5 rounded ${timeLeft === 0 ? "bg-[#ffdad6] text-[#93000a] animate-bounce" : "bg-[#a33900]/15 text-[#a33900]"}`}>
+                        <span className="material-symbols-outlined text-[13px]">{timeLeft === 0 ? "error" : "timer"}</span>
+                        <span>{timeLeft === 0 ? "Expired (00:00)" : `${formatTimeLeft(timeLeft)} remaining`}</span>
+                      </div>
+                    )}
                   </div>
+
+                  {timeLeft === 0 && (
+                    <button
+                      type="button"
+                      onClick={handleRefreshVerification}
+                      disabled={refreshCountAfterExpiry >= 2}
+                      className={`mt-1 text-[11px] font-['Hanken_Grotesk'] font-bold flex items-center gap-1 ${
+                        refreshCountAfterExpiry >= 2 ? "text-gray-400 cursor-not-allowed" : "text-[#ba1a1a] hover:underline cursor-pointer"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[13px]">{refreshCountAfterExpiry >= 2 ? "lock" : "refresh"}</span>
+                      <span>
+                        {refreshCountAfterExpiry >= 2
+                          ? "Post-expiry refresh limit reached (2/2). Reopen modal to restart."
+                          : `Token expired. Click to refresh code (${refreshCountAfterExpiry}/2 used).`}
+                      </span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}

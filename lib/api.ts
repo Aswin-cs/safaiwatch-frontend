@@ -266,6 +266,13 @@ export const spotsApi = {
       body: JSON.stringify(params || {}),
     });
   },
+
+  getRandomCodeVerification: async (params?: { userId?: string; coordinates?: [number, number] }) => {
+    return request<{ verificationId?: string; code?: string }>('/api/v1/spots/code-verification', {
+      method: 'POST',
+      body: JSON.stringify(params || {}),
+    });
+  },
 };
 
 export interface FeedPost {
