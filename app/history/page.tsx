@@ -463,13 +463,22 @@ export default function HistoryPage() {
         {/* HISTORY ITEMS LIST */}
         <section className="flex flex-col gap-3">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <span className="material-symbols-outlined text-4xl text-[#006948] animate-spin">
-                progress_activity
-              </span>
-              <p className="text-xs font-['JetBrains_Mono'] text-[#6d7a72] font-bold">
-                Loading history records...
-              </p>
+            <div className="flex flex-col items-center justify-center py-16 gap-4">
+              <div className="relative flex items-center justify-center">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#006948] to-[#00855d] flex items-center justify-center shadow-lg" style={{ animation: 'logoBreath 2.8s ease-in-out infinite' }}>
+                  <span className="material-symbols-outlined text-2xl text-[#85f8c4] drop-shadow-[0_0_8px_rgba(133,248,196,0.8)]" style={{ fontVariationSettings: "'FILL' 1" }}>history</span>
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="font-['Hanken_Grotesk'] text-sm font-bold text-[#131b2e]">
+                  Loading History Records
+                </p>
+                <div className="inline-loader mt-2 justify-center">
+                  <span className="inline-loader-dot" />
+                  <span className="inline-loader-dot" />
+                  <span className="inline-loader-dot" />
+                </div>
+              </div>
             </div>
           ) : filteredHistory.length === 0 ? (
             <div className="bg-white rounded-2xl p-12 text-center border border-[#E2E8F0] shadow-xs flex flex-col items-center justify-center">

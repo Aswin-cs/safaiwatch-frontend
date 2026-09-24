@@ -347,32 +347,33 @@ export default function FeedPage() {
       )}
 
       {/* TOP NAVIGATION & SUB-FILTERS HEADER */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex flex-col glass-panel shadow-xs">
-        <div className="flex items-center justify-between px-4 py-3 md:px-8 max-w-6xl mx-auto w-full">
-          <div className="flex items-center gap-2 md:gap-3">
-            <Link href="/" className="flex items-center gap-2 group">
-              <h1 className="font-['Hanken_Grotesk'] text-xl md:text-2xl font-extrabold text-[#006948] tracking-tight">
+      <header className="fixed top-0 left-0 right-0 z-50 flex flex-col border-b border-[#dae2fd]/60 bg-white/95 backdrop-blur-md shadow-xs">
+        <div className="flex items-center justify-between px-3.5 py-2.5 sm:px-6 max-w-6xl mx-auto w-full gap-2">
+          {/* Left: Brand Title & Locality Selector */}
+          <div className="flex items-center gap-2 min-w-0">
+            <Link href="/" className="flex items-center shrink-0">
+              <h1 className="font-['Hanken_Grotesk'] text-lg sm:text-xl md:text-2xl font-black text-[#006948] tracking-tight">
                 Civic Feed
               </h1>
             </Link>
 
             {/* Locality Selector Dropdown */}
-            <div className="relative">
+            <div className="relative shrink min-w-0">
               <button
                 onClick={() => setIsWardDropdownOpen(!isWardDropdownOpen)}
-                className="flex items-center gap-1 bg-[#dae2fd]/40 text-[#131b2e] hover:bg-[#dae2fd]/70 transition-colors px-3 py-1.5 rounded-full border border-[#bccac0]/40 cursor-pointer"
+                className="flex items-center gap-1 bg-[#dae2fd]/40 text-[#131b2e] hover:bg-[#dae2fd]/70 transition-colors px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-[#bccac0]/40 cursor-pointer max-w-[120px] sm:max-w-[200px]"
               >
-                <span className="material-symbols-outlined text-base text-[#006948]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                <span className="material-symbols-outlined text-sm sm:text-base text-[#006948] shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
                   location_on
                 </span>
-                <span className="font-['JetBrains_Mono'] text-xs font-bold text-[#3d4a42] truncate max-w-[120px] sm:max-w-[180px]">
+                <span className="font-['JetBrains_Mono'] text-[11px] sm:text-xs font-bold text-[#3d4a42] truncate">
                   {selectedWard}
                 </span>
-                <span className="material-symbols-outlined text-base">arrow_drop_down</span>
+                <span className="material-symbols-outlined text-sm sm:text-base shrink-0">arrow_drop_down</span>
               </button>
 
               {isWardDropdownOpen && (
-                <div className="absolute top-10 left-0 z-50 bg-white rounded-2xl border border-[#E2E8F0] shadow-xl py-2 w-64 max-h-60 overflow-y-auto animate-enter">
+                <div className="absolute top-9 left-0 z-50 bg-white rounded-2xl border border-[#E2E8F0] shadow-xl py-2 w-60 sm:w-64 max-h-60 overflow-y-auto animate-enter">
                   <div className="px-3 py-1 text-[10px] font-['JetBrains_Mono'] text-[#6d7a72] font-bold uppercase">
                     Select Locality Ward
                   </div>
@@ -384,7 +385,7 @@ export default function FeedPage() {
                         setIsWardDropdownOpen(false);
                         triggerToast(`Filtered feed to ${w}`);
                       }}
-                      className={`w-full text-left px-4 py-2 text-xs font-semibold hover:bg-[#F1F5F9] transition-colors truncate ${
+                      className={`w-full text-left px-3.5 py-2 text-xs font-semibold hover:bg-[#F1F5F9] transition-colors truncate ${
                         selectedWard === w ? "text-[#006948] font-bold bg-[#ECFDF5]" : "text-[#0F172A]"
                       }`}
                     >
@@ -396,20 +397,21 @@ export default function FeedPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 md:gap-4">
+          {/* Right: Actions (Refresh, Search, Profile, Logout) */}
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Refresh Button */}
             <button
               onClick={loadFeedData}
               disabled={isLoadingFeed}
-              className="p-2 text-[#006948] hover:bg-[#dae2fd]/40 rounded-full transition-colors cursor-pointer flex items-center justify-center"
+              className="w-8 h-8 sm:w-9 sm:h-9 text-[#006948] bg-emerald-50 hover:bg-emerald-100/80 rounded-full transition-colors cursor-pointer flex items-center justify-center border border-emerald-200/60 shrink-0"
               title="Refresh Feed"
             >
-              <span className={`material-symbols-outlined text-xl ${isLoadingFeed ? "animate-spin" : ""}`}>
+              <span className={`material-symbols-outlined text-lg sm:text-xl ${isLoadingFeed ? "animate-spin" : ""}`}>
                 refresh
               </span>
             </button>
 
-            {/* Search Input */}
+            {/* Search Input (Desktop/Tablet) */}
             <div className="hidden md:flex items-center bg-white border border-[#bccac0]/60 rounded-full px-3.5 py-1.5 focus-within:border-[#006948] focus-within:ring-2 focus-within:ring-[#006948]/10 transition-all">
               <span className="material-symbols-outlined text-base text-[#6d7a72]">search</span>
               <input
@@ -424,7 +426,7 @@ export default function FeedPage() {
             {/* Profile Avatar link */}
             <Link
               href={userProfileLink}
-              className="w-9 h-9 rounded-full bg-[#00855d] flex items-center justify-center overflow-hidden border-2 border-[#006948]/30 cursor-pointer hover:scale-105 transition-transform shrink-0"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#00855d] flex items-center justify-center overflow-hidden border-2 border-[#006948]/30 cursor-pointer hover:scale-105 transition-transform shrink-0"
               title={basicUser?.username ? `@${basicUser.username}` : "My Profile"}
             >
               <img
@@ -437,23 +439,23 @@ export default function FeedPage() {
               />
             </Link>
 
-            {/* Sign Out Button */}
+            {/* Sign Out Button (Desktop/Tablet) */}
             <button
               onClick={handleSignOut}
-              className="px-3 py-1.5 text-xs font-bold text-[#ba1a1a] hover:bg-[#ffdad6]/40 border border-[#ba1a1a]/30 rounded-full transition-all cursor-pointer flex items-center gap-1"
+              className="hidden sm:flex px-3 py-1.5 text-xs font-bold text-[#ba1a1a] hover:bg-[#ffdad6]/40 border border-[#ba1a1a]/30 rounded-full transition-all cursor-pointer items-center gap-1 shrink-0"
               title="Sign Out of Session"
             >
               <span className="material-symbols-outlined text-base">logout</span>
-              <span className="hidden sm:inline">Sign Out</span>
+              <span>Sign Out</span>
             </button>
           </div>
         </div>
 
         {/* Sub-filters horizontal bar */}
-        <div className="w-full overflow-x-auto hide-scrollbar px-4 py-2 flex gap-2 border-t border-[#dae2fd]/40 max-w-6xl mx-auto md:px-8">
+        <div className="w-full overflow-x-auto hide-scrollbar px-3.5 py-1.5 flex gap-1.5 sm:gap-2 border-t border-[#dae2fd]/40 max-w-6xl mx-auto sm:px-6">
           <button
             onClick={() => setActiveFilter("nearby")}
-            className={`whitespace-nowrap px-4 py-1.5 rounded-full font-['JetBrains_Mono'] text-xs font-bold transition-all cursor-pointer ${
+            className={`whitespace-nowrap px-3.5 py-1 rounded-full font-['JetBrains_Mono'] text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
               activeFilter === "nearby"
                 ? "bg-[#006948] text-white shadow-xs"
                 : "bg-white text-[#3d4a42] border border-[#bccac0]/60 hover:bg-[#F1F5F9]"
@@ -463,7 +465,7 @@ export default function FeedPage() {
           </button>
           <button
             onClick={() => setActiveFilter("top")}
-            className={`whitespace-nowrap px-4 py-1.5 rounded-full font-['JetBrains_Mono'] text-xs font-bold transition-all cursor-pointer ${
+            className={`whitespace-nowrap px-3.5 py-1 rounded-full font-['JetBrains_Mono'] text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
               activeFilter === "top"
                 ? "bg-[#006948] text-white shadow-xs"
                 : "bg-white text-[#3d4a42] border border-[#bccac0]/60 hover:bg-[#F1F5F9]"
@@ -473,7 +475,7 @@ export default function FeedPage() {
           </button>
           <button
             onClick={() => setActiveFilter("challenge")}
-            className={`whitespace-nowrap px-4 py-1.5 rounded-full font-['JetBrains_Mono'] text-xs font-bold transition-all cursor-pointer ${
+            className={`whitespace-nowrap px-3.5 py-1 rounded-full font-['JetBrains_Mono'] text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
               activeFilter === "challenge"
                 ? "bg-[#006948] text-white shadow-xs"
                 : "bg-white text-[#3d4a42] border border-[#bccac0]/60 hover:bg-[#F1F5F9]"
@@ -483,7 +485,7 @@ export default function FeedPage() {
           </button>
           <button
             onClick={() => setActiveFilter("following")}
-            className={`whitespace-nowrap px-4 py-1.5 rounded-full font-['JetBrains_Mono'] text-xs font-bold transition-all cursor-pointer ${
+            className={`whitespace-nowrap px-3.5 py-1 rounded-full font-['JetBrains_Mono'] text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
               activeFilter === "following"
                 ? "bg-[#006948] text-white shadow-xs"
                 : "bg-white text-[#3d4a42] border border-[#bccac0]/60 hover:bg-[#F1F5F9]"

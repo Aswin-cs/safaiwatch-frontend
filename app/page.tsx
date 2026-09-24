@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import SafaiMap, { Report } from "@/components/map/SafaiMap";
 import ReportWasteSpotModal from "@/components/ReportWasteSpotModal";
+import SplashLoader from "@/components/SplashLoader";
 import { profileApi, authApi, spotsApi } from "@/lib/api";
 import { socket } from "@/lib/socket";
 import {
@@ -76,6 +77,12 @@ export default function HomePage() {
 
   // Role Restriction Notice toast state (for restricted actions like Coordinator attempting to report spot)
   const [roleNotice, setRoleNotice] = useState<string | null>(null);
+
+  // Real-time AI Verification Toast Notice state (targeted strictly for the user who marked the spot)
+  const [aiNotice, setAiNotice] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   // New Waste Report Modal state
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
@@ -423,6 +430,10 @@ export default function HomePage() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    if (userProfile?._id) {
+      socket.emit("joinUserRoom", { userId: String(userProfile._id) });
+    }
+
     const onSpotCreated = (data: { spot: any }) => {
       if (!data?.spot?._id) return;
       const newReport = mapSpotToReport(data.spot);
@@ -449,18 +460,51 @@ export default function HomePage() {
       setSelectedReport((prev) => (String(prev?.id) === String(data.spotId) ? null : prev));
     };
 
+    const onSpotAiVerified = (data: any) => {
+      if (userProfile?._id && data?.userId && String(data.userId) === String(userProfile._id)) {
+        const isVerified = Boolean(data.isVerified);
+        const msg =
+          data.message ||
+          (isVerified
+            ? "✨ AI Verification Complete: Your spot report has passed AI photo audit and is now live!"
+            : `⚠️ AI Verification Failed: ${data.fraudReason || "Spot verification flag"}`);
+
+        setAiNotice({
+          type: isVerified ? "success" : "error",
+          message: msg,
+        });
+
+        // Automatically hide notice after 8 seconds
+        setTimeout(() => {
+          setAiNotice(null);
+        }, 8000);
+
+        // Refetch spots dynamically if verified
+        if (isVerified) {
+          spotsApi.getAllSpots().then((res) => {
+            if (res && res.success && Array.isArray(res.spots)) {
+              const mappedReports: Report[] = res.spots.map((spot: any) => mapSpotToReport(spot));
+              setReports(deduplicateReports(mappedReports));
+            }
+          }).catch((err) => console.warn("Failed to load spots after AI verification:", err));
+        }
+      }
+    };
+
     socket.on("spot:created", onSpotCreated);
     socket.on("spot:assigned", onSpotAssigned);
     socket.on("spot:completed", onSpotCompleted);
     socket.on("spot:deleted", onSpotDeleted);
+    socket.on("spot:ai-verified", onSpotAiVerified);
 
     return () => {
       socket.off("spot:created", onSpotCreated);
       socket.off("spot:assigned", onSpotAssigned);
       socket.off("spot:completed", onSpotCompleted);
       socket.off("spot:deleted", onSpotDeleted);
+      socket.off("spot:ai-verified", onSpotAiVerified);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userProfile?._id]);
 
   // Handle map coordinate selection from Leaflet click event
   const handleSelectCoordinates = (coords: [number, number]) => {
@@ -649,15 +693,11 @@ export default function HomePage() {
   // 1. LOADING STATE (Checking HTTP-only cookies / API auth status)
   if (isAuthenticated === null) {
     return (
-      <div className="h-screen w-full bg-[#FAF8FF] flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-12 h-12 border-4 border-[#006948] border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e]">
-          Verifying SafaiWatch Session...
-        </p>
-        <p className="text-xs font-mono text-[#6d7a72] mt-1">
-          Authenticating JWT Cookie Credentials
-        </p>
-      </div>
+      <SplashLoader
+        title="SafaiWatch"
+        subtitle="Verifying your civic session credentials…"
+        showProgress
+      />
     );
   }
 
@@ -1349,6 +1389,47 @@ export default function HomePage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Real-time AI Verification Toast Banner (Targeted strictly to spot creator) */}
+      {aiNotice && (
+        <div
+          className={`fixed top-28 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-md backdrop-blur-xl text-white rounded-2xl p-4 shadow-2xl flex items-center justify-between animate-enter border transition-all ${
+            aiNotice.type === "success"
+              ? "bg-emerald-600/95 border-emerald-400"
+              : "bg-rose-600/95 border-rose-400"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border text-white ${
+                aiNotice.type === "success"
+                  ? "bg-emerald-700/60 border-emerald-300/40"
+                  : "bg-rose-700/60 border-rose-300/40"
+              }`}
+            >
+              {aiNotice.type === "success" ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-100" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-rose-100" />
+              )}
+            </div>
+            <div>
+              <p className="font-bold text-[10px] uppercase tracking-wider text-white/80">
+                AI Audit Notification
+              </p>
+              <p className="font-semibold text-xs leading-snug text-white mt-0.5">
+                {aiNotice.message}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setAiNotice(null)}
+            className="p-1 hover:bg-white/20 rounded-lg text-white/80 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       )}
 
       {/* Role Restriction Toast Notice (e.g. for Coordinators) */}

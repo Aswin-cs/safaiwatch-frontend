@@ -4,7 +4,9 @@ import React, { useState, use, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authApi, profileApi, spotsApi } from "@/lib/api";
+import { socket } from "@/lib/socket";
 import HoldButton from "@/components/HoldButton";
+import SplashLoader from "@/components/SplashLoader";
 
 interface PageProps {
   params: Promise<{ username?: string; id?: string }>;
@@ -44,6 +46,22 @@ interface CaseItem {
   completedAt?: string;
   assignedAt?: string;
   critical?: string;
+  isVerified?: boolean;
+  isCompletedVerify?: "pending" | "completed" | "uncompleted" | string;
+  isCompletedVerifyAt?: string;
+  isAiVerified?: {
+    isAiOrEdited?: boolean;
+    forensicConfidence?: number;
+    detectedManipulationType?: string;
+    forensicDetails?: string;
+    gestureMatched?: boolean;
+    isValidWasteReport?: boolean;
+    isFraudulent?: boolean;
+    fraudReason?: string;
+    auditResult?: any;
+    verifiedBy?: string;
+    verifiedAt?: string;
+  } | null;
 }
 
 interface Voucher {
@@ -161,6 +179,44 @@ export default function ProfilePage({ params }: PageProps) {
     verifyAuthAndLoadProfile();
   }, [cleanId, isMyProfile, router]);
 
+  // Real-time AI verification completion toast notification targeted for the user who marked the spot
+  useEffect(() => {
+    if (!isAuthenticated || !profileData?.user?._id) return;
+
+    const myUserId = String(profileData.user._id);
+
+    // Join user socket room for targeted real-time alerts
+    socket.emit("joinUserRoom", { userId: myUserId });
+
+    const onSpotAiVerified = async (data: any) => {
+      if (data?.userId && String(data.userId) === myUserId) {
+        const toastMsg =
+          data.message ||
+          (data.isVerified
+            ? "AI Audit Complete: Your reported spot has been verified authentic! ✓"
+            : `AI Audit Alert: Your report was flagged (${data.fraudReason || "verification failed"}).`);
+
+        triggerToast(toastMsg);
+
+        // Dynamically refetch profile to update case status badges live
+        try {
+          const res = await profileApi.getMyProfile();
+          if (res && res.success) {
+            setProfileData(res);
+          }
+        } catch (e) {
+          console.warn("Error updating profile after AI verification:", e);
+        }
+      }
+    };
+
+    socket.on("spot:ai-verified", onSpotAiVerified);
+
+    return () => {
+      socket.off("spot:ai-verified", onSpotAiVerified);
+    };
+  }, [isAuthenticated, profileData?.user?._id]);
+
   // User status and rewards statistics directly from backend response (getProfileByUsername / getMyProfile)
   const userStatus = profileData?.userStatus;
   const userRewards = profileData?.userRewards;
@@ -189,6 +245,16 @@ export default function ProfilePage({ params }: PageProps) {
   const weekDays = Array.isArray(backendWeekDays) && backendWeekDays.length === 7
     ? backendWeekDays
     : (() => {
+        const getYYYYMMDD = (d: any) => {
+          if (!d) return "";
+          const date = new Date(d);
+          if (isNaN(date.getTime())) return "";
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        };
+
         const dayNames = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
         const now = new Date();
         const currentDayOfWeek = now.getDay();
@@ -198,14 +264,14 @@ export default function ProfilePage({ params }: PageProps) {
         monday.setDate(now.getDate() - distanceToMonday);
         monday.setHours(0, 0, 0, 0);
 
-        const todayStr = now.toISOString().split("T")[0];
+        const todayStr = getYYYYMMDD(now);
 
         return dayNames.map((day, idx) => {
           const dayDate = new Date(monday);
           dayDate.setDate(monday.getDate() + idx);
-          const dateStr = dayDate.toISOString().split("T")[0];
+          const dateStr = getYYYYMMDD(dayDate);
           const isToday = dateStr === todayStr;
-          const isPast = dayDate < new Date(todayStr);
+          const isPast = dateStr < todayStr;
           const isActive = isPast || (isToday && streaksCount > 0);
 
           return { day, date: dateStr, isToday, isPast, isActive };
@@ -437,6 +503,10 @@ export default function ProfilePage({ params }: PageProps) {
             assignedAt: assignedObj?.assignedAt || prev.assignedAt,
             completedAt: completedObj?.completedAt || s.updatedAt || prev.completedAt,
             critical: s.critcal || s.critical || prev.critical,
+            isVerified: s.isVerified !== undefined ? Boolean(s.isVerified) : prev.isVerified,
+            isCompletedVerify: s.isCompletedVerify || prev.isCompletedVerify,
+            isCompletedVerifyAt: s.isCompletedVerifyAt || prev.isCompletedVerifyAt,
+            isAiVerified: s.isAiVerified !== undefined ? s.isAiVerified : prev.isAiVerified,
           };
         });
       }
@@ -679,6 +749,10 @@ export default function ProfilePage({ params }: PageProps) {
       completedAt: c.completedAt,
       assignedAt: c.assignedAt,
       critical: c.critical || c.critcal,
+      isVerified: c.isVerified,
+      isCompletedVerify: c.isCompletedVerify,
+      isCompletedVerifyAt: c.isCompletedVerifyAt,
+      isAiVerified: c.isAiVerified,
     };
   });
 
@@ -716,17 +790,11 @@ export default function ProfilePage({ params }: PageProps) {
 
   if (isLoadingAuth || !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col items-center justify-center p-4">
-        <div className="bg-white rounded-[24px] p-8 max-w-sm w-full text-center border border-[#E2E8F0] shadow-sm flex flex-col items-center gap-4 animate-pulse">
-          <div className="w-12 h-12 rounded-full bg-[#006948]/10 text-[#006948] flex items-center justify-center">
-            <span className="material-symbols-outlined text-2xl animate-spin">lock</span>
-          </div>
-          <div>
-            <h3 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e]">Authenticating Profile</h3>
-            <p className="text-xs text-[#6d7a72] mt-1 font-['JetBrains_Mono']">Verifying your civic session credentials...</p>
-          </div>
-        </div>
-      </div>
+      <SplashLoader
+        title="SafaiWatch Profile"
+        subtitle="Authenticating your civic profile session…"
+        showProgress
+      />
     );
   }
 
@@ -1105,132 +1173,138 @@ export default function ProfilePage({ params }: PageProps) {
           const streakProgressPercent = Math.min(100, Math.round((streaksCount / currentStreakLevel.target) * 100));
 
           return (
-            <section className="relative overflow-hidden bg-white text-slate-800 rounded-[24px] p-6 shadow-sm border border-[#E2E8F0] animate-enter">
+            <section className="relative overflow-hidden bg-white text-slate-800 rounded-2xl sm:rounded-[24px] p-4 sm:p-6 shadow-xs border border-slate-200/90 animate-enter">
               {/* Header Status Bar */}
-              <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-5 border-b border-slate-100">
-                <div className="flex items-center gap-3.5">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
-                    isActiveToday
-                      ? "bg-gradient-to-br from-amber-500 to-orange-600 border-amber-400/40 text-white"
-                      : streaksCount > 0
-                      ? "bg-[#006948] border-emerald-600/40 text-white"
-                      : "bg-slate-100 border-slate-200 text-slate-400"
-                  }`}>
-                    <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                      {isActiveToday ? "local_fire_department" : streaksCount > 0 ? "bolt" : "ac_unit"}
-                    </span>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-['Hanken_Grotesk'] text-2xl font-extrabold text-[#0F172A] leading-none">
-                        {streaksCount} {streaksCount === 1 ? "Day" : "Days"} Streak
-                      </h3>
-                      <span className={`text-[10px] font-['JetBrains_Mono'] font-extrabold px-2.5 py-0.5 rounded-full uppercase border tracking-wider ${
-                        isActiveToday
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : streaksCount > 0
-                          ? "bg-amber-50 text-amber-700 border-amber-200"
-                          : "bg-slate-100 text-slate-600 border-slate-200"
-                      }`}>
-                        {isActiveToday ? "🔥 ACTIVE TODAY" : streaksCount > 0 ? "⚡ AT RISK (1 ACTION NEEDED)" : "❄️ START A NEW STREAK"}
+              <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5 mb-4 sm:mb-5 pb-4 border-b border-slate-100">
+                <div className="flex items-center justify-between w-full sm:w-auto gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 border shadow-2xs ${
+                      isActiveToday
+                        ? "bg-gradient-to-br from-amber-500 via-orange-500 to-orange-600 border-amber-400/40 text-white shadow-amber-500/20"
+                        : streaksCount > 0
+                        ? "bg-[#006948] border-emerald-600/40 text-white"
+                        : "bg-slate-100 border-slate-200 text-slate-400"
+                    }`}>
+                      <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                        {isActiveToday ? "local_fire_department" : streaksCount > 0 ? "bolt" : "ac_unit"}
                       </span>
                     </div>
 
-                    <p className="font-['Inter'] text-xs text-slate-500 mt-1 flex items-center gap-2">
-                      <span className="text-amber-600 font-bold flex items-center gap-1">
-                        <span className="material-symbols-outlined text-sm text-amber-500">bolt</span>
-                        {currentStreakLevel.multiplier} Karma Multiplier ({currentStreakLevel.title})
-                      </span>
-                    </p>
-                  </div>
-                </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="font-['Hanken_Grotesk'] text-lg sm:text-2xl font-extrabold text-[#0F172A] leading-tight tracking-tight">
+                          {streaksCount} {streaksCount === 1 ? "Day" : "Days"} Streak
+                        </h3>
+                        <span className={`text-[9px] sm:text-[10px] font-['JetBrains_Mono'] font-extrabold px-2 py-0.5 rounded-full uppercase border tracking-wider shrink-0 ${
+                          isActiveToday
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200/90"
+                            : streaksCount > 0
+                            ? "bg-amber-50 text-amber-700 border-amber-200/90"
+                            : "bg-slate-100 text-slate-600 border-slate-200"
+                        }`}>
+                          {isActiveToday ? "🔥 ACTIVE TODAY" : streaksCount > 0 ? "⚡ AT RISK" : "❄️ NEW STREAK"}
+                        </span>
+                      </div>
 
-                {/* Freeze Shield Pill */}
-                <button
-                  type="button"
-                  onClick={handleFreezeToggle}
-                  className="bg-blue-50 hover:bg-blue-100/80 text-[#2563EB] px-4 py-2 rounded-2xl flex items-center gap-2 border border-blue-200 transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0"
-                >
-                  <span className="material-symbols-outlined text-base text-[#2563EB]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    shield
-                  </span>
-                  <span className="font-['JetBrains_Mono'] text-xs font-extrabold tracking-wider">
-                    {freezeShields} FREEZE SHIELD{freezeShields !== 1 ? "S" : ""}
-                  </span>
-                </button>
+                      <p className="font-['Inter'] text-[11px] sm:text-xs text-slate-500 mt-0.5 flex items-center gap-1 font-medium">
+                        <span className="text-amber-600 font-bold flex items-center gap-0.5">
+                          <span className="material-symbols-outlined text-sm text-amber-500">bolt</span>
+                          {currentStreakLevel.multiplier} Multiplier
+                        </span>
+                        <span className="text-slate-300">·</span>
+                        <span className="text-slate-600 truncate">{currentStreakLevel.title}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Freeze Shield Pill (Mobile Compact Header Top-Right) */}
+                  <button
+                    type="button"
+                    onClick={handleFreezeToggle}
+                    className="bg-blue-50 hover:bg-blue-100/80 text-[#2563EB] px-2.5 sm:px-3.5 py-1.5 rounded-xl sm:rounded-2xl flex items-center gap-1.5 border border-blue-200/90 transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0 self-center sm:self-auto"
+                  >
+                    <span className="material-symbols-outlined text-sm sm:text-base text-[#2563EB]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                      shield
+                    </span>
+                    <span className="font-['JetBrains_Mono'] text-[10px] sm:text-xs font-extrabold tracking-wider whitespace-nowrap">
+                      {freezeShields} SHIELD{freezeShields !== 1 ? "S" : ""}
+                    </span>
+                  </button>
+                </div>
               </div>
 
-              {/* 7-Day Interactive Streak Calendar Nodes */}
-              <div className="relative z-10 mb-6">
-                <div className="flex items-center justify-between mb-3 px-1">
-                  <span className="text-xs font-['JetBrains_Mono'] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              {/* 7-Day Responsive Grid Streak Calendar Nodes (Zero Horizontal Scrollbar on Mobile) */}
+              <div className="relative z-10 mb-4 sm:mb-6">
+                <div className="flex items-center justify-between mb-2.5 px-0.5">
+                  <span className="text-[11px] sm:text-xs font-['JetBrains_Mono'] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-sm text-[#006948]">calendar_month</span>
-                    Weekly Activity Tracker
+                    Weekly Activity
                   </span>
-                  <span className="text-xs font-['JetBrains_Mono'] font-bold text-[#006948] bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/80">
-                    {totalActiveDaysCount} Total Active Days
+                  <span className="text-[10px] sm:text-xs font-['JetBrains_Mono'] font-bold text-[#006948] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/80">
+                    {totalActiveDaysCount} Active {totalActiveDaysCount === 1 ? "Day" : "Days"}
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center px-2 py-3 bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] overflow-x-auto">
-                  {weekDays.map((item: any, idx: number) => {
-                    const isLast = idx === weekDays.length - 1;
-                    let circleClass = "bg-white text-slate-300 border border-slate-200";
-                    let icon = "remove";
-                    let labelColor = "text-slate-400";
+                {/* 7-Column Responsive Grid Container */}
+                <div className="relative p-2.5 sm:p-3 bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0]">
+                  {/* Timeline track behind nodes */}
+                  <div className="absolute top-[26px] sm:top-[28px] left-5 right-5 h-[2px] bg-slate-200/80 z-0"></div>
 
-                    if (item.isToday) {
-                      labelColor = "text-amber-600 font-extrabold";
-                      if (item.isActive) {
-                        circleClass = "bg-gradient-to-br from-amber-500 to-orange-600 text-white border border-amber-400/40 scale-105 z-10";
-                        icon = "local_fire_department";
-                      } else {
-                        circleClass = "bg-amber-50 text-amber-600 border-2 border-amber-500 scale-105 z-10";
-                        icon = "local_fire_department";
+                  <div className="grid grid-cols-7 gap-1 sm:gap-2 relative z-10">
+                    {weekDays.map((item: any, idx: number) => {
+                      let circleClass = "bg-white text-slate-300 border border-slate-200";
+                      let icon = "remove";
+                      let labelColor = "text-slate-400";
+
+                      if (item.isToday) {
+                        labelColor = "text-amber-600 font-extrabold";
+                        if (item.isActive) {
+                          circleClass = "bg-gradient-to-br from-amber-500 to-orange-600 text-white border border-amber-400/60 scale-105 shadow-xs shadow-amber-500/20";
+                          icon = "local_fire_department";
+                        } else {
+                          circleClass = "bg-amber-50 text-amber-600 border-2 border-amber-500 scale-105";
+                          icon = "local_fire_department";
+                        }
+                      } else if (item.isActive) {
+                        circleClass = "bg-[#006948] text-white border border-[#006948]";
+                        icon = "check";
+                      } else if (item.isPast) {
+                        circleClass = "bg-slate-100 text-slate-400 border border-slate-200";
+                        icon = "close";
                       }
-                    } else if (item.isActive) {
-                      circleClass = "bg-[#006948] text-white border border-[#006948]";
-                      icon = "check";
-                    } else if (item.isPast) {
-                      circleClass = "bg-slate-100 text-slate-400 border border-slate-200";
-                      icon = "close";
-                    }
 
-                    return (
-                      <React.Fragment key={idx}>
-                        <div className="flex flex-col items-center gap-1.5 shrink-0 px-1 sm:px-2">
-                          <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center font-bold transition-all ${circleClass}`}>
-                            <span className="material-symbols-outlined text-lg font-bold" style={item.isToday || icon === "local_fire_department" ? { fontVariationSettings: "'FILL' 1" } : {}}>
+                      return (
+                        <div key={idx} className="flex flex-col items-center gap-1.5 min-w-0">
+                          <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl flex items-center justify-center font-bold transition-all ${circleClass}`}>
+                            <span className="material-symbols-outlined text-sm sm:text-lg font-bold" style={item.isToday || icon === "local_fire_department" ? { fontVariationSettings: "'FILL' 1" } : {}}>
                               {icon}
                             </span>
                           </div>
-                          <span className={`font-['JetBrains_Mono'] text-[10px] font-bold ${labelColor}`}>{item.day}</span>
+                          <span className={`font-['JetBrains_Mono'] text-[9px] sm:text-[10px] font-bold ${labelColor} truncate max-w-full`}>
+                            {item.day}
+                          </span>
                         </div>
-                        {!isLast && (
-                          <div className={`flex-1 h-[2px] mx-1 min-w-[8px] rounded-full ${item.isActive ? "bg-[#006948]" : "bg-slate-200"}`}></div>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
               {/* Streak Milestone Progression Card */}
-              <div className="relative z-10 bg-[#F8FAFC] rounded-2xl p-4 border border-[#E2E8F0] flex flex-col gap-2">
+              <div className="relative z-10 bg-[#F8FAFC] rounded-2xl p-3 sm:p-4 border border-[#E2E8F0] flex flex-col gap-2">
                 <div className="flex items-center justify-between text-xs flex-wrap gap-1">
-                  <span className="font-['Hanken_Grotesk'] font-bold text-slate-700 flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-amber-500 text-base" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  <span className="font-['Hanken_Grotesk'] font-bold text-slate-700 flex items-center gap-1.5 text-[11px] sm:text-xs">
+                    <span className="material-symbols-outlined text-amber-500 text-sm sm:text-base" style={{ fontVariationSettings: "'FILL' 1" }}>
                       military_tech
                     </span>
                     <span>Next Milestone: <strong className="text-[#0F172A]">{currentStreakLevel.title}</strong> ({currentStreakLevel.target} Days)</span>
                   </span>
-                  <span className="font-['JetBrains_Mono'] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/80">
+                  <span className="font-['JetBrains_Mono'] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/80 text-[10px]">
                     {currentStreakLevel.xpBonus}
                   </span>
                 </div>
 
-                <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden border border-slate-300/60">
+                <div className="w-full bg-slate-200/80 h-2 sm:h-2.5 rounded-full overflow-hidden border border-slate-300/40">
                   <div
                     className="h-full bg-gradient-to-r from-amber-500 via-orange-500 to-[#006948] rounded-full transition-all duration-500"
                     style={{ width: `${streakProgressPercent}%` }}
@@ -1383,17 +1457,39 @@ export default function ProfilePage({ params }: PageProps) {
                         {typeof item.location === "string" ? item.location : String(item.location || "Ward Locality")}
                       </p>
 
-                      <div
-                        className={`flex items-center gap-1.5 self-start px-2.5 py-0.5 rounded-md text-[11px] font-semibold mt-2 ${
-                          item.status === "resolved" || item.badgeType === "green"
-                            ? "text-[#10B981] bg-[#10B981]/10 border border-[#10B981]/20"
-                            : "text-[#D97706] bg-[#FFFBEB] border border-[#FCD34D]"
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-xs">
-                          {item.status === "resolved" || item.badgeType === "green" ? "check_circle" : "engineering"}
-                        </span>
-                        <span>{item.status === "resolved" || item.badgeType === "green" ? "Completed" : "Pending"}</span>
+                      <div className="flex items-center gap-2 flex-wrap mt-2">
+                        <div
+                          className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${
+                            item.status === "resolved" || item.badgeType === "green"
+                              ? "text-[#10B981] bg-[#10B981]/10 border border-[#10B981]/20"
+                              : "text-[#D97706] bg-[#FFFBEB] border border-[#FCD34D]"
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-xs">
+                            {item.status === "resolved" || item.badgeType === "green" ? "check_circle" : "engineering"}
+                          </span>
+                          <span>{item.status === "resolved" || item.badgeType === "green" ? "Completed" : "Pending"}</span>
+                        </div>
+
+                        {/* AI Verification Label */}
+                        {item.isCompletedVerify === "pending" && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-[#D97706] bg-[#FFFBEB] border border-[#FCD34D]">
+                            <span className="material-symbols-outlined text-xs animate-spin">sync</span>
+                            <span>AI Audit Pending</span>
+                          </div>
+                        )}
+                        {item.isCompletedVerify === "completed" && item.isVerified === true && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-[#059669] bg-[#ECFDF5] border border-[#A7F3D0]">
+                            <span className="material-symbols-outlined text-xs">verified</span>
+                            <span>AI Verified ✓</span>
+                          </div>
+                        )}
+                        {item.isCompletedVerify === "completed" && item.isVerified === false && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-[#DC2626] bg-[#FEF2F2] border border-[#FCA5A5]">
+                            <span className="material-symbols-outlined text-xs">gpp_bad</span>
+                            <span>AI Flagged</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1688,8 +1784,13 @@ export default function ProfilePage({ params }: PageProps) {
                   </span>
                 )}
                 {isLoadingSpotDetails && (
-                  <span className="font-['JetBrains_Mono'] text-[10px] font-semibold text-[#0284C7] bg-[#E0F2FE] px-2 py-0.5 rounded flex items-center gap-1 animate-pulse">
-                    Loading API...
+                  <span className="font-['JetBrains_Mono'] text-[10px] font-semibold text-[#0284C7] bg-[#E0F2FE] px-2.5 py-1 rounded-lg flex items-center gap-2">
+                    <span>Loading</span>
+                    <span className="inline-loader">
+                      <span className="inline-loader-dot" style={{ background: '#0284C7' }} />
+                      <span className="inline-loader-dot" style={{ background: '#0284C7' }} />
+                      <span className="inline-loader-dot" style={{ background: '#0284C7' }} />
+                    </span>
                   </span>
                 )}
               </div>
@@ -1850,6 +1951,65 @@ export default function ProfilePage({ params }: PageProps) {
                   )}
                 </div>
               </div>
+
+              {/* AI Audit Verification Details Section */}
+              {selectedSpotDetails.isCompletedVerify && (
+                <div className="bg-[#F8FAFC] rounded-2xl p-4 border border-[#E2E8F0] flex flex-col gap-3 font-['Inter'] text-xs">
+                  <div className="flex items-center justify-between">
+                    <p className="font-['JetBrains_Mono'] text-[10px] font-bold text-[#6d7a72] uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-sm text-[#006948]">verified_user</span>
+                      AI FORENSIC VERIFICATION AUDIT
+                    </p>
+                    {selectedSpotDetails.isCompletedVerify === "pending" ? (
+                      <span className="text-[11px] font-bold text-[#D97706] bg-[#FFFBEB] px-2.5 py-0.5 rounded-full border border-[#FCD34D] flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs animate-spin">sync</span> Pending Audit
+                      </span>
+                    ) : selectedSpotDetails.isVerified ? (
+                      <span className="text-[11px] font-bold text-[#059669] bg-[#ECFDF5] px-2.5 py-0.5 rounded-full border border-[#A7F3D0] flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs">verified</span> AI Verified
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold text-[#DC2626] bg-[#FEF2F2] px-2.5 py-0.5 rounded-full border border-[#FCA5A5] flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs">gpp_bad</span> AI Flagged
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedSpotDetails.isCompletedVerify === "completed" && selectedSpotDetails.isVerified === false && selectedSpotDetails.isAiVerified && (
+                    <div className="bg-[#FEF2F2] rounded-xl p-3 border border-[#FCA5A5]/50 flex flex-col gap-2 text-[#991B1B]">
+                      <div className="flex items-center justify-between text-[11px] font-bold">
+                        <span>MANIPULATION TYPE: {selectedSpotDetails.isAiVerified.detectedManipulationType || "Flagged Anomaly"}</span>
+                        {selectedSpotDetails.isAiVerified.forensicConfidence !== undefined && (
+                          <span>CONFIDENCE: {Math.round((selectedSpotDetails.isAiVerified.forensicConfidence || 0) * 100)}%</span>
+                        )}
+                      </div>
+                      {selectedSpotDetails.isAiVerified.fraudReason && (
+                        <p className="text-[11px] font-semibold">
+                          Failure Reason: <span className="font-normal">{selectedSpotDetails.isAiVerified.fraudReason}</span>
+                        </p>
+                      )}
+                      {selectedSpotDetails.isAiVerified.forensicDetails && (
+                        <p className="text-[11px] leading-relaxed">
+                          Forensic Details: <span className="font-normal">{selectedSpotDetails.isAiVerified.forensicDetails}</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedSpotDetails.isCompletedVerify === "completed" && selectedSpotDetails.isVerified === true && (
+                    <div className="bg-[#ECFDF5] rounded-xl p-3 border border-[#A7F3D0]/50 flex flex-col gap-1 text-[#065F46]">
+                      <p className="text-[11px] font-semibold">
+                        Authentic photo confirmed by SafaiWatch AI. Outdoor waste verified without digital tampering.
+                      </p>
+                      {selectedSpotDetails.isAiVerified?.forensicConfidence !== undefined && (
+                        <p className="text-[10px] text-[#047857]">
+                          Authenticity Confidence: {Math.round((selectedSpotDetails.isAiVerified.forensicConfidence || 0) * 100)}%
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Metadata details */}
               <div className="flex justify-between items-center px-1 text-[11px] font-mono text-[#6d7a72]">

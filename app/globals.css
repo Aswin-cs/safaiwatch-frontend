@@ -131,6 +131,241 @@ body {
 .delay-5 { animation-delay: 0.45s; }
 .delay-6 { animation-delay: 0.55s; }
 
+/* ============================================================
+   PREMIUM LOADING / SPLASH SCREEN ANIMATIONS
+   ============================================================ */
+
+/* Breathing glow around the shield logo */
+@keyframes logoBreath {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(133, 248, 196, 0.35),
+                0 0 30px rgba(0, 105, 72, 0.15),
+                0 8px 32px rgba(0, 105, 72, 0.12);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(133, 248, 196, 0.08),
+                0 0 50px rgba(0, 105, 72, 0.25),
+                0 12px 40px rgba(0, 105, 72, 0.18);
+    transform: scale(1.04);
+  }
+}
+
+/* Orbital dots spinning around the logo */
+@keyframes orbitSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Reverse orbit for inner ring */
+@keyframes orbitSpinReverse {
+  0% { transform: rotate(360deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* Progress bar shimmer fill */
+@keyframes progressFill {
+  0% { width: 0%; }
+  30% { width: 55%; }
+  60% { width: 78%; }
+  85% { width: 92%; }
+  100% { width: 100%; }
+}
+
+/* Shimmer sweep over progress bar */
+@keyframes progressShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+/* Text reveal from below */
+@keyframes textReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* Subtle pulse ring expanding outward */
+@keyframes ripplePulse {
+  0% {
+    opacity: 0.6;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 0.15;
+    transform: scale(1.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+
+/* Dot fade/scale for orbital dots */
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.5; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Loading screen container */
+.splash-screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: radial-gradient(ellipse at 50% 30%, rgba(133, 248, 196, 0.08) 0%, transparent 60%),
+              linear-gradient(180deg, #faf8ff 0%, #f0f2ff 100%);
+  overflow: hidden;
+}
+
+/* Animated background grid pattern */
+.splash-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(0, 105, 72, 0.04) 1px, transparent 0);
+  background-size: 32px 32px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Logo container with breathing effect */
+.splash-logo {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #006948 0%, #00855d 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: logoBreath 2.8s ease-in-out infinite;
+  z-index: 10;
+}
+
+/* Orbital ring container */
+.splash-orbit {
+  position: absolute;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  animation: orbitSpin 4s linear infinite;
+  pointer-events: none;
+}
+
+.splash-orbit-inner {
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  animation: orbitSpinReverse 3s linear infinite;
+  pointer-events: none;
+}
+
+/* Individual orbital dot */
+.splash-orbit-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #006948;
+  animation: dotPulse 1.6s ease-in-out infinite;
+}
+
+.splash-orbit-dot:nth-child(1) { top: 0; left: 50%; transform: translateX(-50%); animation-delay: 0s; }
+.splash-orbit-dot:nth-child(2) { top: 50%; right: 0; transform: translateY(-50%); animation-delay: 0.4s; }
+.splash-orbit-dot:nth-child(3) { bottom: 0; left: 50%; transform: translateX(-50%); animation-delay: 0.8s; }
+.splash-orbit-dot:nth-child(4) { top: 50%; left: 0; transform: translateY(-50%); animation-delay: 1.2s; }
+
+.splash-orbit-dot-sm {
+  width: 4px;
+  height: 4px;
+  background: #85f8c4;
+}
+
+.splash-orbit-dot-sm:nth-child(1) { top: 5%; left: 80%; animation-delay: 0.2s; }
+.splash-orbit-dot-sm:nth-child(2) { top: 80%; left: 95%; animation-delay: 0.6s; }
+.splash-orbit-dot-sm:nth-child(3) { bottom: 5%; left: 20%; animation-delay: 1s; }
+
+/* Ripple rings behind logo */
+.splash-ripple {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border-radius: 24px;
+  border: 2px solid rgba(0, 105, 72, 0.2);
+  animation: ripplePulse 2.5s ease-out infinite;
+  pointer-events: none;
+}
+.splash-ripple:nth-child(2) { animation-delay: 0.8s; }
+.splash-ripple:nth-child(3) { animation-delay: 1.6s; }
+
+/* Progress bar */
+.splash-progress-track {
+  width: 200px;
+  height: 3px;
+  border-radius: 4px;
+  background: rgba(0, 105, 72, 0.1);
+  overflow: hidden;
+  margin-top: 28px;
+  position: relative;
+}
+
+.splash-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #006948, #85f8c4);
+  animation: progressFill 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  position: relative;
+}
+
+.splash-progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 60%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+  animation: progressShimmer 1.2s ease-in-out infinite;
+}
+
+/* Text animations */
+.splash-title {
+  animation: textReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+.splash-subtitle {
+  animation: textReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.35s both;
+}
+.splash-hint {
+  animation: textReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
+}
+
+/* Mini inline loader (for inline "Loading..." states) */
+.inline-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.inline-loader-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #006948;
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+.inline-loader-dot:nth-child(2) { animation-delay: 0.2s; }
+.inline-loader-dot:nth-child(3) { animation-delay: 0.4s; }
+
 .shield-glow {
   animation: shieldPulse 3.5s ease-in-out infinite;
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
