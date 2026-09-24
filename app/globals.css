@@ -366,6 +366,80 @@ body {
 .inline-loader-dot:nth-child(2) { animation-delay: 0.2s; }
 .inline-loader-dot:nth-child(3) { animation-delay: 0.4s; }
 
+/* ============================================================
+   REWARDS PAGE – EXCLUSIVE SKELETON LOADING ANIMATION
+   ============================================================ */
+
+@keyframes rewardShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes rewardFadeIn {
+  0% { opacity: 0; transform: translateY(12px) scale(0.98); filter: blur(4px); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes rewardSkeletonPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.85; }
+}
+
+/* Light skeleton bone — for marketplace cards on white bg */
+.reward-skeleton-bone {
+  background: linear-gradient(
+    90deg,
+    #e8ecf1 0%,
+    #e8ecf1 35%,
+    #f4f6f9 50%,
+    #e8ecf1 65%,
+    #e8ecf1 100%
+  );
+  background-size: 400% 100%;
+  animation: rewardShimmer 1.8s ease-in-out infinite;
+  border-radius: 10px;
+}
+
+/* Dark skeleton bone — for the hero vault card on green bg */
+.reward-skeleton-bone-dark {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.08) 0%,
+    rgba(255,255,255,0.08) 35%,
+    rgba(255,255,255,0.18) 50%,
+    rgba(255,255,255,0.08) 65%,
+    rgba(255,255,255,0.08) 100%
+  );
+  background-size: 400% 100%;
+  animation: rewardShimmer 1.8s ease-in-out infinite;
+  border-radius: 10px;
+}
+
+/* Stagger delays for skeleton bones */
+.reward-skel-delay-1 { animation-delay: 0s; }
+.reward-skel-delay-2 { animation-delay: 0.12s; }
+.reward-skel-delay-3 { animation-delay: 0.24s; }
+.reward-skel-delay-4 { animation-delay: 0.36s; }
+.reward-skel-delay-5 { animation-delay: 0.48s; }
+.reward-skel-delay-6 { animation-delay: 0.60s; }
+
+/* Fade-in when data loads */
+.reward-content-reveal {
+  animation: rewardFadeIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Accessibility: respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .reward-skeleton-bone,
+  .reward-skeleton-bone-dark {
+    animation: rewardSkeletonPulse 2s ease-in-out infinite;
+  }
+  .reward-content-reveal {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 .shield-glow {
   animation: shieldPulse 3.5s ease-in-out infinite;
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);

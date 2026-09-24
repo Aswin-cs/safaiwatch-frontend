@@ -27,6 +27,79 @@ interface ClaimedReward {
   icon: string;
 }
 
+// ─── Premium Skeleton Loading Component (Exclusive to Rewards Page) ───
+function RewardsSkeleton() {
+  return (
+    <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 flex flex-col gap-6" aria-busy="true" aria-label="Loading rewards data">
+      {/* Hero Vault Card Skeleton */}
+      <div className="bg-gradient-to-br from-[#004D36] via-[#006948] to-[#00855D] rounded-[28px] p-6 md:p-8 relative overflow-hidden shadow-xl border border-[#85f8c4]/30">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="reward-skeleton-bone-dark reward-skel-delay-1 h-6 w-40 rounded-full" />
+              <div className="reward-skeleton-bone-dark reward-skel-delay-2 h-6 w-20 rounded-full" />
+            </div>
+            <div className="reward-skeleton-bone-dark reward-skel-delay-2 h-10 w-72 mb-3 rounded-xl" />
+            <div className="reward-skeleton-bone-dark reward-skel-delay-3 h-4 w-80 max-w-full rounded-lg" />
+          </div>
+          {/* Balance box skeleton */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20 flex flex-col items-center justify-center min-w-[220px] shadow-inner">
+            <div className="reward-skeleton-bone-dark reward-skel-delay-2 h-3 w-24 mb-3 rounded" />
+            <div className="reward-skeleton-bone-dark reward-skel-delay-3 h-12 w-28 mb-2 rounded-xl" />
+            <div className="reward-skeleton-bone-dark reward-skel-delay-4 h-3 w-20 rounded" />
+          </div>
+        </div>
+        {/* Stats row skeleton */}
+        <div className="mt-6 pt-6 border-t border-white/15 grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-black/20 rounded-xl p-3 flex items-center gap-3">
+              <div className={`reward-skeleton-bone-dark reward-skel-delay-${i} w-9 h-9 rounded-lg`} />
+              <div className="flex-1">
+                <div className={`reward-skeleton-bone-dark reward-skel-delay-${i} h-5 w-16 mb-1.5 rounded`} />
+                <div className={`reward-skeleton-bone-dark reward-skel-delay-${Math.min(i + 1, 6)} h-3 w-20 rounded`} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Category Tabs Skeleton */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="reward-skeleton-bone reward-skel-delay-1 h-7 w-48 rounded-lg" />
+          <div className="reward-skeleton-bone reward-skel-delay-2 h-4 w-28 rounded" />
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className={`reward-skeleton-bone reward-skel-delay-${i} h-10 rounded-full shrink-0`} style={{ width: `${65 + i * 12}px` }} />
+          ))}
+        </div>
+      </div>
+
+      {/* Marketplace Cards Skeleton */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="bg-white rounded-[24px] border border-[#E2E8F0] p-5 flex flex-col justify-between shadow-xs">
+            <div>
+              <div className="flex justify-between items-start mb-4">
+                <div className={`reward-skeleton-bone reward-skel-delay-${i} w-12 h-12 rounded-2xl`} />
+                <div className="flex items-center gap-2">
+                  {i % 2 === 0 && <div className={`reward-skeleton-bone reward-skel-delay-${Math.min(i + 1, 6)} h-5 w-16 rounded-full`} />}
+                  <div className={`reward-skeleton-bone reward-skel-delay-${Math.min(i + 1, 6)} h-5 w-14 rounded-full`} />
+                </div>
+              </div>
+              <div className={`reward-skeleton-bone reward-skel-delay-${i} h-6 w-3/4 mb-2 rounded-lg`} />
+              <div className={`reward-skeleton-bone reward-skel-delay-${Math.min(i + 1, 6)} h-4 w-full mb-1 rounded`} />
+              <div className={`reward-skeleton-bone reward-skel-delay-${Math.min(i + 2, 6)} h-4 w-2/3 mb-5 rounded`} />
+            </div>
+            <div className={`reward-skeleton-bone reward-skel-delay-${Math.min(i + 1, 6)} h-11 w-full rounded-xl`} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function RewardPage() {
   const router = useRouter();
   // Real Backend Sync State from UserRewards Model
@@ -37,6 +110,9 @@ export default function RewardPage() {
   const [streak, setStreak] = useState<number>(5);
   const [freezeShields, setFreezeShields] = useState<number>(1);
   const [badges, setBadges] = useState<any[]>([]);
+
+  // Loading state — exclusive to rewards page
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // UI Interactive States
   const [activeCategory, setActiveCategory] = useState<"all" | "gift card" | "free meal" | "clothing" | "vault">("all");
@@ -121,6 +197,8 @@ export default function RewardPage() {
         }
       } catch (err) {
         console.warn("Could not load backend UserRewards data:", err);
+      } finally {
+        setIsLoading(false);
       }
     }
     loadRewardsData();
@@ -293,8 +371,11 @@ export default function RewardPage() {
         </div>
       </header>
 
-      {/* MAIN CONTAINER */}
-      <main className="max-w-5xl mx-auto px-4 md:px-6 py-6 flex flex-col gap-6">
+      {/* MAIN CONTAINER — Show skeleton while loading */}
+      {isLoading ? (
+        <RewardsSkeleton />
+      ) : (
+      <main className="max-w-5xl mx-auto px-4 md:px-6 py-6 flex flex-col gap-6 reward-content-reveal">
         {/* 2. HERO USERREWARDS VAULT CARD */}
         <section className="bg-gradient-to-br from-[#004D36] via-[#006948] to-[#00855D] rounded-[28px] p-6 md:p-8 text-white relative overflow-hidden shadow-xl border border-[#85f8c4]/30">
           <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
@@ -618,6 +699,7 @@ export default function RewardPage() {
           </section>
         )}
       </main>
+      )}
 
       {/* 6. REDEMPTION UNLOCKED SUCCESS MODAL */}
       {activeSuccessModal && (
