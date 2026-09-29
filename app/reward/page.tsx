@@ -103,12 +103,12 @@ function RewardsSkeleton() {
 export default function RewardPage() {
   const router = useRouter();
   // Real Backend Sync State from UserRewards Model
-  const [karmaBalance, setKarmaBalance] = useState<number>(850);
-  const [sellingPoints, setSellingPoints] = useState<number>(650);
-  const [totalSpotsCompleted, setTotalSpotsCompleted] = useState<number>(12);
-  const [rank, setRank] = useState<string>("Sapling");
-  const [streak, setStreak] = useState<number>(5);
-  const [freezeShields, setFreezeShields] = useState<number>(1);
+  const [karmaBalance, setKarmaBalance] = useState<number>(0);
+  const [sellingPoints, setSellingPoints] = useState<number>(0);
+  const [totalSpotsCompleted, setTotalSpotsCompleted] = useState<number>(0);
+  const [rank, setRank] = useState<string>("Seedling");
+  const [streak, setStreak] = useState<number>(0);
+  const [freezeShields, setFreezeShields] = useState<number>(0);
   const [badges, setBadges] = useState<any[]>([]);
 
   // Loading state — exclusive to rewards page
@@ -119,39 +119,36 @@ export default function RewardPage() {
   const [selectedSizes, setSelectedSizes] = useState<Record<string, "S" | "M" | "L" | "XL">>({});
   const [toast, setToast] = useState<string | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
+  const [isFetchingHistory, setIsFetchingHistory] = useState<boolean>(false);
   const [activeSuccessModal, setActiveSuccessModal] = useState<ClaimedReward | null>(null);
 
   // Claimed Rewards List (Synced with UserRewards.selectedRewards schema)
-  const [claimedRewards, setClaimedRewards] = useState<ClaimedReward[]>([
-    {
-      id: "claim-1",
-      category: "gift card",
-      name: "BookMyShow ₹100 Cinema Voucher",
-      pointsSpent: 400,
-      dateSelected: "Yesterday, 3:45 PM",
-      promoCode: "BMS-SAFAI-9921",
-      icon: "movie",
-    },
-    {
-      id: "claim-2",
-      category: "free meal",
-      name: "Cafe Coffee Day Cappuccino Pass",
-      pointsSpent: 350,
-      dateSelected: "Sep 01, 2026",
-      promoCode: "CCD-ECO-4410",
-      icon: "local_cafe",
-    },
-    {
-      id: "claim-3",
-      category: "clothing",
-      name: "Civic Ranger Embroidered Tee",
-      clothSize: "M",
-      pointsSpent: 600,
-      dateSelected: "Aug 28, 2026",
-      promoCode: "SWAG-TEE-8812",
-      icon: "checkroom",
-    },
-  ]);
+  const [claimedRewards, setClaimedRewards] = useState<ClaimedReward[]>([]);
+
+  const handleOpenHistoryModal = async () => {
+    setIsHistoryModalOpen(true);
+    setIsFetchingHistory(true);
+    try {
+      const res = await profileApi.getRewardsHistory();
+      if (res && res.success && Array.isArray(res.selectedRewards)) {
+        const mappedBackendClaims: ClaimedReward[] = res.selectedRewards.map((r: any, idx: number) => ({
+          id: r._id || `backend-claim-${idx}`,
+          category: r.category || "gift card",
+          name: r.name || "Civic Reward",
+          clothSize: r.clothSize,
+          pointsSpent: r.pointsSpent || 0,
+          dateSelected: r.dateSelected ? new Date(r.dateSelected).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Recently",
+          promoCode: `${(r.category || "PERK").slice(0, 3).toUpperCase()}-SAFAI-${1000 + idx * 7}`,
+          icon: r.category === "clothing" ? "checkroom" : r.category === "free meal" ? "restaurant" : "local_activity",
+        }));
+        setClaimedRewards(mappedBackendClaims);
+      }
+    } catch (err) {
+      console.warn("Could not load rewards history:", err);
+    } finally {
+      setIsFetchingHistory(false);
+    }
+  };
 
   // Fetch real UserRewards data from backend profile API on mount
   useEffect(() => {
@@ -171,13 +168,13 @@ export default function RewardPage() {
         const response = await profileApi.getMyProfile();
         if (response && response.success && response.userRewards) {
           const ur = response.userRewards;
-          const kPoints = ur.karmaBalance ?? ur.karmaPoints ?? 850;
+          const kPoints = ur.karmaBalance ?? ur.karmaPoints ?? 0;
           setKarmaBalance(kPoints);
           setSellingPoints(ur.SellingPoints !== undefined ? ur.SellingPoints : kPoints);
-          setTotalSpotsCompleted(ur.totalSpotsCompleted ?? response.userStatus?.completedSpots ?? 12);
-          setRank(ur.rank || "Sapling");
-          setStreak(ur.currentStreak ?? 5);
-          setFreezeShields(ur.freezeShields ?? 1);
+          setTotalSpotsCompleted(ur.totalSpotsCompleted ?? response.userStatus?.completedSpots ?? 0);
+          setRank(ur.rank || "Seedling");
+          setStreak(ur.currentStreak ?? 0);
+          setFreezeShields(ur.freezeShields ?? 0);
           if (Array.isArray(ur.badges)) setBadges(ur.badges);
 
           // Populate backend userRewards.selectedRewards if returned
@@ -187,12 +184,14 @@ export default function RewardPage() {
               category: r.category || "gift card",
               name: r.name || "Civic Reward",
               clothSize: r.clothSize,
-              pointsSpent: r.pointsSpent || 400,
+              pointsSpent: r.pointsSpent || 0,
               dateSelected: r.dateSelected ? new Date(r.dateSelected).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Recently",
               promoCode: `${(r.category || "PERK").slice(0, 3).toUpperCase()}-SAFAI-${1000 + idx * 7}`,
               icon: r.category === "clothing" ? "checkroom" : r.category === "free meal" ? "restaurant" : "local_activity",
             }));
             setClaimedRewards(mappedBackendClaims);
+          } else {
+            setClaimedRewards([]);
           }
         }
       } catch (err) {
@@ -294,7 +293,7 @@ export default function RewardPage() {
     setSelectedSizes((prev) => ({ ...prev, [itemId]: size }));
   };
 
-  const handleRedeemItem = (item: RewardItem) => {
+  const handleRedeemItem = async (item: RewardItem) => {
     const availableBalance = sellingPoints > 0 ? sellingPoints : karmaBalance;
     if (availableBalance < item.cost) {
       triggerToast(`Insufficient Karma! You need ${item.cost - availableBalance} more points.`);
@@ -302,24 +301,42 @@ export default function RewardPage() {
     }
 
     const sizeChosen = item.category === "clothing" ? (selectedSizes[item.id] || "M") : undefined;
-    const generatedCode = `${item.category.slice(0, 3).toUpperCase()}-SAFAI-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const newClaim: ClaimedReward = {
-      id: `claim-${Date.now()}`,
-      category: item.category,
-      name: item.name,
-      clothSize: sizeChosen,
-      pointsSpent: item.cost,
-      dateSelected: "Just now",
-      promoCode: generatedCode,
-      icon: item.icon,
-    };
+    try {
+      const res = await profileApi.redeemReward({
+        name: item.name,
+        category: item.category,
+        cost: item.cost,
+        clothSize: sizeChosen,
+      });
 
-    setSellingPoints((prev) => Math.max(0, prev - item.cost));
-    setKarmaBalance((prev) => Math.max(0, prev - item.cost));
-    setClaimedRewards((prev) => [newClaim, ...prev]);
-    setActiveSuccessModal(newClaim);
-    triggerToast(`Redeemed "${item.name}"! -${item.cost} Karma Points`);
+      if (res && res.success) {
+        const ur = res.userRewards || {};
+        const newBalance = ur.SellingPoints !== undefined ? ur.SellingPoints : Math.max(0, availableBalance - item.cost);
+        setSellingPoints(newBalance);
+        setKarmaBalance(ur.karmaBalance !== undefined ? ur.karmaBalance : newBalance);
+
+        const generatedCode = `${item.category.slice(0, 3).toUpperCase()}-SAFAI-${Math.floor(1000 + Math.random() * 9000)}`;
+        const newClaim: ClaimedReward = {
+          id: res.claimedReward?._id || `claim-${Date.now()}`,
+          category: item.category,
+          name: item.name,
+          clothSize: sizeChosen,
+          pointsSpent: item.cost,
+          dateSelected: "Just now",
+          promoCode: generatedCode,
+          icon: item.icon,
+        };
+
+        setClaimedRewards((prev) => [newClaim, ...prev]);
+        setActiveSuccessModal(newClaim);
+        triggerToast(`Redeemed "${item.name}"! -${item.cost} Karma Points`);
+      } else {
+        triggerToast(res?.message || "Failed to redeem reward. Please try again.");
+      }
+    } catch (err: any) {
+      triggerToast(err?.message || "Error redeeming reward.");
+    }
   };
 
   const handleCopyCode = (code: string) => {
@@ -361,7 +378,7 @@ export default function RewardPage() {
           </div>
 
           <button
-            onClick={() => setIsHistoryModalOpen(true)}
+            onClick={handleOpenHistoryModal}
             className="flex items-center gap-1.5 text-[#3d4a42] hover:bg-[#006948]/10 hover:text-[#006948] transition-colors px-3 py-1.5 rounded-full border border-[#dae2fd] active:scale-95 cursor-pointer text-xs font-semibold font-['JetBrains_Mono']"
             title="Redemption History"
           >
@@ -459,7 +476,11 @@ export default function RewardPage() {
               </div>
             </div>
 
-            <div className="bg-black/20 rounded-xl p-3 flex items-center gap-3">
+            <div
+              onClick={handleOpenHistoryModal}
+              className="bg-black/20 rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:bg-black/30 transition-colors"
+              title="Click to view redemption history"
+            >
               <div className="w-9 h-9 rounded-lg bg-[#C084FC]/20 text-[#C084FC] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
                   card_membership
@@ -763,29 +784,48 @@ export default function RewardPage() {
             </div>
 
             <div className="flex flex-col gap-3">
-              {claimedRewards.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-3.5 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] flex justify-between items-center hover:bg-[#F1F5F9] transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#006948]/10 text-[#006948] flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                        {item.icon}
-                      </span>
-                    </div>
-                    <div>
-                      <h4 className="font-['Inter'] text-xs font-bold text-[#0F172A]">{item.name}</h4>
-                      <p className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] mt-0.5">
-                        {item.dateSelected} · {item.category.toUpperCase()}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="font-['JetBrains_Mono'] text-xs font-extrabold text-[#BA1A1A]">
-                    -{item.pointsSpent} XP
-                  </span>
+              {isFetchingHistory ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-2 text-[#006948] font-['Inter'] text-xs font-semibold">
+                  <span className="material-symbols-outlined animate-spin text-2xl">sync</span>
+                  <span>Syncing with your UserRewards database ledger...</span>
                 </div>
-              ))}
+              ) : claimedRewards.length === 0 ? (
+                <div className="py-12 px-4 flex flex-col items-center justify-center text-center bg-[#F8FAFC] rounded-2xl border border-dashed border-[#CBD5E1]">
+                  <div className="w-14 h-14 rounded-full bg-[#E2E8F0] text-[#64748B] flex items-center justify-center mb-3">
+                    <span className="material-symbols-outlined text-2xl">receipt_long</span>
+                  </div>
+                  <h4 className="font-['Hanken_Grotesk'] text-base font-bold text-[#0F172A] mb-1">
+                    No Redemption History Yet
+                  </h4>
+                  <p className="font-['Inter'] text-xs text-[#64748B] max-w-xs leading-relaxed">
+                    You haven't claimed any rewards yet. Mark & complete cleanup spots to earn Karma Points and redeem perks!
+                  </p>
+                </div>
+              ) : (
+                claimedRewards.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-3.5 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] flex justify-between items-center hover:bg-[#F1F5F9] transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#006948]/10 text-[#006948] flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                          {item.icon}
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="font-['Inter'] text-xs font-bold text-[#0F172A]">{item.name}</h4>
+                        <p className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] mt-0.5">
+                          {item.dateSelected} · {item.category.toUpperCase()}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="font-['JetBrains_Mono'] text-xs font-extrabold text-[#BA1A1A]">
+                      -{item.pointsSpent} XP
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
 
             <button

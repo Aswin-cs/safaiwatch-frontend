@@ -6,6 +6,8 @@ export interface ApiResponse<T = any> {
   user?: T;
   isProfileCompleted?: boolean;
   userRewards?: any;
+  selectedRewards?: any[];
+  claimedReward?: any;
   userStatus?: any;
   spots?: any[];
   spot?: any;
@@ -202,6 +204,19 @@ export const profileApi = {
     return request<any>('/api/v1/profile/update', {
       method: 'PATCH',
       body: isFormData ? payload : JSON.stringify(payload),
+    });
+  },
+
+  redeemReward: async (payload: { name: string; category?: string; cost?: number; clothSize?: string }) => {
+    return request<any>('/api/v1/profile/redeem-reward', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getRewardsHistory: async () => {
+    return request<any>('/api/v1/profile/rewards-history', {
+      method: 'GET',
     });
   },
 
