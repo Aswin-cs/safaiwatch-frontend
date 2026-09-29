@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { spotsApi } from "@/lib/api";
 
 export interface ReportWasteSpotModalProps {
@@ -48,6 +48,13 @@ export default function ReportWasteSpotModal({
   );
   const [isRecalibrating, setIsRecalibrating] = useState<boolean>(false);
   const [description, setDescription] = useState<string>("");
+
+  const isFetchingGestureRef = useRef<boolean>(false);
+  const isFetchingCodeRef = useRef<boolean>(false);
+  const coordsRef = useRef<[number, number]>(coords);
+  useEffect(() => {
+    coordsRef.current = coords;
+  }, [coords]);
 
   // Category & Severity State
   const [wasteCategory, setWasteCategory] = useState<string>("Plastics & Wraps");
@@ -103,6 +110,8 @@ export default function ReportWasteSpotModal({
     setSwitchCount(0);
     setRefreshCountBeforeExpiry(0);
     setRefreshCountAfterExpiry(0);
+    isFetchingGestureRef.current = false;
+    isFetchingCodeRef.current = false;
   };
 
   // Manual refresh handler for verification gesture/code with pre-expiry (3) and post-expiry (2) limits
@@ -174,13 +183,16 @@ export default function ReportWasteSpotModal({
 
   // Fetch random gesture verification photo and ID when modal is open and mode is "hand" (3 mins = 180s)
   useEffect(() => {
-    if (!isOpen || verificationMode !== "hand" || isRecalibrating) return;
+    if (!isOpen || verificationMode !== "hand") return;
+    if (gestureId || isFetchingGestureRef.current) return;
 
+    isFetchingGestureRef.current = true;
     let isMounted = true;
     const fetchGesture = async () => {
       setIsLoadingGesture(true);
       try {
-        const geoCoords: [number, number] = [coords[1], coords[0]];
+        const currentCoords = coordsRef.current;
+        const geoCoords: [number, number] = [currentCoords[1], currentCoords[0]];
         const res = await spotsApi.getRandomGestureVerification({ coordinates: geoCoords });
         if (isMounted && res && res.success) {
           const imgUrl = (res as any).imageUrl || (res as any).data?.imageUrl;
@@ -195,6 +207,7 @@ export default function ReportWasteSpotModal({
         if (isMounted) {
           setIsLoadingGesture(false);
         }
+        isFetchingGestureRef.current = false;
       }
     };
 
@@ -202,17 +215,20 @@ export default function ReportWasteSpotModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, verificationMode, coords, isRecalibrating, refreshTrigger]);
+  }, [isOpen, verificationMode, gestureId, refreshTrigger]);
 
   // Fetch random code verification and ID when modal is open and mode is "code" (5 mins = 300s)
   useEffect(() => {
-    if (!isOpen || verificationMode !== "code" || isRecalibrating) return;
+    if (!isOpen || verificationMode !== "code") return;
+    if (codeId || isFetchingCodeRef.current) return;
 
+    isFetchingCodeRef.current = true;
     let isMounted = true;
     const fetchCode = async () => {
       setIsLoadingCode(true);
       try {
-        const geoCoords: [number, number] = [coords[1], coords[0]];
+        const currentCoords = coordsRef.current;
+        const geoCoords: [number, number] = [currentCoords[1], currentCoords[0]];
         const res = await spotsApi.getRandomCodeVerification({ coordinates: geoCoords });
         if (isMounted && res && res.success) {
           const cVal = (res as any).code || (res as any).data?.code;
@@ -227,6 +243,7 @@ export default function ReportWasteSpotModal({
         if (isMounted) {
           setIsLoadingCode(false);
         }
+        isFetchingCodeRef.current = false;
       }
     };
 
@@ -234,7 +251,7 @@ export default function ReportWasteSpotModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, verificationMode, coords, isRecalibrating, refreshTrigger]);
+  }, [isOpen, verificationMode, codeId, refreshTrigger]);
 
   if (!isOpen) return null;
 
