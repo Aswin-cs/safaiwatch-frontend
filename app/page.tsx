@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import SafaiMap, { Report } from "@/components/map/SafaiMap";
 import ReportWasteSpotModal from "@/components/ReportWasteSpotModal";
+import CompleteWasteSpotModal from "@/components/CompleteWasteSpotModal";
 import SplashLoader from "@/components/SplashLoader";
 import { profileApi, authApi, spotsApi } from "@/lib/api";
 import { socket } from "@/lib/socket";
@@ -2349,166 +2350,46 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Complete Spot Form Modal */}
-      {isCompleteModalOpen && selectedReport && (
-        <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4 animate-enter overflow-y-auto">
-          <div className="bg-[#faf8ff] rounded-3xl max-w-md w-full p-6 border border-slate-200 shadow-2xl relative my-8">
-            <button
-              onClick={() => {
-                setIsCompleteModalOpen(false);
-                setCompleteDescription("");
-                setCompleteImageFile(null);
-                setCompleteImagePreview(null);
-              }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-200/60 transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 bg-amber-500/15 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-['Hanken_Grotesk'] text-lg font-extrabold text-slate-900 leading-tight">
-                  Complete Spot Cleanup
-                </h3>
-                <p className="text-xs text-slate-500 font-mono mt-0.5">
-                  {selectedReport.title}
-                </p>
-              </div>
-            </div>
-
-            {/* Spot Before Image */}
-            {selectedReport.image && (
-              <div className="relative w-full h-36 rounded-2xl overflow-hidden border border-slate-300 bg-slate-900 mb-4 shadow-sm">
-                <img
-                  src={selectedReport.image}
-                  alt="Before cleanup"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm text-red-300 font-mono text-[10px] font-bold px-2.5 py-1 rounded-full border border-red-500/30">
-                  📸 Before
-                </div>
-              </div>
-            )}
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleCompleteSpot();
-              }}
-              className="space-y-4"
-            >
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Cleanup Description
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Describe what was cleaned up, methods used..."
-                  value={completeDescription}
-                  onChange={(e) => setCompleteDescription(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  After Photo (optional)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  id="complete-image-upload"
-                  onChange={handleCompleteImageChange}
-                  className="hidden"
-                />
-
-                {completeImagePreview ? (
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-300 bg-slate-900 group h-36 flex items-center justify-center">
-                    <img
-                      src={completeImagePreview}
-                      alt="After cleanup preview"
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm text-emerald-300 font-mono text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-500/30">
-                      📸 After
-                    </div>
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <label
-                        htmlFor="complete-image-upload"
-                        className="bg-white/90 text-slate-900 font-bold text-xs px-3 py-1.5 rounded-xl cursor-pointer hover:bg-white transition-colors"
-                      >
-                        Change
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCompleteImageFile(null);
-                          setCompleteImagePreview(null);
-                        }}
-                        className="bg-red-600 text-white font-bold text-xs px-3 py-1.5 rounded-xl hover:bg-red-700 transition-colors"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <label
-                    htmlFor="complete-image-upload"
-                    className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 hover:border-amber-500 rounded-2xl bg-white hover:bg-amber-50/50 transition-all cursor-pointer text-center group"
-                  >
-                    <div className="w-9 h-9 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                      <Camera className="w-4.5 h-4.5" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-800">
-                      Upload after-cleanup photo
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-mono mt-0.5">
-                      JPG, PNG or WEBP (Max 5MB)
-                    </span>
-                  </label>
-                )}
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCompleteModalOpen(false);
-                    setCompleteDescription("");
-                    setCompleteImageFile(null);
-                    setCompleteImagePreview(null);
-                  }}
-                  disabled={isCompletingSpot}
-                  className="flex-1 py-2.5 px-4 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm hover:bg-slate-100 disabled:opacity-50 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={isCompletingSpot}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md disabled:opacity-60 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-                >
-                  {isCompletingSpot ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Completing...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4 text-white" />
-                      <span>Mark as Completed</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Complete Spot Form Modal (Google Stitch Design) */}
+      <CompleteWasteSpotModal
+        isOpen={isCompleteModalOpen && !!selectedReport}
+        onClose={() => {
+          setIsCompleteModalOpen(false);
+          setCompleteDescription("");
+          setCompleteImageFile(null);
+          setCompleteImagePreview(null);
+        }}
+        spot={selectedReport}
+        userRole={userProfile?.role || "Civilian"}
+        onSuccess={(returnedSpot) => {
+          if (!selectedReport) return;
+          const updatedIsCompletedBy = returnedSpot?.isCompletedBy || selectedReport.isCompletedBy || [
+            {
+              completedBy: {
+                _id: userProfile?._id,
+                username: userProfile?.username || userProfile?.name || "Civic Hero",
+                avatar: userProfile?.avatarUrl,
+                role: userProfile?.role || "Coordinator",
+              },
+              completedAt: new Date(),
+            },
+          ];
+          const updatedReport: Report = {
+            ...selectedReport,
+            status: "resolved" as Report["status"],
+            severity: "Resolved",
+            isCompleted: true,
+            isCompletedBy: updatedIsCompletedBy,
+            image: returnedSpot?.image || selectedReport.image,
+            completedImage: returnedSpot?.completedImage,
+          };
+          setSelectedReport(updatedReport);
+          setReports((prev) =>
+            prev.map((r) => (r.id === selectedReport.id ? updatedReport : r))
+          );
+          setIsCompleteModalOpen(false);
+        }}
+      />
     </div>
   );
 }

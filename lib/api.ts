@@ -208,19 +208,52 @@ export const profileApi = {
   },
 
   redeemReward: async (payload: { name: string; category?: string; cost?: number; clothSize?: string }) => {
-    return request<any>('/api/v1/profile/redeem-reward', {
+    return request<any>('/api/v1/rewards/redeem', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   },
 
   getRewardsHistory: async () => {
-    return request<any>('/api/v1/profile/rewards-history', {
+    return request<any>('/api/v1/rewards/history', {
       method: 'GET',
     });
   },
 
   clearCache: clearSessionProfileCache,
+};
+
+export const rewardsApi = {
+  getMyRewards: async () => {
+    return request<any>('/api/v1/rewards/my-rewards', {
+      method: 'GET',
+    });
+  },
+
+  getCatalog: async () => {
+    return request<any>('/api/v1/rewards/catalog', {
+      method: 'GET',
+    });
+  },
+
+  redeemReward: async (payload: { name: string; category?: string; cost?: number; clothSize?: string }) => {
+    return request<any>('/api/v1/rewards/redeem', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getRewardsHistory: async () => {
+    return request<any>('/api/v1/rewards/history', {
+      method: 'GET',
+    });
+  },
+
+  getLeaderboard: async () => {
+    return request<any>('/api/v1/rewards/leaderboard', {
+      method: 'GET',
+    });
+  },
 };
 
 export const spotsApi = {
@@ -275,14 +308,14 @@ export const spotsApi = {
     });
   },
 
-  getRandomGestureVerification: async (params?: { userId?: string; coordinates?: [number, number] }) => {
+  getRandomGestureVerification: async (params?: { userId?: string; coordinates?: [number, number]; action?: string; target?: string }) => {
     return request<{ imageId?: string; imageUrl?: string }>('/api/v1/spots/gesture-verification', {
       method: 'POST',
       body: JSON.stringify(params || {}),
     });
   },
 
-  getRandomCodeVerification: async (params?: { userId?: string; coordinates?: [number, number] }) => {
+  getRandomCodeVerification: async (params?: { userId?: string; coordinates?: [number, number]; action?: string; target?: string }) => {
     return request<{ verificationId?: string; code?: string }>('/api/v1/spots/code-verification', {
       method: 'POST',
       body: JSON.stringify(params || {}),

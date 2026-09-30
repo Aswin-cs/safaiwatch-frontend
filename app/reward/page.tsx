@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { profileApi, authApi } from "@/lib/api";
+import { rewardsApi, authApi, profileApi } from "@/lib/api";
 
 interface RewardItem {
   id: string;
@@ -129,7 +129,7 @@ export default function RewardPage() {
     setIsHistoryModalOpen(true);
     setIsFetchingHistory(true);
     try {
-      const res = await profileApi.getRewardsHistory();
+      const res = await rewardsApi.getRewardsHistory();
       if (res && res.success && Array.isArray(res.selectedRewards)) {
         const mappedBackendClaims: ClaimedReward[] = res.selectedRewards.map((r: any, idx: number) => ({
           id: r._id || `backend-claim-${idx}`,
@@ -150,7 +150,7 @@ export default function RewardPage() {
     }
   };
 
-  // Fetch real UserRewards data from backend profile API on mount
+  // Fetch real UserRewards data from backend dedicated rewards API on mount
   useEffect(() => {
     async function loadRewardsData() {
       try {
@@ -165,13 +165,22 @@ export default function RewardPage() {
           return;
         }
 
-        const response = await profileApi.getMyProfile();
-        if (response && response.success && response.userRewards) {
-          const ur = response.userRewards;
+        // Fetch from dedicated rewards route first with fallback to profile
+        const rewardsRes = await rewardsApi.getMyRewards();
+        let ur = rewardsRes?.success ? rewardsRes.userRewards : null;
+        
+        if (!ur) {
+          const profileRes = await profileApi.getMyProfile();
+          if (profileRes && profileRes.success && profileRes.userRewards) {
+            ur = profileRes.userRewards;
+          }
+        }
+
+        if (ur) {
           const kPoints = ur.karmaBalance ?? ur.karmaPoints ?? 0;
           setKarmaBalance(kPoints);
           setSellingPoints(ur.SellingPoints !== undefined ? ur.SellingPoints : kPoints);
-          setTotalSpotsCompleted(ur.totalSpotsCompleted ?? response.userStatus?.completedSpots ?? 0);
+          setTotalSpotsCompleted(ur.totalSpotsCompleted ?? 0);
           setRank(ur.rank || "Seedling");
           setStreak(ur.currentStreak ?? 0);
           setFreezeShields(ur.freezeShields ?? 0);
@@ -303,7 +312,7 @@ export default function RewardPage() {
     const sizeChosen = item.category === "clothing" ? (selectedSizes[item.id] || "M") : undefined;
 
     try {
-      const res = await profileApi.redeemReward({
+      const res = await rewardsApi.redeemReward({
         name: item.name,
         category: item.category,
         cost: item.cost,

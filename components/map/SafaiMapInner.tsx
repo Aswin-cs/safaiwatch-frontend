@@ -47,6 +47,7 @@ export interface Report {
   volunteersNeeded?: number;
   distance?: string;
   image?: string;
+  completedImage?: string;
   markedBy?: MarkedByUser | string;
   markedAt?: string;
   isCompleted?: boolean;
