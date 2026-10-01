@@ -45,6 +45,7 @@ import {
   Radio,
   SlidersHorizontal,
   ChevronDown,
+  LocateFixed,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -96,6 +97,58 @@ export default function HomePage() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+
+  // Map Center, User GPS Location & Recenter Navigation State
+  const [mapCenter, setMapCenter] = useState<[number, number] | undefined>(undefined);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+
+  // Google Maps-style Auto Navigate / Recenter to Current Location
+  const handleNavigateToCurrentLocation = () => {
+    if (typeof window !== "undefined" && "geolocation" in navigator) {
+      setIsLocating(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords: [number, number] = [
+            position.coords.latitude,
+            position.coords.longitude,
+          ];
+          setUserLocation(coords);
+          // Set new array reference to ensure Leaflet MapController triggers smooth flyTo
+          setMapCenter([coords[0], coords[1]]);
+          setIsLocating(false);
+        },
+        (error) => {
+          console.warn("GPS navigation error:", error.message);
+          setIsLocating(false);
+          if (userLocation) {
+            setMapCenter([userLocation[0], userLocation[1]]);
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+  };
+
+  // Auto-detect GPS location on initial load
+  useEffect(() => {
+    if (typeof window !== "undefined" && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords: [number, number] = [
+            position.coords.latitude,
+            position.coords.longitude,
+          ];
+          setUserLocation(coords);
+          setMapCenter(coords);
+        },
+        (error) => {
+          console.warn("Initial GPS auto-detect failed:", error.message);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+  }, []);
 
   // AI Assistant Chat Modal state
   const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(false);
@@ -1312,6 +1365,7 @@ export default function HomePage() {
           onSelectCoordinates={handleSelectCoordinates}
           onSelectReport={handleSelectReport}
           onClearRouting={() => setRoutingTarget(null)}
+          center={mapCenter}
           zoom={14}
         />
       </div>
@@ -2003,14 +2057,25 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Floating AI Assistant FAB Button (White Theme) */}
+      {/* Floating Google Maps-Style Auto Navigate / Recenter Current Location FAB Button */}
       <button
-        onClick={() => setIsAiModalOpen(true)}
-        className="fixed bottom-20 right-4 z-30 w-12 h-12 bg-white text-slate-800 rounded-full shadow-[0_10px_25px_rgba(15,23,42,0.15)] flex items-center justify-center hover:scale-110 transition-transform cursor-pointer border border-slate-200/90"
-        title="Ask SafaiWatch AI Assistant"
+        type="button"
+        onClick={handleNavigateToCurrentLocation}
+        disabled={isLocating}
+        className="fixed bottom-20 right-4 z-30 w-12 h-12 bg-white hover:bg-slate-50 active:scale-95 text-slate-800 rounded-full shadow-[0_10px_25px_rgba(15,23,42,0.18)] flex items-center justify-center transition-all cursor-pointer border border-slate-200/90 group"
+        title="Auto Navigate to Current Location (GPS)"
+        aria-label="Auto navigate to current location"
       >
-        <Bot className="w-6 h-6 text-[#006948]" />
-        <div className="absolute top-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"></div>
+        <LocateFixed
+          className={`w-6 h-6 text-[#006948] transition-all ${
+            isLocating ? "animate-spin text-emerald-600" : "group-hover:scale-110"
+          }`}
+        />
+        <div
+          className={`absolute top-0 right-0 w-3 h-3 rounded-full border-2 border-white transition-colors ${
+            isLocating ? "bg-emerald-400 animate-ping" : "bg-emerald-500"
+          }`}
+        ></div>
       </button>
 
       {/* Floating Uber Style Bottom Dock Navigation Bar (White Theme) */}

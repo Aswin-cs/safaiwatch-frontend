@@ -164,11 +164,11 @@ function ClickHandler({
 }
 
 // Component to fly map to new center on geolocation update
-function MapController({ center }: { center: [number, number] }) {
+function MapController({ center }: { center?: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    if (center) {
-      map.flyTo(center, map.getZoom(), { animate: true, duration: 1.2 });
+    if (center && center.length === 2 && !isNaN(center[0]) && !isNaN(center[1])) {
+      map.flyTo(center, Math.max(map.getZoom(), 15), { animate: true, duration: 1.2 });
     }
   }, [center, map]);
   return null;
@@ -318,6 +318,14 @@ export default function SafaiMapInner({
   const [mapCenter, setMapCenter] = useState<[number, number]>(center);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
+
+  // Update mapCenter if parent provides/updates a center prop
+  useEffect(() => {
+    if (center && center.length === 2 && !isNaN(center[0]) && !isNaN(center[1])) {
+      setMapCenter(center);
+      setUserLocation(center);
+    }
+  }, [center]);
 
   // Dynamic Geolocation upon mount
   useEffect(() => {
