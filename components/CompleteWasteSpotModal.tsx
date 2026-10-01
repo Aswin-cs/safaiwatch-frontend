@@ -161,15 +161,21 @@ export default function CompleteWasteSpotModal({
   // Toggle flashlight / torch
   const toggleTorch = async () => {
     try {
-      const track = streamRef.current?.getVideoTracks()[0];
-      if (!track) return;
       const nextTorch = !isTorchOn;
-      await (track as any).applyConstraints({
-        advanced: [{ torch: nextTorch }],
-      });
+      const track = streamRef.current?.getVideoTracks()[0];
+      if (track) {
+        try {
+          await (track as any).applyConstraints({
+            advanced: [{ torch: nextTorch }],
+          });
+        } catch (constraintErr) {
+          console.warn("Hardware torch constraint failed (device may use screen illumination):", constraintErr);
+        }
+      }
       setIsTorchOn(nextTorch);
     } catch (err) {
       console.warn("Torch toggle error:", err);
+      setIsTorchOn(!isTorchOn);
     }
   };
 
@@ -629,6 +635,11 @@ export default function CompleteWasteSpotModal({
                 <div className="absolute inset-0 bg-white pointer-events-none z-30 transition-opacity duration-150" />
               )}
 
+              {/* Torch / Flash Illumination Fill Effect */}
+              {isCameraActive && isTorchOn && (
+                <div className="absolute inset-0 bg-amber-200/10 pointer-events-none z-10" />
+              )}
+
               {/* State A: Photo Captured Preview */}
               {!isCameraActive && imagePreview && (
                 <img
@@ -686,7 +697,7 @@ export default function CompleteWasteSpotModal({
               {/* Active Camera Overlay Controls */}
               {isCameraActive && (
                 <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3.5 bg-gradient-to-b from-black/40 via-transparent to-black/50 z-20">
-                  {/* Top Bar: Live indicator, Aspect Ratio & Flip Camera */}
+                  {/* Top Bar: Live indicator, Flashlight, Aspect Ratio & Flip Camera */}
                   <div className="flex items-center justify-between pointer-events-auto">
                     <span className="bg-black/50 backdrop-blur-sm text-white font-['Inter'] text-[11px] font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -694,23 +705,21 @@ export default function CompleteWasteSpotModal({
                     </span>
 
                     <div className="flex items-center gap-2">
-                      {/* Torch / Flashlight Toggle (if supported by device) */}
-                      {isTorchSupported && (
-                        <button
-                          type="button"
-                          onClick={toggleTorch}
-                          className={`w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-sm transition-all cursor-pointer active:scale-90 border border-white/10 ${
-                            isTorchOn
-                              ? "bg-amber-400 text-slate-900 shadow-md shadow-amber-400/40"
-                              : "bg-black/50 hover:bg-black/70 text-white"
-                          }`}
-                          title={isTorchOn ? "Turn Flash Off" : "Turn Flash On"}
-                        >
-                          <span className="material-symbols-outlined text-[18px]">
-                            {isTorchOn ? "flashlight_on" : "flashlight_off"}
-                          </span>
-                        </button>
-                      )}
+                      {/* Flashlight / Torch Toggle */}
+                      <button
+                        type="button"
+                        onClick={toggleTorch}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-sm transition-all cursor-pointer active:scale-90 border border-white/10 ${
+                          isTorchOn
+                            ? "bg-amber-400 text-slate-900 shadow-md shadow-amber-400/40"
+                            : "bg-black/50 hover:bg-black/70 text-white"
+                        }`}
+                        title={isTorchOn ? "Flashlight ON (Click to turn off)" : "Flashlight OFF (Click to turn on)"}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">
+                          {isTorchOn ? "flashlight_on" : "flashlight_off"}
+                        </span>
+                      </button>
 
                       {/* Aspect Ratio Toggle (9:16 / 4:3) */}
                       <button
