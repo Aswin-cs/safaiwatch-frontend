@@ -600,133 +600,409 @@ body {
 }
 
 /* ==========================================================================
-   ULTRA-PREMIUM LEAFLET ROUTING MACHINE CUSTOM OVERRIDES
+   AUTHENTIC GOOGLE MAPS NAVIGATION CARD STYLES
    ========================================================================== */
 
-/* Main Routing Container Panel */
+/* Main Routing Container Panel - Google Maps Floating Sheet Popup */
 .leaflet-routing-container {
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border-radius: 24px !important;
-  border: 1px solid rgba(0, 105, 72, 0.18) !important;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.16), 0 2px 10px rgba(0, 105, 72, 0.05) !important;
-  padding: 14px !important;
-  font-family: var(--font-hanken), 'Inter', sans-serif !important;
-  color: #131b2e !important;
-  max-width: 320px !important;
-  width: calc(100vw - 32px) !important;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  position: fixed !important;
+  top: 76px !important;
+  left: 50% !important;
+  transform: translateX(-50%) translateY(0) !important;
+  width: calc(100vw - 24px) !important;
+  max-width: 420px !important;
+  max-height: calc(100vh - 180px) !important;
+  background: #ffffff !important;
+  border-radius: 22px !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 16px 48px -8px rgba(0, 0, 0, 0.24), 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+  padding: 0 !important;
+  font-family: 'Google Sans', 'Roboto', var(--font-hanken), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  color: #202124 !important;
+  z-index: 1050 !important;
+  display: flex !important;
+  flex-direction: column !important;
   overflow: hidden !important;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.22s !important;
 }
 
-/* Custom End Navigation Button */
-.custom-routing-close-btn {
-  width: 100% !important;
-  padding: 10px 14px !important;
-  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+@media (min-width: 768px) {
+  .leaflet-routing-container {
+    top: 84px !important;
+    left: 24px !important;
+    transform: translateY(0) !important;
+    max-width: 380px !important;
+  }
+}
+
+/* Hidden popup state */
+.leaflet-routing-container.gmaps-popup-hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  transform: translateX(-50%) translateY(14px) scale(0.96) !important;
+}
+
+@media (min-width: 768px) {
+  .leaflet-routing-container.gmaps-popup-hidden {
+    transform: translateY(14px) scale(0.96) !important;
+  }
+}
+
+/* Visible popup state */
+.leaflet-routing-container.gmaps-popup-visible {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  transform: translateX(-50%) translateY(0) scale(1) !important;
+}
+
+@media (min-width: 768px) {
+  .leaflet-routing-container.gmaps-popup-visible {
+    transform: translateY(0) scale(1) !important;
+  }
+}
+
+
+/* Google Maps Navigation Top Header (Iconic Emerald Green HUD) */
+.gmaps-nav-header {
+  background: linear-gradient(135deg, #137333 0%, #0f9d58 100%) !important;
   color: #ffffff !important;
-  font-family: var(--font-hanken), sans-serif !important;
+  padding: 12px 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  box-shadow: 0 2px 8px rgba(15, 157, 88, 0.22) !important;
+}
+
+.gmaps-nav-header-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.gmaps-nav-icon-badge {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #ffffff !important;
+  flex-shrink: 0 !important;
+}
+
+.gmaps-nav-text-col {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1px !important;
+}
+
+.gmaps-nav-badge {
+  font-size: 9px !important;
   font-weight: 800 !important;
-  font-size: 13px !important;
-  letter-spacing: 0.02em !important;
-  border: 1px solid rgba(255, 255, 255, 0.25) !important;
-  border-radius: 14px !important;
-  margin-bottom: 12px !important;
+  letter-spacing: 0.08em !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  text-transform: uppercase !important;
+}
+
+.gmaps-nav-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  letter-spacing: -0.01em !important;
+}
+
+.gmaps-nav-close-btn {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+  border: none !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   cursor: pointer !important;
-  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.28) !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+  transition: all 0.2s ease !important;
+  flex-shrink: 0 !important;
 }
-.custom-routing-close-btn:hover {
-  background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
-  box-shadow: 0 8px 22px rgba(220, 38, 38, 0.35) !important;
-  transform: translateY(-1px) scale(1.01) !important;
+
+.gmaps-nav-close-btn:hover {
+  background: rgba(255, 255, 255, 0.35) !important;
+  transform: scale(1.05) !important;
 }
-.custom-routing-close-btn:active {
-  transform: translateY(0) scale(0.98) !important;
+
+/* Legacy button reset if present */
+.custom-routing-close-btn {
+  display: none !important;
 }
 
 /* Leaflet Routing Collapse Toggle Button */
 .leaflet-routing-collapse-btn {
-  top: 14px !important;
-  right: 14px !important;
-  width: 26px !important;
-  height: 26px !important;
-  background-color: rgba(0, 105, 72, 0.08) !important;
-  border-radius: 50% !important;
-  opacity: 0.85 !important;
-  transition: opacity 0.2s, background-color 0.2s !important;
-}
-.leaflet-routing-collapse-btn:hover {
-  background-color: rgba(0, 105, 72, 0.18) !important;
-  opacity: 1 !important;
+  display: none !important;
 }
 
 /* Route Alternatives Container */
 .leaflet-routing-alt {
-  background: transparent !important;
-  padding: 0 !important;
+  background: #ffffff !important;
+  padding: 12px 16px 6px 16px !important;
   border: none !important;
-  max-height: 260px !important;
+  max-height: 290px !important;
   overflow-y: auto !important;
   scrollbar-width: thin !important;
-  scrollbar-color: #bccac0 transparent !important;
+  scrollbar-color: #dadce0 transparent !important;
 }
 
-/* Distance & Time Summary Header */
-.leaflet-routing-alt h2,
-.leaflet-routing-alt h3 {
-  font-family: var(--font-hanken), sans-serif !important;
-  font-weight: 800 !important;
-  font-size: 14px !important;
-  color: #006948 !important;
-  background: linear-gradient(135deg, rgba(133, 248, 196, 0.25), rgba(0, 105, 72, 0.08)) !important;
-  border: 1px solid rgba(0, 105, 72, 0.15) !important;
-  padding: 10px 14px !important;
-  border-radius: 14px !important;
-  margin: 0 0 10px 0 !important;
+.leaflet-routing-alt::-webkit-scrollbar {
+  width: 5px !important;
+}
+.leaflet-routing-alt::-webkit-scrollbar-thumb {
+  background-color: #dadce0 !important;
+  border-radius: 4px !important;
+}
+
+/* Google Maps ETA & Route Summary Hero */
+.gmaps-summary-card {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  padding: 2px 0 10px 0 !important;
+  border-bottom: 1px solid #e8eaed !important;
+  margin-bottom: 8px !important;
+}
+
+.gmaps-time-group {
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 6px !important;
+}
+
+.gmaps-time-big {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: #188038 !important; /* Google traffic green */
+  letter-spacing: -0.02em !important;
+}
+
+.gmaps-dist-muted {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #5f6368 !important;
+}
+
+.gmaps-traffic-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  background: #e6f4ea !important;
+  color: #137333 !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 3px 8px !important;
+  border-radius: 12px !important;
+}
+
+.gmaps-traffic-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background: #188038 !important;
+  display: inline-block !important;
+}
+
+/* Road Name Subtitle (via Street) */
+.leaflet-routing-alt h2 {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #3c4043 !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 2px 0 6px 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  box-shadow: none !important;
+}
+
+.gmaps-road-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #5f6368 !important;
+}
+
+/* Overriding default h3 fallback if js hasn't replaced it yet */
+.leaflet-routing-alt h3 {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #188038 !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 0 6px 0 !important;
+  box-shadow: none !important;
 }
 
 /* Turn-by-Turn Instruction Table */
 .leaflet-routing-alt table {
   width: 100% !important;
-  border-spacing: 0 4px !important;
-  border-collapse: separate !important;
-  margin-top: 4px !important;
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+  margin-top: 2px !important;
 }
 
 .leaflet-routing-alt tr {
-  background: #ffffff !important;
-  border-radius: 12px !important;
-  transition: all 0.2s ease !important;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03) !important;
-  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid #f1f3f4 !important;
+  box-shadow: none !important;
+  transition: background-color 0.15s ease !important;
+  cursor: pointer !important;
+}
+
+.leaflet-routing-alt tr:last-child {
+  border-bottom: none !important;
 }
 
 .leaflet-routing-alt tr:hover {
-  background: #f0fdf4 !important;
-  border-color: rgba(0, 105, 72, 0.25) !important;
-  transform: translateX(3px) !important;
+  background-color: #f8f9fa !important;
 }
 
 .leaflet-routing-alt td {
-  padding: 9px 10px !important;
-  font-size: 12px !important;
-  font-weight: 600 !important;
-  color: #131b2e !important;
+  padding: 9px 4px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  color: #202124 !important;
   vertical-align: middle !important;
+  line-height: 1.35 !important;
 }
 
-/* Direction Icons */
+.leaflet-routing-alt td:first-child {
+  width: 36px !important;
+  padding-left: 0 !important;
+  text-align: center !important;
+}
+
+.leaflet-routing-alt td:last-child {
+  text-align: right !important;
+  color: #70757a !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+  padding-right: 0 !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* ==========================================================================
+   CRISP GOOGLE MAPS MANEUVER ICONS (REPLACING BROKEN PNG SPRITES)
+   ========================================================================== */
+
 .leaflet-routing-icon {
-  width: 20px !important;
-  height: 20px !important;
-  background-size: contain !important;
-  opacity: 0.85 !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  background-color: #f1f3f4 !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 16px 16px !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
+}
+
+/* Straight / Depart / Continue */
+.leaflet-routing-icon-continue,
+.leaflet-routing-icon-depart,
+.leaflet-routing-icon-straight {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a73e8' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='12' y1='19' x2='12' y2='5'%3E%3C/line%3E%3Cpolyline points='5 12 12 5 19 12'%3E%3C/polyline%3E%3C/svg%3E") !important;
+}
+
+/* Turn Left / Sharp Left / Bear Left */
+.leaflet-routing-icon-turn-left,
+.leaflet-routing-icon-sharp-left,
+.leaflet-routing-icon-bear-left {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a73e8' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 10 4 15 9 20'%3E%3C/polyline%3E%3Cpath d='M20 4v7a4 4 0 0 1-4 4H4'%3E%3C/path%3E%3C/svg%3E") !important;
+}
+
+/* Turn Right / Sharp Right / Bear Right */
+.leaflet-routing-icon-turn-right,
+.leaflet-routing-icon-sharp-right,
+.leaflet-routing-icon-bear-right {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a73e8' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='15 10 20 15 15 20'%3E%3C/polyline%3E%3Cpath d='M4 4v7a4 4 0 0 0 4 4h12'%3E%3C/path%3E%3C/svg%3E") !important;
+}
+
+/* U-Turn */
+.leaflet-routing-icon-u-turn {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a73e8' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 10 4 15 9 20'%3E%3C/polyline%3E%3Cpath d='M20 18v-7a5 5 0 0 0-10 0v4H4'%3E%3C/path%3E%3C/svg%3E") !important;
+}
+
+/* Roundabout */
+.leaflet-routing-icon-enter-roundabout {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a73e8' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='18 15 21 12 18 9'%3E%3C/polyline%3E%3Cpath d='M4 12a8 8 0 1 1 16 0'%3E%3C/path%3E%3C/svg%3E") !important;
+}
+
+/* Arrive / Destination Marker */
+.leaflet-routing-icon-arrive {
+  background-color: #fce8e6 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d93025'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z'/%3E%3C/svg%3E") !important;
+}
+
+/* ==========================================================================
+   GOOGLE MAPS BOTTOM FOOTER ACTION (EXIT PILL BUTTON)
+   ========================================================================== */
+
+.gmaps-nav-footer {
+  padding: 10px 16px 14px 16px !important;
+  background: #ffffff !important;
+  border-top: 1px solid #f1f3f4 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+.gmaps-exit-pill-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 24px !important;
+  background: #ffffff !important;
+  color: #d93025 !important;
+  border: 1px solid #dadce0 !important;
+  border-radius: 24px !important;
+  font-family: inherit !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.12) !important;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+.gmaps-exit-pill-btn:hover {
+  background: #fce8e6 !important;
+  border-color: #fce8e6 !important;
+  color: #c5221f !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 8px rgba(217, 48, 37, 0.2) !important;
+}
+
+.gmaps-exit-pill-btn:active {
+  transform: translateY(0) scale(0.98) !important;
+}
+
+.gmaps-exit-icon {
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  width: 18px !important;
+  height: 18px !important;
+  border-radius: 50% !important;
+  background: rgba(217, 48, 37, 0.12) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* Before/After Comparison Slider */

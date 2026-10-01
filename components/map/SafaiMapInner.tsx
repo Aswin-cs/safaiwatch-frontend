@@ -91,6 +91,10 @@ export interface SafaiMapInnerProps {
   center?: [number, number];
   zoom?: number;
   className?: string;
+  isDirectionsPopupOpen?: boolean;
+  onToggleDirectionsPopup?: (open?: boolean) => void;
+  onRouteSummaryChange?: (summary: { timeStr: string; distKm: string; roadName: string } | null) => void;
+  userLocation?: [number, number] | null;
 }
 
 // Fallback coordinates (New Delhi)
@@ -179,10 +183,16 @@ function RoutingControl({
   userLocation,
   destination,
   onClearRouting,
+  isDirectionsPopupOpen,
+  onToggleDirectionsPopup,
+  onRouteSummaryChange,
 }: {
   userLocation: [number, number];
   destination: [number, number];
   onClearRouting?: () => void;
+  isDirectionsPopupOpen?: boolean;
+  onToggleDirectionsPopup?: (open?: boolean) => void;
+  onRouteSummaryChange?: (summary: { timeStr: string; distKm: string; roadName: string } | null) => void;
 }) {
   const map = useMap();
 
@@ -192,10 +202,58 @@ function RoutingControl({
   const destLng = destination?.[1];
 
   const onClearRef = React.useRef(onClearRouting);
+  const onToggleDirectionsPopupRef = React.useRef(onToggleDirectionsPopup);
+  const onRouteSummaryChangeRef = React.useRef(onRouteSummaryChange);
+  const routingControlRef = React.useRef<any>(null);
+
   useEffect(() => {
     onClearRef.current = onClearRouting;
   }, [onClearRouting]);
 
+  useEffect(() => {
+    onToggleDirectionsPopupRef.current = onToggleDirectionsPopup;
+  }, [onToggleDirectionsPopup]);
+
+  useEffect(() => {
+    onRouteSummaryChangeRef.current = onRouteSummaryChange;
+  }, [onRouteSummaryChange]);
+
+  // Sync popup visibility state with leaflet-routing-container
+  useEffect(() => {
+    const container = routingControlRef.current?.getContainer?.();
+    if (!container) return;
+    if (isDirectionsPopupOpen) {
+      container.classList.remove("gmaps-popup-hidden");
+      container.classList.add("gmaps-popup-visible");
+    } else {
+      container.classList.remove("gmaps-popup-visible");
+      container.classList.add("gmaps-popup-hidden");
+    }
+  }, [isDirectionsPopupOpen]);
+
+  // Dynamic waypoint update when current geo location or destination changes
+  useEffect(() => {
+    if (!routingControlRef.current) return;
+    if (
+      userLat === undefined ||
+      userLng === undefined ||
+      destLat === undefined ||
+      destLng === undefined
+    ) {
+      return;
+    }
+
+    try {
+      routingControlRef.current.setWaypoints([
+        L.latLng(userLat, userLng),
+        L.latLng(destLat, destLng),
+      ]);
+    } catch (err) {
+      console.warn("Could not dynamically update routing waypoints:", err);
+    }
+  }, [userLat, userLng, destLat, destLng]);
+
+  // Initial Routing Control Setup
   useEffect(() => {
     if (
       !map ||
@@ -210,7 +268,7 @@ function RoutingControl({
     let routingControl: any = null;
 
     try {
-      // Create Routing machine control on map
+      // Create Routing machine control on map with Google Maps styled polylines
       // @ts-ignore L.Routing is populated by leaflet-routing-machine
       routingControl = L.Routing.control({
         waypoints: [
@@ -224,49 +282,153 @@ function RoutingControl({
         fitSelectedRoutes: true,
         showAlternatives: false,
         lineOptions: {
-          styles: [{ color: "#006948", weight: 6, opacity: 0.85 }],
+          styles: [
+            { color: "#185abc", weight: 7, opacity: 0.85 },
+            { color: "#4285f4", weight: 5, opacity: 1 },
+          ],
           extendToWaypoints: true,
           missingRouteTolerance: 0,
         },
       }).addTo(map);
 
-      // Inject custom Close Route button into leaflet-routing-machine control panel
+      routingControlRef.current = routingControl;
+
+      // Inject Google Maps styled Header and Footer into leaflet-routing-machine container
       const container = routingControl.getContainer();
-      if (container && onClearRef.current) {
-        const closeBtn = document.createElement("button");
-        closeBtn.innerHTML = `
-          <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
-            <span style="display:flex; align-items:center; gap:6px;">
-              <span style="width:7px; height:7px; background:#ffffff; border-radius:50%; display:inline-block; box-shadow:0 0 6px rgba(255,255,255,0.8);"></span>
-              <span>End Route Navigation</span>
-            </span>
-            <span style="font-size:14px; font-weight:800; opacity:0.9;">✕</span>
+      if (container) {
+        // Set initial popup visibility
+        if (isDirectionsPopupOpen) {
+          container.classList.add("gmaps-popup-visible");
+          container.classList.remove("gmaps-popup-hidden");
+        } else {
+          container.classList.add("gmaps-popup-hidden");
+          container.classList.remove("gmaps-popup-visible");
+        }
+
+        // 1. Google Maps Navigation Header (with close popup toggle)
+        const headerEl = document.createElement("div");
+        headerEl.className = "gmaps-nav-header";
+        headerEl.innerHTML = `
+          <div class="gmaps-nav-header-left">
+            <div class="gmaps-nav-icon-badge">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+              </svg>
+            </div>
+            <div class="gmaps-nav-text-col">
+              <span class="gmaps-nav-badge">NAVIGATION ACTIVE</span>
+              <span class="gmaps-nav-title">Google Maps Directions</span>
+            </div>
           </div>
+          <button type="button" class="gmaps-nav-close-btn" title="Close directions panel" aria-label="Close directions panel">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         `;
-        closeBtn.className = "custom-routing-close-btn";
-        closeBtn.onclick = (e) => {
-          e.stopPropagation();
-          onClearRef.current?.();
-        };
-        container.insertBefore(closeBtn, container.firstChild);
+        const closeBtn = headerEl.querySelector(".gmaps-nav-close-btn");
+        if (closeBtn) {
+          closeBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            onToggleDirectionsPopupRef.current?.(false);
+          });
+        }
+        container.insertBefore(headerEl, container.firstChild);
+
+        // 2. Google Maps Navigation Bottom Exit Bar (exits navigation entirely)
+        const footerEl = document.createElement("div");
+        footerEl.className = "gmaps-nav-footer";
+        footerEl.innerHTML = `
+          <button type="button" class="gmaps-exit-pill-btn">
+            <span class="gmaps-exit-icon">✕</span>
+            <span>Exit Navigation</span>
+          </button>
+        `;
+        const exitBtn = footerEl.querySelector(".gmaps-exit-pill-btn");
+        if (exitBtn) {
+          exitBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            onClearRef.current?.();
+          });
+        }
+        container.appendChild(footerEl);
       }
+
+      // Format Google Maps route summary when routes are computed
+      routingControl.on("routesfound", (e: any) => {
+        try {
+          const route = e.routes?.[0];
+          if (!route) return;
+          const distKm = (route.summary.totalDistance / 1000).toFixed(1);
+          const totalMins = Math.max(1, Math.round(route.summary.totalTime / 60));
+          const timeStr = totalMins >= 60
+            ? `${Math.floor(totalMins / 60)} hr ${totalMins % 60} min`
+            : `${totalMins} min`;
+          const rawRoadName = (route.name || "Main Road").trim();
+          const cleanRoadName = rawRoadName.replace(/^via\s*/i, "");
+
+          // Notify parent of updated route summary for the floating bar
+          onRouteSummaryChangeRef.current?.({
+            timeStr,
+            distKm,
+            roadName: cleanRoadName,
+          });
+
+          setTimeout(() => {
+            const cont = routingControl.getContainer();
+            if (!cont) return;
+
+            // Enhance h3 into Google Maps ETA & distance hero
+            const h3 = cont.querySelector(".leaflet-routing-alt h3");
+            if (h3) {
+              h3.innerHTML = `
+                <div class="gmaps-summary-card">
+                  <div class="gmaps-time-group">
+                    <span class="gmaps-time-big">${timeStr}</span>
+                    <span class="gmaps-dist-muted">(${distKm} km)</span>
+                  </div>
+                  <div class="gmaps-traffic-badge">
+                    <span class="gmaps-traffic-dot"></span>
+                    <span>Fastest route</span>
+                  </div>
+                </div>
+              `;
+            }
+
+            // Enhance h2 road name with subtle road icon
+            const h2 = cont.querySelector(".leaflet-routing-alt h2");
+            if (h2 && !h2.querySelector(".gmaps-road-icon")) {
+              h2.innerHTML = `
+                <span class="gmaps-road-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 19L8 5M16 5l4 14M12 5v2m0 6v2m0 6v2"/>
+                  </svg>
+                </span>
+                <span>via ${cleanRoadName}</span>
+              `;
+            }
+          }, 30);
+        } catch (err) {
+          // fallback gracefully
+        }
+      });
     } catch (err) {
       console.warn("Could not initialize routing control:", err);
     }
 
     return () => {
+      onRouteSummaryChangeRef.current?.(null);
+      routingControlRef.current = null;
       if (!routingControl) return;
 
       try {
-        // Grab container reference before removal
         const container = routingControl.getContainer?.();
 
-        // Safe guard against leaflet-routing-machine's null _map error
         if (!routingControl._map) {
           routingControl._map = map;
         }
 
-        // Safely remove line layer from map if active
         if (routingControl._line && map) {
           try {
             if (typeof map.hasLayer === "function" && map.hasLayer(routingControl._line)) {
@@ -276,7 +438,6 @@ function RoutingControl({
           routingControl._line = null;
         }
 
-        // Safely clear waypoints
         try {
           if (routingControl.getPlan && typeof routingControl.getPlan === "function") {
             const plan = routingControl.getPlan();
@@ -286,20 +447,16 @@ function RoutingControl({
           }
         } catch (e) {}
 
-        // Safely remove control from map
         if (map && typeof map.removeControl === "function") {
           map.removeControl(routingControl);
         }
 
-        // Force-remove the container DOM element if it still exists
         if (container && container.parentNode) {
           container.parentNode.removeChild(container);
         }
-      } catch (e) {
-        // Catch any remaining Leaflet unmount layer removal exception
-      }
+      } catch (e) {}
     };
-  }, [map, userLat, userLng, destLat, destLng]);
+  }, [map]);
 
   return null;
 }
@@ -314,38 +471,71 @@ export default function SafaiMapInner({
   center = DEFAULT_CENTER,
   zoom = DEFAULT_ZOOM,
   className = "w-full h-full",
+  isDirectionsPopupOpen,
+  onToggleDirectionsPopup,
+  onRouteSummaryChange,
+  userLocation: propUserLocation,
 }: SafaiMapInnerProps) {
   const [mapCenter, setMapCenter] = useState<[number, number]>(center);
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(propUserLocation || null);
   const [geoError, setGeoError] = useState<string | null>(null);
+
+  // Sync external userLocation prop
+  useEffect(() => {
+    if (propUserLocation && propUserLocation.length === 2 && !isNaN(propUserLocation[0]) && !isNaN(propUserLocation[1])) {
+      setUserLocation(propUserLocation);
+    }
+  }, [propUserLocation]);
 
   // Update mapCenter if parent provides/updates a center prop
   useEffect(() => {
     if (center && center.length === 2 && !isNaN(center[0]) && !isNaN(center[1])) {
       setMapCenter(center);
-      setUserLocation(center);
+      if (!propUserLocation) {
+        setUserLocation(center);
+      }
     }
-  }, [center]);
+  }, [center, propUserLocation]);
 
-  // Dynamic Geolocation upon mount
+  // Dynamic Geolocation upon mount and continuous live tracking
   useEffect(() => {
-    if (typeof window !== "undefined" && "geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const userCoords: [number, number] = [
-            position.coords.latitude,
-            position.coords.longitude,
-          ];
-          setUserLocation(userCoords);
-          setMapCenter(userCoords);
-        },
-        (error) => {
-          console.warn("Geolocation permission denied or unavailable:", error.message);
-          setGeoError("Using default city location (Delhi)");
-        },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
-    }
+    if (typeof window === "undefined" || !("geolocation" in navigator)) return;
+
+    // Get initial position fix
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userCoords: [number, number] = [
+          position.coords.latitude,
+          position.coords.longitude,
+        ];
+        setUserLocation(userCoords);
+        if (!center) setMapCenter(userCoords);
+      },
+      (error) => {
+        console.warn("Geolocation initial fix error:", error.message);
+        setGeoError("Using default city location (Delhi)");
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+
+    // Continuous watchPosition for live updates while user moves
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const liveCoords: [number, number] = [
+          position.coords.latitude,
+          position.coords.longitude,
+        ];
+        setUserLocation(liveCoords);
+      },
+      (error) => {
+        console.warn("Geolocation watch error:", error.message);
+      },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
   }, []);
 
   return (
@@ -376,6 +566,9 @@ export default function SafaiMapInner({
             userLocation={userLocation || DEFAULT_CENTER}
             destination={routingTarget}
             onClearRouting={onClearRouting}
+            isDirectionsPopupOpen={isDirectionsPopupOpen}
+            onToggleDirectionsPopup={onToggleDirectionsPopup}
+            onRouteSummaryChange={onRouteSummaryChange}
           />
         )}
 

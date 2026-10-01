@@ -130,7 +130,7 @@ export default function HomePage() {
     }
   };
 
-  // Auto-detect GPS location on initial load
+  // Auto-detect GPS location on initial load & continuously track live movement
   useEffect(() => {
     if (typeof window !== "undefined" && "geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -147,6 +147,25 @@ export default function HomePage() {
         },
         { enableHighAccuracy: true, timeout: 8000 }
       );
+
+      // Continuous live geolocation watch for moving route updates
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const coords: [number, number] = [
+            position.coords.latitude,
+            position.coords.longitude,
+          ];
+          setUserLocation(coords);
+        },
+        (error) => {
+          console.warn("Live GPS watch error:", error.message);
+        },
+        { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+      );
+
+      return () => {
+        navigator.geolocation.clearWatch(watchId);
+      };
     }
   }, []);
 
@@ -158,6 +177,8 @@ export default function HomePage() {
 
   // Active Spot Navigation Route state [destinationLat, destinationLng]
   const [routingTarget, setRoutingTarget] = useState<[number, number] | null>(null);
+  const [isDirectionsPopupOpen, setIsDirectionsPopupOpen] = useState<boolean>(false);
+  const [routeSummary, setRouteSummary] = useState<{ timeStr: string; distKm: string; roadName: string } | null>(null);
 
   // Claim Spot (Assign) loading state
   const [isClaimingSpot, setIsClaimingSpot] = useState<boolean>(false);
@@ -260,8 +281,11 @@ export default function HomePage() {
 
     if (isCurrentlyRouting) {
       setRoutingTarget(null);
+      setIsDirectionsPopupOpen(false);
+      setRouteSummary(null);
     } else {
       setRoutingTarget([report.lat, report.lng]);
+      setIsDirectionsPopupOpen(true);
     }
   };
 
@@ -1362,11 +1386,19 @@ export default function HomePage() {
           reports={filteredReports}
           selectedCoordinates={droppedCoordinates}
           routingTarget={routingTarget}
+          userLocation={userLocation}
           onSelectCoordinates={handleSelectCoordinates}
           onSelectReport={handleSelectReport}
-          onClearRouting={() => setRoutingTarget(null)}
+          onClearRouting={() => {
+            setRoutingTarget(null);
+            setIsDirectionsPopupOpen(false);
+            setRouteSummary(null);
+          }}
           center={mapCenter}
           zoom={14}
+          isDirectionsPopupOpen={isDirectionsPopupOpen}
+          onToggleDirectionsPopup={(open) => setIsDirectionsPopupOpen(typeof open === "boolean" ? open : !isDirectionsPopupOpen)}
+          onRouteSummaryChange={setRouteSummary}
         />
       </div>
 
@@ -1706,155 +1738,171 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Uber Style Bottom Sheet Selected Spot Card (White Theme) */}
-      {selectedReport && !droppedCoordinates && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-35 w-[calc(100%-1.5rem)] max-w-lg bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[28px] shadow-[0_20px_50px_rgba(15,23,42,0.12)] p-4 sm:p-5 flex flex-col gap-3.5 transition-all animate-enter">
-          {/* Drag Handle Indicator */}
-          <div className="w-12 h-1 bg-slate-300 rounded-full mx-auto -mt-1 mb-1"></div>
-
-          {/* Header Row */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span
-                className={`text-[10px] font-mono font-extrabold px-2.5 py-1 rounded-lg uppercase flex items-center gap-1 border ${selectedReport.status === "critical"
-                  ? "bg-red-50 text-red-700 border-red-200"
-                  : selectedReport.status === "claimed"
-                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                  }`}
-              >
-                {selectedReport.status === "critical" ? (
-                  <AlertTriangle className="w-3 h-3 text-red-600" />
-                ) : selectedReport.status === "claimed" ? (
-                  <Clock className="w-3 h-3 text-indigo-600" />
-                ) : (
-                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                )}
-                <span>{selectedReport.severity || selectedReport.status}</span>
-              </span>
-
-              {/* AI Verification Status Badge */}
-              {selectedReport.isCompletedVerify === "completed" && selectedReport.isVerified === true && (
-                <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-emerald-50 text-emerald-700 border-emerald-200">
-                  <CheckCircle className="w-3 h-3 text-emerald-600" />
-                  <span>AI Verified</span>
-                </span>
-              )}
-              {isReportedByCurrentUser && selectedReport.isCompletedVerify !== "pending" && selectedReport.isVerified === false && (
-                <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-rose-50 text-rose-700 border-rose-200">
-                  <AlertTriangle className="w-3 h-3 text-rose-600" />
-                  <span>AI Flagged</span>
-                </span>
-              )}
-              {isReportedByCurrentUser && selectedReport.isCompletedVerify === "pending" && (
-                <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-amber-50 text-amber-700 border-amber-200">
-                  <Clock className="w-3 h-3 text-amber-600 animate-spin" />
-                  <span>AI Pending</span>
-                </span>
-              )}
-
-              <span className="text-xs text-slate-500 font-mono font-medium flex items-center gap-1">
-                <Navigation className="w-3 h-3 text-[#006948]" />
-                <span>{selectedReport.distance || "Ward 14 Spot"}</span>
-              </span>
-            </div>
-
-            <button
-              onClick={() => setSelectedReport(null)}
-              className="text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Card Media & Details */}
-          <div className="flex flex-col sm:flex-row gap-3.5 items-stretch">
-            {selectedReport.image ? (
-              <div className="relative sm:w-36 h-32 sm:h-auto rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shrink-0 shadow-xs">
-                <img
-                  src={selectedReport.image}
-                  alt={selectedReport.title}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=400&auto=format&fit=crop&q=80";
-                  }}
-                />
-                <div className="absolute top-1.5 left-1.5 bg-black/70 backdrop-blur-md text-emerald-300 font-mono text-[9px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 border border-emerald-500/30">
-                  <Camera className="w-3 h-3 text-emerald-400" />
-                  <span>Geotagged</span>
+      {/* Uber Style Bottom Sheet Selected Spot Container + Live Navigation Strip */}
+      {(selectedReport || routingTarget) && !droppedCoordinates && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-35 w-[calc(100%-1.5rem)] max-w-lg flex flex-col gap-2.5 transition-all">
+          {/* 1st: Route & Direction Bar ABOVE the spot container */}
+          {routingTarget && (
+            <div className="bg-gradient-to-r from-[#137333] to-[#0F9D58] text-white rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 shadow-xl border border-emerald-600/40 flex items-center justify-between gap-2.5 transition-all animate-enter">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0 border border-white/30 shadow-xs">
+                  <Navigation className="w-4 h-4 text-white animate-pulse" />
                 </div>
-              </div>
-            ) : (
-              <div className="sm:w-36 h-28 sm:h-auto rounded-2xl bg-emerald-950 flex flex-col items-center justify-center p-3 text-white text-center shrink-0 border border-emerald-900">
-                <Camera className="w-6 h-6 text-emerald-400 mb-1" />
-                <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider">
-                  No Image
-                </span>
-              </div>
-            )}
-
-            <div className="flex flex-col justify-between flex-1 gap-2">
-              <div>
-                <h3 className="font-['Hanken_Grotesk'] text-base font-extrabold text-[#131b2e] leading-snug">
-                  {selectedReport.title}
-                </h3>
-                {selectedReport.category && (
-                  <p className="text-xs text-[#006948] font-semibold mt-1 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#006948]"></span>
-                    <span>Waste Type: <strong>{selectedReport.wasteType || selectedReport.category}</strong></span>
-                  </p>
-                )}
-              </div>
-
-              {/* Marked By Summary */}
-              {markedByDetails && (
-                <Link
-                  href={`/profile/${encodeURIComponent(markedByDetails.username)}`}
-                  className="flex items-center gap-2 text-xs text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-xl border border-slate-200 hover:bg-slate-200/80 transition-colors cursor-pointer"
-                  title={`View profile of @${markedByDetails.username}`}
-                >
-                  <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden shrink-0 border border-emerald-400/40">
-                    {markedByDetails.avatarUrl ? (
-                      <img
-                        src={markedByDetails.avatarUrl}
-                        alt={markedByDetails.username}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80";
-                        }}
-                      />
-                    ) : (
-                      <User className="w-3 h-3 text-[#006948]" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
+                    <span className="text-[10px] font-extrabold text-emerald-200 uppercase tracking-wider font-mono whitespace-nowrap shrink-0">
+                      Live Route
+                    </span>
+                    {routeSummary?.timeStr && (
+                      <span className="text-[11px] font-extrabold text-white bg-black/30 px-2 py-0.5 rounded-full border border-white/20 whitespace-nowrap shrink-0">
+                        {routeSummary.timeStr} • {routeSummary.distKm} km
+                      </span>
                     )}
                   </div>
-                  <span className="font-semibold text-slate-800 text-[11px] truncate">
-                    Marked by @{markedByDetails.username}
+                  <p className="text-[11px] sm:text-xs text-emerald-50 font-medium truncate mt-0.5">
+                    {routeSummary?.roadName ? `via ${routeSummary.roadName}` : "Calculating route..."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsDirectionsPopupOpen((prev) => !prev)}
+                  className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-white text-[#137333] hover:bg-emerald-50 font-['Hanken_Grotesk'] text-[11px] sm:text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border border-emerald-100 whitespace-nowrap shrink-0"
+                >
+                  <span className="material-symbols-outlined text-[15px] sm:text-[17px]">turn_sharp_right</span>
+                  <span>{isDirectionsPopupOpen ? "Hide Steps" : "Directions"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRoutingTarget(null);
+                    setIsDirectionsPopupOpen(false);
+                    setRouteSummary(null);
+                  }}
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                  title="Close Route Navigation"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Selected Spot Card */}
+          {selectedReport && (
+            <div className="w-full bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[28px] shadow-[0_20px_50px_rgba(15,23,42,0.12)] p-4 sm:p-5 flex flex-col gap-3.5 animate-enter">
+              {/* Drag Handle Indicator */}
+              <div className="w-12 h-1 bg-slate-300 rounded-full mx-auto -mt-1 mb-1"></div>
+
+              {/* Header Row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-[10px] font-mono font-extrabold px-2.5 py-1 rounded-lg uppercase flex items-center gap-1 border ${selectedReport.status === "critical"
+                      ? "bg-red-50 text-red-700 border-red-200"
+                      : selectedReport.status === "claimed"
+                        ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                        : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      }`}
+                  >
+                    {selectedReport.status === "critical" ? (
+                      <AlertTriangle className="w-3 h-3 text-red-600" />
+                    ) : selectedReport.status === "claimed" ? (
+                      <Clock className="w-3 h-3 text-indigo-600" />
+                    ) : (
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    )}
+                    <span>{selectedReport.severity || selectedReport.status}</span>
                   </span>
-                  {isReportedByCurrentUser && (
-                    <span className="ml-auto text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">
-                      You
+
+                  {/* AI Verification Status Badge */}
+                  {selectedReport.isCompletedVerify === "completed" && selectedReport.isVerified === true && (
+                    <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-emerald-50 text-emerald-700 border-emerald-200">
+                      <CheckCircle className="w-3 h-3 text-emerald-600" />
+                      <span>AI Verified</span>
                     </span>
                   )}
-                </Link>
-              )}
+                  {isReportedByCurrentUser && selectedReport.isCompletedVerify !== "pending" && selectedReport.isVerified === false && (
+                    <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-rose-50 text-rose-700 border-rose-200">
+                      <AlertTriangle className="w-3 h-3 text-rose-600" />
+                      <span>AI Flagged</span>
+                    </span>
+                  )}
+                  {isReportedByCurrentUser && selectedReport.isCompletedVerify === "pending" && (
+                    <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-amber-50 text-amber-700 border-amber-200">
+                      <Clock className="w-3 h-3 text-amber-600 animate-spin" />
+                      <span>AI Pending</span>
+                    </span>
+                  )}
 
-              {/* Assigned Rangers */}
-              {assignedByDetailsList && assignedByDetailsList.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  {assignedByDetailsList.map((assignedUser: any, idx: number) => (
+                  <span className="text-xs text-slate-500 font-mono font-medium flex items-center gap-1">
+                    <Navigation className="w-3 h-3 text-[#006948]" />
+                    <span>{selectedReport.distance || "Ward 14 Spot"}</span>
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => setSelectedReport(null)}
+                  className="text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Card Media & Details */}
+              <div className="flex flex-col sm:flex-row gap-3.5 items-stretch">
+                {selectedReport.image ? (
+                  <div className="relative sm:w-36 h-32 sm:h-auto rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shrink-0 shadow-xs">
+                    <img
+                      src={selectedReport.image}
+                      alt={selectedReport.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=400&auto=format&fit=crop&q=80";
+                      }}
+                    />
+                    <div className="absolute top-1.5 left-1.5 bg-black/70 backdrop-blur-md text-emerald-300 font-mono text-[9px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 border border-emerald-500/30">
+                      <Camera className="w-3 h-3 text-emerald-400" />
+                      <span>Geotagged</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="sm:w-36 h-28 sm:h-auto rounded-2xl bg-emerald-950 flex flex-col items-center justify-center p-3 text-white text-center shrink-0 border border-emerald-900">
+                    <Camera className="w-6 h-6 text-emerald-400 mb-1" />
+                    <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider">
+                      No Image
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex flex-col justify-between flex-1 gap-2">
+                  <div>
+                    <h3 className="font-['Hanken_Grotesk'] text-base font-extrabold text-[#131b2e] leading-snug">
+                      {selectedReport.title}
+                    </h3>
+                    {selectedReport.category && (
+                      <p className="text-xs text-[#006948] font-semibold mt-1 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-[#006948]"></span>
+                        <span>Waste Type: <strong>{selectedReport.wasteType || selectedReport.category}</strong></span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Marked By Summary */}
+                  {markedByDetails && (
                     <Link
-                      key={assignedUser._id || idx}
-                      href={`/profile/${encodeURIComponent(assignedUser.username)}`}
-                      className="flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50/80 px-2.5 py-1 rounded-xl border border-indigo-200/60 hover:bg-indigo-100/80 transition-colors cursor-pointer"
-                      title={`View profile of @${assignedUser.username}`}
+                      href={`/profile/${encodeURIComponent(markedByDetails.username)}`}
+                      className="flex items-center gap-2 text-xs text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-xl border border-slate-200 hover:bg-slate-200/80 transition-colors cursor-pointer"
+                      title={`View profile of @${markedByDetails.username}`}
                     >
-                      <div className="w-5 h-5 rounded-full bg-indigo-200 flex items-center justify-center overflow-hidden shrink-0 border border-indigo-400/30">
-                        {assignedUser.avatarUrl ? (
+                      <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden shrink-0 border border-emerald-400/40">
+                        {markedByDetails.avatarUrl ? (
                           <img
-                            src={assignedUser.avatarUrl}
-                            alt={assignedUser.username}
+                            src={markedByDetails.avatarUrl}
+                            alt={markedByDetails.username}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src =
@@ -1862,95 +1910,135 @@ export default function HomePage() {
                             }}
                           />
                         ) : (
-                          <User className="w-3 h-3 text-indigo-600" />
+                          <User className="w-3 h-3 text-[#006948]" />
                         )}
                       </div>
-                      <span className="font-semibold text-indigo-900 text-[11px] truncate">
-                        Assigned to @{assignedUser.username}
+                      <span className="font-semibold text-slate-800 text-[11px] truncate">
+                        Marked by @{markedByDetails.username}
                       </span>
-                      {String(assignedUser._id) === String(currentUserId) && (
-                        <span className="ml-auto text-[9px] font-bold text-indigo-800 bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200">
+                      {isReportedByCurrentUser && (
+                        <span className="ml-auto text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">
                           You
                         </span>
                       )}
                     </Link>
-                  ))}
-                  <span className="font-mono text-[10px] font-semibold text-indigo-600 px-1">
-                    📋 {currentAssignmentCount}/{maxAssignments} slot{maxAssignments > 1 ? 's' : ''} filled
-                  </span>
+                  )}
+
+                  {/* Assigned Rangers */}
+                  {assignedByDetailsList && assignedByDetailsList.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      {assignedByDetailsList.map((assignedUser: any, idx: number) => (
+                        <Link
+                          key={assignedUser._id || idx}
+                          href={`/profile/${encodeURIComponent(assignedUser.username)}`}
+                          className="flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50/80 px-2.5 py-1 rounded-xl border border-indigo-200/60 hover:bg-indigo-100/80 transition-colors cursor-pointer"
+                          title={`View profile of @${assignedUser.username}`}
+                        >
+                          <div className="w-5 h-5 rounded-full bg-indigo-200 flex items-center justify-center overflow-hidden shrink-0 border border-indigo-400/30">
+                            {assignedUser.avatarUrl ? (
+                              <img
+                                src={assignedUser.avatarUrl}
+                                alt={assignedUser.username}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src =
+                                    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80";
+                                }}
+                              />
+                            ) : (
+                              <User className="w-3 h-3 text-indigo-600" />
+                            )}
+                          </div>
+                          <span className="font-semibold text-indigo-900 text-[11px] truncate">
+                            Assigned to @{assignedUser.username}
+                          </span>
+                          {String(assignedUser._id) === String(currentUserId) && (
+                            <span className="ml-auto text-[9px] font-bold text-indigo-800 bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200">
+                              You
+                            </span>
+                          )}
+                        </Link>
+                      ))}
+                      <span className="font-mono text-[10px] font-semibold text-indigo-600 px-1">
+                        📋 {currentAssignmentCount}/{maxAssignments} slot{maxAssignments > 1 ? 's' : ''} filled
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* AI Verification Failure Banner */}
+              {selectedReport.verificationStatus === "failed" && (
+                <div className="mb-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="material-symbols-outlined text-rose-600 text-[18px] shrink-0">error</span>
+                    <p className="text-[11px] text-rose-800 font-medium truncate">
+                      {selectedReport.pendingVerificationMsg || "AI Verification failed. Please re-upload proof."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteVerification(selectedReport.oneTimeVerificationId || selectedReport.id)}
+                    disabled={isDeletingVerification}
+                    className="text-[10px] uppercase font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-lg border border-rose-300 shrink-0 transition-colors cursor-pointer"
+                  >
+                    {isDeletingVerification ? "..." : "Reset"}
+                  </button>
                 </div>
               )}
-            </div>
-          </div>
 
-          {/* AI Verification Failure Banner */}
-          {selectedReport.verificationStatus === "failed" && (
-            <div className="mb-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="material-symbols-outlined text-rose-600 text-[18px] shrink-0">error</span>
-                <p className="text-[11px] text-rose-800 font-medium truncate">
-                  {selectedReport.pendingVerificationMsg || "AI Verification failed. Please re-upload proof."}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleDeleteVerification(selectedReport.oneTimeVerificationId || selectedReport.id)}
-                disabled={isDeletingVerification}
-                className="text-[10px] uppercase font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-lg border border-rose-300 shrink-0 transition-colors cursor-pointer"
-              >
-                {isDeletingVerification ? "..." : "Reset"}
-              </button>
-            </div>
-          )}
+              {/* Marked Spot AI Verification Failure Alert for Reporter */}
+              {isReportedByCurrentUser && selectedReport.isCompletedVerify !== "pending" && selectedReport.isVerified === false && (
+                <div className="mb-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="material-symbols-outlined text-rose-600 text-[18px] shrink-0">gpp_bad</span>
+                    <p className="text-[11px] text-rose-800 font-medium truncate">
+                      {selectedReport.isAiVerified?.fraudReason || "Your marked photo failed AI verification."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsSpotDetailModalOpen(true)}
+                    className="text-[10px] uppercase font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-lg border border-rose-300 shrink-0 transition-colors cursor-pointer"
+                  >
+                    Inspect
+                  </button>
+                </div>
+              )}
 
-          {/* Marked Spot AI Verification Failure Alert for Reporter */}
-          {isReportedByCurrentUser && selectedReport.isCompletedVerify !== "pending" && selectedReport.isVerified === false && (
-            <div className="mb-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="material-symbols-outlined text-rose-600 text-[18px] shrink-0">gpp_bad</span>
-                <p className="text-[11px] text-rose-800 font-medium truncate">
-                  {selectedReport.isAiVerified?.fraudReason || "Your marked photo failed AI verification."}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsSpotDetailModalOpen(true)}
-                className="text-[10px] uppercase font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-lg border border-rose-300 shrink-0 transition-colors cursor-pointer"
-              >
-                Inspect
-              </button>
-            </div>
-          )}
+              {/* Action Dispatch Buttons */}
+              <div className="flex gap-2 sm:gap-3 pt-1">
+                <button
+                  onClick={() => setIsSpotDetailModalOpen(true)}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Eye className="w-4 h-4 text-slate-700" />
+                  <span>Details</span>
+                </button>
 
-          {/* Action Dispatch Buttons */}
-          <div className="flex gap-2 sm:gap-3 pt-1">
-            <button
-              onClick={() => setIsSpotDetailModalOpen(true)}
-              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Eye className="w-4 h-4 text-slate-700" />
-              <span>Details</span>
-            </button>
-
-            {routingTarget &&
-              routingTarget[0] === selectedReport.lat &&
-              routingTarget[1] === selectedReport.lng ? (
-              <button
-                onClick={() => setRoutingTarget(null)}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-red-500 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95"
-              >
-                <X className="w-4 h-4 text-white" />
-                <span>Close Route</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => handleToggleNavigation(selectedReport)}
-                className="flex-1 bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md group"
-              >
-                <Navigation className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
-                <span>Navigate</span>
-              </button>
-            )}
+                {routingTarget &&
+                  routingTarget[0] === selectedReport.lat &&
+                  routingTarget[1] === selectedReport.lng ? (
+                  <button
+                    onClick={() => {
+                      setRoutingTarget(null);
+                      setIsDirectionsPopupOpen(false);
+                      setRouteSummary(null);
+                    }}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-red-500 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                    <span>Close Route</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleToggleNavigation(selectedReport)}
+                    className="flex-1 bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md group"
+                  >
+                    <Navigation className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
+                    <span>Navigate</span>
+                  </button>
+                )}
 
             {!selectedReport.isCompleted && (() => {
               const hasAssignments = selectedReport.isAssignedBy && selectedReport.isAssignedBy.length > 0;
@@ -2056,6 +2144,8 @@ export default function HomePage() {
           </div>
         </div>
       )}
+    </div>
+  )}
 
       {/* Floating Google Maps-Style Auto Navigate / Recenter Current Location FAB Button */}
       <button
