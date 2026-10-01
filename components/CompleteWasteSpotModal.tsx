@@ -51,9 +51,118 @@ export default function CompleteWasteSpotModal({
   // Cleanup Description
   const [description, setDescription] = useState<string>("");
 
-  // After Photo State
+  // After Photo State & Live Camera State
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const [isStartingCamera, setIsStartingCamera] = useState<boolean>(false);
+  const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment");
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Stop live camera stream
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+    setIsStartingCamera(false);
+  };
+
+  // Start live camera stream
+  const startCamera = async (facing: "environment" | "user" = cameraFacing) => {
+    try {
+      setCameraError(null);
+      setIsStartingCamera(true);
+      stopCamera();
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Live camera is not supported in this browser.");
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: facing },
+          width: { ideal: 1920, min: 640 },
+          height: { ideal: 1080, min: 480 },
+        },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setIsCameraActive(true);
+      setIsStartingCamera(false);
+    } catch (err: any) {
+      console.warn("Live camera start failed:", err);
+      setIsStartingCamera(false);
+      setIsCameraActive(false);
+      setCameraError(err?.message || "Could not access live camera. Please allow camera permissions or use fallback.");
+    }
+  };
+
+  // Toggle front/rear camera
+  const toggleCameraFacing = () => {
+    const nextFacing = cameraFacing === "environment" ? "user" : "environment";
+    setCameraFacing(nextFacing);
+    startCamera(nextFacing);
+  };
+
+  // Capture photo snapshot from live video stream
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current || document.createElement("canvas");
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    if (cameraFacing === "user") {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          const file = new File([blob], `cleanup_spot_capture_${Date.now()}.jpg`, {
+            type: "image/jpeg",
+          });
+          setImageFile(file);
+          const previewUrl = URL.createObjectURL(blob);
+          setImagePreview(previewUrl);
+          stopCamera();
+          setErrorMsg(null);
+        }
+      },
+      "image/jpeg",
+      0.92
+    );
+  };
+
+  // Auto-stop camera on modal close and unmount
+  useEffect(() => {
+    if (!isOpen) {
+      stopCamera();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
 
   // Form State
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -89,6 +198,9 @@ export default function CompleteWasteSpotModal({
     setSwitchCount(0);
     setRefreshCountBeforeExpiry(0);
     setRefreshCountAfterExpiry(0);
+    stopCamera();
+    setCameraError(null);
+    setIsStartingCamera(false);
     isFetchingGestureRef.current = false;
     isFetchingCodeRef.current = false;
   };
@@ -399,75 +511,163 @@ export default function CompleteWasteSpotModal({
 
           {/* 1. Interactive Live Viewfinder & Cleanup Proof (After Photo) */}
           <div className="flex flex-col gap-2">
-            <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-[#283044] shadow-md select-none group flex items-center justify-center">
-              {/* Photo Preview if loaded */}
-              {imagePreview ? (
+            <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-[#1e2430] shadow-md select-none group flex items-center justify-center border border-slate-700/50">
+              <canvas ref={canvasRef} className="hidden" />
+
+              {/* State A: Live Video Stream */}
+              {isCameraActive ? (
+                <div className="relative w-full h-full bg-black flex items-center justify-center">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Central Reticle HUD */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-70">
+                    <div className="relative w-36 h-36 flex items-center justify-center">
+                      <div className="absolute w-full h-[1px] bg-emerald-400/60"></div>
+                      <div className="absolute h-full w-[1px] bg-emerald-400/60"></div>
+                      <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-emerald-400/80 animate-pulse"></div>
+                    </div>
+                  </div>
+                </div>
+              ) : imagePreview ? (
+                /* State B: Photo Captured Preview */
                 <img
                   src={imagePreview}
                   alt="Remediated spot cleanup preview"
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center p-4 text-center text-[#dae2fd] gap-2">
-                  <span className="material-symbols-outlined text-4xl text-[#68dba9] animate-pulse">
-                    photo_camera
-                  </span>
-                  <span className="text-xs font-['Hanken_Grotesk'] font-bold">
-                    Cleaned Spot &amp; Optical Proof
-                  </span>
-                  <span className="text-[10px] font-['JetBrains_Mono'] text-[#85f8c4]/80">
-                    Capture the fully cleaned area
-                  </span>
+                /* State C: Idle Viewfinder (Prompt to Open Camera) */
+                <div className="flex flex-col items-center justify-center p-6 text-center text-slate-200 gap-3">
+                  <div className="w-16 h-16 rounded-full bg-[#006948]/20 border-2 border-[#85f8c4]/40 flex items-center justify-center shadow-lg">
+                    <span className="material-symbols-outlined text-3xl text-[#85f8c4] animate-pulse">
+                      photo_camera
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-['Hanken_Grotesk'] font-extrabold text-white">
+                      Live Cleanup Camera
+                    </p>
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                      Capture real-time optical photo of cleaned area
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => startCamera("environment")}
+                    disabled={isStartingCamera}
+                    className="mt-1 px-5 py-2.5 rounded-full bg-[#006948] hover:bg-[#00855d] active:scale-95 text-white font-['Hanken_Grotesk'] text-xs font-extrabold shadow-lg flex items-center gap-2 transition-all cursor-pointer border border-[#85f8c4]/30"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">videocam</span>
+                    <span>{isStartingCamera ? "Starting Camera..." : "Open Live Camera"}</span>
+                  </button>
+
+                  {cameraError && (
+                    <p className="text-[10px] text-rose-400 font-medium px-2 mt-1">
+                      {cameraError}
+                    </p>
+                  )}
                 </div>
               )}
 
               {/* Camera HUD Layer Overlay */}
-              <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 bg-gradient-to-b from-black/50 via-transparent to-black/70">
-                {/* Central Crosshair / Focus HUD */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-60">
-                  <div className="relative w-28 h-28 flex items-center justify-center">
-                    <div className="absolute w-full h-[1px] bg-white/40"></div>
-                    <div className="absolute h-full w-[1px] bg-white/40"></div>
-                    <div className="w-14 h-14 rounded-full border border-dashed border-white/80"></div>
+              <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 bg-gradient-to-b from-black/60 via-transparent to-black/80">
+                {/* Top Badge & Controls */}
+                <div className="flex items-center justify-between pointer-events-auto">
+                  <span className="bg-black/70 backdrop-blur-md text-[#85f8c4] font-['JetBrains_Mono'] text-[10px] font-bold px-2.5 py-1 rounded-full border border-[#85f8c4]/30 flex items-center gap-1.5 shadow-sm">
+                    <span className={`w-2 h-2 rounded-full ${isCameraActive ? "bg-red-500 animate-ping" : "bg-[#85f8c4]"}`}></span>
+                    <span>{isCameraActive ? "LIVE CAMERA ON" : imagePreview ? "AFTER PHOTO CAPTURED" : "AI CLEANUP RESOLUTION"}</span>
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    {isCameraActive && (
+                      <button
+                        type="button"
+                        onClick={toggleCameraFacing}
+                        className="w-8 h-8 rounded-full bg-black/70 hover:bg-black/90 text-white flex items-center justify-center border border-white/20 transition-all cursor-pointer"
+                        title="Switch Camera (Front/Back)"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">flip_camera_ios</span>
+                      </button>
+                    )}
+
+                    <span className="bg-black/70 backdrop-blur-md text-white font-['JetBrains_Mono'] text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/10">
+                      AFTER PHOTO
+                    </span>
                   </div>
                 </div>
 
-                {/* Top Badge */}
-                <div className="flex items-center justify-between">
-                  <span className="bg-black/60 backdrop-blur-md text-[#85f8c4] font-['JetBrains_Mono'] text-[10px] font-bold px-2.5 py-1 rounded-full border border-[#85f8c4]/30 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#85f8c4] animate-pulse"></span>
-                    AI CLEANUP RESOLUTION
-                  </span>
+                {/* Bottom Control Bar */}
+                <div className="relative flex items-center justify-between pointer-events-auto gap-2">
+                  {isCameraActive ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={stopCamera}
+                        className="px-3 py-1.5 rounded-full bg-black/70 hover:bg-black text-white text-xs font-['JetBrains_Mono'] font-bold border border-white/20 transition-all cursor-pointer"
+                      >
+                        Cancel
+                      </button>
 
-                  <span className="bg-black/60 backdrop-blur-md text-white font-['JetBrains_Mono'] text-[10px] font-bold px-2 py-1 rounded-full">
-                    AFTER PHOTO
-                  </span>
-                </div>
+                      {/* Large Center Shutter Button */}
+                      <button
+                        type="button"
+                        onClick={capturePhoto}
+                        className="w-14 h-14 rounded-full bg-white hover:bg-emerald-50 active:scale-90 border-4 border-[#006948] shadow-2xl flex items-center justify-center text-[#006948] transition-all cursor-pointer group"
+                        title="Capture Photo"
+                      >
+                        <span className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">photo_camera</span>
+                      </button>
 
-                {/* Upload Action Button */}
-                <div className="relative flex items-end justify-between pointer-events-auto">
-                  <label className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-md text-[#131b2e] px-3.5 py-2 rounded-full text-xs font-['JetBrains_Mono'] font-bold shadow-md hover:bg-white active:scale-95 transition-all cursor-pointer border border-[#bccac0]/50">
-                    <span className="material-symbols-outlined text-[16px] text-[#006948]">photo_library</span>
-                    <span>{imagePreview ? "Change Photo" : "Upload After Photo"}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                  </label>
+                      <div className="w-14"></div>
+                    </>
+                  ) : imagePreview ? (
+                    <div className="w-full flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageFile(null);
+                          setImagePreview(null);
+                          startCamera("environment");
+                        }}
+                        className="inline-flex items-center gap-1.5 bg-white/90 hover:bg-white text-[#006948] px-3.5 py-1.5 rounded-full text-xs font-['JetBrains_Mono'] font-bold shadow-md active:scale-95 transition-all cursor-pointer border border-[#006948]/30"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">replay</span>
+                        <span>Retake Photo</span>
+                      </button>
 
-                  {imagePreview && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setImageFile(null);
-                        setImagePreview(null);
-                      }}
-                      className="bg-[#ba1a1a] text-white text-xs font-['JetBrains_Mono'] font-bold px-3 py-2 rounded-full shadow-md hover:bg-[#93000a] transition-all cursor-pointer"
-                    >
-                      Remove
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageFile(null);
+                          setImagePreview(null);
+                          stopCamera();
+                        }}
+                        className="bg-[#ba1a1a] hover:bg-[#93000a] text-white text-xs font-['JetBrains_Mono'] font-bold px-3.5 py-1.5 rounded-full shadow-md active:scale-95 transition-all cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-full flex items-center justify-between">
+                      {/* Secondary file fallback */}
+                      <label className="inline-flex items-center gap-1.5 bg-black/60 hover:bg-black/80 text-slate-300 px-3 py-1 rounded-full text-[10px] font-['JetBrains_Mono'] font-semibold cursor-pointer border border-white/15">
+                        <span className="material-symbols-outlined text-[14px]">attach_file</span>
+                        <span>Choose File</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
                   )}
                 </div>
               </div>
