@@ -1423,18 +1423,40 @@ export default function HomePage() {
         </div>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-2.5">
-          {/* Active Counter Pill */}
-          <div className="hidden sm:flex items-center gap-1.5 bg-slate-100/90 text-slate-800 text-xs font-mono font-bold px-3 py-1 rounded-full border border-slate-200 shadow-xs">
-            <Flame className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
-            <span>{reports.length} Spots</span>
-          </div>
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {/* Premium Filter Spots Pill Button in Navbar (matching Stitch Design) */}
+          <button
+            type="button"
+            onClick={() => setIsFilterModalOpen(!isFilterModalOpen)}
+            className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full text-[#131b2e] border shadow-xs font-['Hanken_Grotesk'] text-xs font-extrabold flex items-center gap-1.5 sm:gap-2 transition-all active:scale-95 cursor-pointer group ${
+              isFilterModalOpen
+                ? "bg-emerald-50 border-[#006948] ring-2 ring-[#006948]/20"
+                : "bg-slate-50 hover:bg-emerald-50/70 border-slate-200/90 hover:border-[#006948]/40"
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-[#006948] transition-transform group-hover:rotate-12" />
+            <span className="hidden xs:inline font-bold text-xs text-[#131b2e]">Filter Spots</span>
+            <span className="bg-[#006948]/10 text-[#006948] font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold border border-[#006948]/20 whitespace-nowrap">
+              {activeFilter === "all"
+                ? `All (${reports.length})`
+                : activeFilter === "critical"
+                  ? `Critical (${criticalCount})`
+                  : activeFilter === "assigned"
+                    ? `Assigned (${assignedCount})`
+                    : `Resolved (${resolvedCount})`}
+            </span>
+            <ChevronDown
+              className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-300 ${
+                isFilterModalOpen ? "rotate-180 text-[#006948]" : ""
+              }`}
+            />
+          </button>
 
           {/* User Profile Avatar */}
           <Link
             href="/profile"
             title={userProfile?.name ? `Profile of ${userProfile.name}` : "View Profile"}
-            className="relative w-9 h-9 rounded-full overflow-hidden ring-2 ring-[#006948]/30 shadow-sm hover:ring-[#006948] transition-all cursor-pointer flex items-center justify-center shrink-0"
+            className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden ring-2 ring-[#006948]/30 shadow-sm hover:ring-[#006948] transition-all cursor-pointer flex items-center justify-center shrink-0"
           >
             {userProfile?.avatarUrl ? (
               <img
@@ -1449,196 +1471,209 @@ export default function HomePage() {
             ) : (
               <User className="w-4 h-4 text-[#006948]" />
             )}
-            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white"></div>
+            <div className="absolute bottom-0 right-0 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-emerald-500 rounded-full border-2 border-white"></div>
           </Link>
         </div>
       </header>
 
-      {/* Mobile Filter Button Trigger (Visible only on small screens < 640px) */}
-      <div className="fixed top-19 left-1/2 -translate-x-1/2 z-40 flex sm:hidden justify-center px-1">
-        <button
-          onClick={() => setIsFilterModalOpen(!isFilterModalOpen)}
-          className="px-4 py-2 rounded-full bg-white/95 backdrop-blur-2xl text-[#131b2e] border border-slate-200/90 shadow-md font-['Hanken_Grotesk'] text-xs font-extrabold flex items-center gap-2 transition-all active:scale-95 cursor-pointer hover:border-[#006948]"
-        >
-          <SlidersHorizontal className="w-4 h-4 text-[#006948]" />
-          <span>Filter Spots</span>
-          <span className="bg-[#006948]/10 text-[#006948] font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold border border-[#006948]/20">
-            {activeFilter === "all"
-              ? `All (${reports.length})`
-              : activeFilter === "critical"
-                ? `Critical (${criticalCount})`
-                : activeFilter === "assigned"
-                  ? `Assigned (${assignedCount})`
-                  : `Resolved (${resolvedCount})`}
-          </span>
-          <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-300 ${isFilterModalOpen ? "rotate-180 text-[#006948]" : ""}`} />
-        </button>
-      </div>
-
-      {/* Desktop Filter Chips Bar (Visible on sm and larger screens >= 640px) */}
-      <div className="fixed top-19 left-1/2 -translate-x-1/2 z-35 w-[calc(100%-1.5rem)] max-w-xl hidden sm:flex items-center gap-2.5 overflow-x-auto hide-scrollbar no-scrollbar py-1 px-1">
-        <button
-          onClick={() => setActiveFilter("all")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${activeFilter === "all"
-            ? "bg-[#131b2e] text-white border-[#131b2e] font-extrabold scale-105 shadow-md"
-            : "bg-white/95 backdrop-blur-md text-slate-700 border-slate-200/90 hover:bg-slate-50 hover:border-slate-300"
-            }`}
-        >
-          <Filter className={`w-3.5 h-3.5 ${activeFilter === "all" ? "text-emerald-400" : "text-[#006948]"}`} />
-          <span>All Spots</span>
-          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeFilter === "all" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-800"
-            }`}>
-            {reports.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveFilter("critical")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${activeFilter === "critical"
-            ? "bg-red-600 text-white border-red-600 font-extrabold scale-105 shadow-md"
-            : "bg-white/95 backdrop-blur-md text-red-600 border-red-200/80 hover:bg-red-50 hover:border-red-300"
-            }`}
-        >
-          <AlertTriangle className="w-3.5 h-3.5" />
-          <span>Critical</span>
-          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeFilter === "critical" ? "bg-white/20 text-white" : "bg-red-100 text-red-700"
-            }`}>
-            {criticalCount}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveFilter("assigned")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${activeFilter === "assigned"
-            ? "bg-indigo-600 text-white border-indigo-600 font-extrabold scale-105 shadow-md"
-            : "bg-white/95 backdrop-blur-md text-indigo-600 border-indigo-200/80 hover:bg-indigo-50 hover:border-indigo-300"
-            }`}
-        >
-          <Navigation className="w-3.5 h-3.5" />
-          <span>Assigned</span>
-          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-700"
-            }`}>
-            {assignedCount}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveFilter("resolved")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-bold font-['Hanken_Grotesk'] flex items-center gap-2 transition-all duration-200 shrink-0 cursor-pointer shadow-xs border ${activeFilter === "resolved"
-            ? "bg-[#006948] text-white border-[#006948] font-extrabold scale-105 shadow-md"
-            : "bg-white/95 backdrop-blur-md text-emerald-700 border-emerald-200/80 hover:bg-emerald-50 hover:border-emerald-300"
-            }`}
-        >
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          <span>Resolved</span>
-          <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold ${activeFilter === "resolved" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
-            }`}>
-            {resolvedCount}
-          </span>
-        </button>
-      </div>
-
-      {/* Floating Animated Rectangle Filter Box (Grows when open, shrinks when closed) */}
+      {/* Premium Filter Options Dropdown Popup (Positioned right below Navbar) */}
       {isFilterModalOpen && (
         <>
-          {/* Backdrop overlay to close when clicking outside */}
+          {/* Backdrop overlay to close on click outside */}
           <div
             onClick={() => setIsFilterModalOpen(false)}
-            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] sm:hidden animate-enter"
+            className="fixed inset-0 z-45 bg-black/20 backdrop-blur-[2px] animate-enter"
           />
 
-          <div className="fixed top-30 left-1/2 -translate-x-1/2 z-50 w-72 bg-white/95 backdrop-blur-2xl rounded-2xl border border-slate-200/90 shadow-[0_20px_50px_rgba(15,23,42,0.2)] p-3 flex flex-col gap-2 transition-all duration-300 animate-enter origin-top sm:hidden">
-            <div className="flex items-center justify-between px-1 pb-1.5 border-b border-slate-100 mb-0.5">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
-                Filter Options
-              </span>
+          <div className="fixed top-17 sm:top-18 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-1.5rem)] max-w-sm bg-white/95 backdrop-blur-2xl rounded-3xl border border-slate-200/90 shadow-[0_20px_60px_rgba(15,23,42,0.18)] p-3.5 sm:p-4 flex flex-col gap-2.5 transition-all duration-200 animate-enter origin-top">
+            {/* Header */}
+            <div className="flex items-center justify-between px-1 pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-[#006948]/10 flex items-center justify-center text-[#006948]">
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                </div>
+                <span className="font-['Hanken_Grotesk'] text-xs font-extrabold text-[#131b2e]">
+                  Filter Waste Reports
+                </span>
+              </div>
               <button
+                type="button"
                 onClick={() => setIsFilterModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 p-0.5 rounded-md hover:bg-slate-100 transition-colors"
+                className="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+                title="Close Filter Menu"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
+            {/* Filter Category Buttons */}
             <div className="flex flex-col gap-1.5">
+              {/* All Spots */}
               <button
+                type="button"
                 onClick={() => {
                   setActiveFilter("all");
                   setIsFilterModalOpen(false);
                 }}
-                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${activeFilter === "all"
-                  ? "bg-[#131b2e] text-white border-[#131b2e] shadow-sm font-extrabold"
-                  : "bg-slate-50 text-slate-800 border-slate-200/80 hover:bg-slate-100"
-                  }`}
+                className={`p-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center justify-between border ${
+                  activeFilter === "all"
+                    ? "bg-[#131b2e] text-white border-[#131b2e] shadow-md scale-[1.01]"
+                    : "bg-slate-50 hover:bg-slate-100/90 text-slate-800 border-slate-200/70"
+                }`}
               >
-                <div className="flex items-center gap-2">
-                  <Filter className={`w-3.5 h-3.5 ${activeFilter === "all" ? "text-emerald-400" : "text-[#006948]"}`} />
-                  <span className="text-xs font-extrabold">All Spots</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                      activeFilter === "all" ? "bg-white/20 text-white" : "bg-emerald-100 text-[#006948]"
+                    }`}
+                  >
+                    <Filter className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-xs font-extrabold leading-tight ${activeFilter === "all" ? "text-white" : "text-slate-900"}`}>
+                      All Waste Sites
+                    </p>
+                    <p className={`text-[10px] font-medium leading-tight mt-0.5 truncate ${activeFilter === "all" ? "text-slate-300" : "text-slate-500"}`}>
+                      Display all marked locations
+                    </p>
+                  </div>
                 </div>
-                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${activeFilter === "all" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-900"
-                  }`}>
-                  {reports.length}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`font-mono text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                      activeFilter === "all" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-800"
+                    }`}
+                  >
+                    {reports.length}
+                  </span>
+                  {activeFilter === "all" && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+                </div>
               </button>
 
+              {/* Critical */}
               <button
+                type="button"
                 onClick={() => {
                   setActiveFilter("critical");
                   setIsFilterModalOpen(false);
                 }}
-                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${activeFilter === "critical"
-                  ? "bg-red-600 text-white border-red-600 shadow-sm font-extrabold"
-                  : "bg-slate-50 text-red-700 border-slate-200/80 hover:bg-red-50"
-                  }`}
+                className={`p-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center justify-between border ${
+                  activeFilter === "critical"
+                    ? "bg-red-600 text-white border-red-600 shadow-md scale-[1.01]"
+                    : "bg-red-50/50 hover:bg-red-50 text-red-900 border-red-200/60"
+                }`}
               >
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span className="text-xs font-extrabold">Critical Severity</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                      activeFilter === "critical" ? "bg-white/20 text-white" : "bg-red-100 text-red-600"
+                    }`}
+                  >
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-xs font-extrabold leading-tight ${activeFilter === "critical" ? "text-white" : "text-red-900"}`}>
+                      Critical Severity
+                    </p>
+                    <p className={`text-[10px] font-medium leading-tight mt-0.5 truncate ${activeFilter === "critical" ? "text-red-200" : "text-red-600/80"}`}>
+                      Urgent high-hazard spots
+                    </p>
+                  </div>
                 </div>
-                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${activeFilter === "critical" ? "bg-white/20 text-white" : "bg-red-100 text-red-700"
-                  }`}>
-                  {criticalCount}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`font-mono text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                      activeFilter === "critical" ? "bg-white/20 text-white" : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {criticalCount}
+                  </span>
+                  {activeFilter === "critical" && <CheckCircle2 className="w-4 h-4 text-white shrink-0" />}
+                </div>
               </button>
 
+              {/* Assigned */}
               <button
+                type="button"
                 onClick={() => {
                   setActiveFilter("assigned");
                   setIsFilterModalOpen(false);
                 }}
-                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${activeFilter === "assigned"
-                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm font-extrabold"
-                  : "bg-slate-50 text-indigo-700 border-slate-200/80 hover:bg-indigo-50"
-                  }`}
+                className={`p-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center justify-between border ${
+                  activeFilter === "assigned"
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-md scale-[1.01]"
+                    : "bg-indigo-50/50 hover:bg-indigo-50 text-indigo-900 border-indigo-200/60"
+                }`}
               >
-                <div className="flex items-center gap-2">
-                  <Navigation className="w-3.5 h-3.5" />
-                  <span className="text-xs font-extrabold">Assigned / In-Progress</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                      activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-600"
+                    }`}
+                  >
+                    <Navigation className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-xs font-extrabold leading-tight ${activeFilter === "assigned" ? "text-white" : "text-indigo-900"}`}>
+                      Assigned / In Progress
+                    </p>
+                    <p className={`text-[10px] font-medium leading-tight mt-0.5 truncate ${activeFilter === "assigned" ? "text-indigo-200" : "text-indigo-600/80"}`}>
+                      Rangers currently dispatched
+                    </p>
+                  </div>
                 </div>
-                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-700"
-                  }`}>
-                  {assignedCount}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`font-mono text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                      activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-700"
+                    }`}
+                  >
+                    {assignedCount}
+                  </span>
+                  {activeFilter === "assigned" && <CheckCircle2 className="w-4 h-4 text-white shrink-0" />}
+                </div>
               </button>
 
+              {/* Resolved */}
               <button
+                type="button"
                 onClick={() => {
                   setActiveFilter("resolved");
                   setIsFilterModalOpen(false);
                 }}
-                className={`p-2.5 rounded-xl text-xs font-bold font-['Hanken_Grotesk'] flex items-center justify-between border transition-all cursor-pointer ${activeFilter === "resolved"
-                  ? "bg-[#006948] text-white border-[#006948] shadow-sm font-extrabold"
-                  : "bg-slate-50 text-emerald-800 border-slate-200/80 hover:bg-emerald-50"
-                  }`}
+                className={`p-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center justify-between border ${
+                  activeFilter === "resolved"
+                    ? "bg-[#006948] text-white border-[#006948] shadow-md scale-[1.01]"
+                    : "bg-emerald-50/50 hover:bg-emerald-50 text-emerald-900 border-emerald-200/60"
+                }`}
               >
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span className="text-xs font-extrabold">Cleaned / Resolved</span>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                      activeFilter === "resolved" ? "bg-white/20 text-white" : "bg-emerald-100 text-[#006948]"
+                    }`}
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-xs font-extrabold leading-tight ${activeFilter === "resolved" ? "text-white" : "text-emerald-900"}`}>
+                      Cleaned / Resolved
+                    </p>
+                    <p className={`text-[10px] font-medium leading-tight mt-0.5 truncate ${activeFilter === "resolved" ? "text-emerald-200" : "text-emerald-700/80"}`}>
+                      AI verified completed spots
+                    </p>
+                  </div>
                 </div>
-                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-full font-bold ${activeFilter === "resolved" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
-                  }`}>
-                  {resolvedCount}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className={`font-mono text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                      activeFilter === "resolved" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+                    }`}
+                  >
+                    {resolvedCount}
+                  </span>
+                  {activeFilter === "resolved" && <CheckCircle2 className="w-4 h-4 text-[#85f8c4] shrink-0" />}
+                </div>
               </button>
             </div>
           </div>
