@@ -500,7 +500,7 @@ export default function HomePage() {
       id: spot._id || `spot-${Math.random()}`,
       lat: Array.isArray(spot.coordinates) && spot.coordinates.length === 2 ? spot.coordinates[1] : 28.6139,
       lng: Array.isArray(spot.coordinates) && spot.coordinates.length === 2 ? spot.coordinates[0] : 77.209,
-      title: spot.description || spot.address || "Marked Spot",
+      title: spot.description && !spot.description.startsWith("Lat ") ? spot.description : (computedWasteType || "Waste Spot"),
       status: spotStatus,
       severity: spot.isCompleted ? "Resolved" : hasAssignments ? "Claimed" : (spot.critcal || "High"),
       category: computedWasteType,
@@ -1871,11 +1871,6 @@ export default function HomePage() {
                       <span>AI Pending</span>
                     </span>
                   )}
-
-                  <span className="text-xs text-slate-500 font-mono font-medium flex items-center gap-1">
-                    <Navigation className="w-3 h-3 text-[#006948]" />
-                    <span>{selectedReport.distance || "Ward 14 Spot"}</span>
-                  </span>
                 </div>
 
                 <button

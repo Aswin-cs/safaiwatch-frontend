@@ -73,6 +73,8 @@ export default function ReportWasteSpotModal({
   const [isStartingCamera, setIsStartingCamera] = useState<boolean>(false);
   const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment");
   const [cameraRatio, setCameraRatio] = useState<"4:3" | "9:16">("9:16");
+  const [isTorchSupported, setIsTorchSupported] = useState<boolean>(false);
+  const [isTorchOn, setIsTorchOn] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [shutterFlash, setShutterFlash] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -90,6 +92,8 @@ export default function ReportWasteSpotModal({
     }
     setIsCameraActive(false);
     setIsStartingCamera(false);
+    setIsTorchSupported(false);
+    setIsTorchOn(false);
   };
 
   // Connect stream to video element whenever camera becomes active
@@ -133,6 +137,17 @@ export default function ReportWasteSpotModal({
       }
 
       streamRef.current = stream;
+
+      // Check flashlight / torch capability on the current video track
+      const track = stream.getVideoTracks()[0];
+      const capabilities = track?.getCapabilities ? (track.getCapabilities() as any) : null;
+      if (capabilities && "torch" in capabilities) {
+        setIsTorchSupported(true);
+      } else {
+        setIsTorchSupported(false);
+      }
+      setIsTorchOn(false);
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         try {
@@ -156,6 +171,21 @@ export default function ReportWasteSpotModal({
     const nextFacing = cameraFacing === "environment" ? "user" : "environment";
     setCameraFacing(nextFacing);
     startCamera(nextFacing);
+  };
+
+  // Toggle flashlight / torch
+  const toggleTorch = async () => {
+    try {
+      const track = streamRef.current?.getVideoTracks()[0];
+      if (!track) return;
+      const nextTorch = !isTorchOn;
+      await (track as any).applyConstraints({
+        advanced: [{ torch: nextTorch }],
+      });
+      setIsTorchOn(nextTorch);
+    } catch (err) {
+      console.warn("Torch toggle error:", err);
+    }
   };
 
   // Capture photo snapshot from live video stream
@@ -757,6 +787,24 @@ export default function ReportWasteSpotModal({
                     </span>
 
                     <div className="flex items-center gap-2">
+                      {/* Torch / Flashlight Toggle (if supported by device) */}
+                      {isTorchSupported && (
+                        <button
+                          type="button"
+                          onClick={toggleTorch}
+                          className={`w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-sm transition-all cursor-pointer active:scale-90 border border-white/10 ${
+                            isTorchOn
+                              ? "bg-amber-400 text-slate-900 shadow-md shadow-amber-400/40"
+                              : "bg-black/50 hover:bg-black/70 text-white"
+                          }`}
+                          title={isTorchOn ? "Turn Flash Off" : "Turn Flash On"}
+                        >
+                          <span className="material-symbols-outlined text-[18px]">
+                            {isTorchOn ? "flashlight_on" : "flashlight_off"}
+                          </span>
+                        </button>
+                      )}
+
                       {/* Aspect Ratio Toggle (9:16 / 4:3) */}
                       <button
                         type="button"
