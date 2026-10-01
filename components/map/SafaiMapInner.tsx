@@ -59,6 +59,26 @@ export interface Report {
   isAssignedBy?: any[];
   isCompletedBy?: any[];
   critcal?: string;
+  isAiVerified?: {
+    isAiOrEdited?: boolean;
+    forensicConfidence?: number;
+    detectedManipulationType?: string;
+    forensicDetails?: string;
+    gestureMatched?: boolean;
+    detectedGestureName?: string;
+    detectedCode?: string;
+    isValidWasteReport?: boolean;
+    isFraudulent?: boolean;
+    fraudReason?: string;
+    summary?: string;
+    auditResult?: any;
+    verifiedBy?: string;
+    verifiedAt?: string;
+    [key: string]: any;
+  } | null;
+  isVerified?: boolean;
+  isCompletedVerify?: "pending" | "completed" | "uncompleted" | string;
+  isCompletedVerifyAt?: string;
 }
 
 export interface SafaiMapInnerProps {

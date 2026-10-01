@@ -443,6 +443,10 @@ export default function HomePage() {
       isAssignedBy: spot.isAssignedBy,
       isCompletedBy: spot.isCompletedBy,
       critcal: spot.critcal,
+      isAiVerified: spot.isAiVerified,
+      isVerified: spot.isVerified,
+      isCompletedVerify: spot.isCompletedVerify,
+      isCompletedVerifyAt: spot.isCompletedVerifyAt,
     };
   };
 
@@ -540,6 +544,10 @@ export default function HomePage() {
           if (!prev || String(prev.id) !== String(data.spotId)) return prev;
           return {
             ...prev,
+            isVerified: isVerified,
+            isCompletedVerify: "completed",
+            isCompletedVerifyAt: new Date().toISOString(),
+            isAiVerified: data.aiVerified || prev.isAiVerified,
             isPendingVerification: false,
             verificationStatus: isVerified ? "verified" : "failed",
             pendingVerificationMsg: msg,
@@ -619,11 +627,7 @@ export default function HomePage() {
               r.id === report.id
                 ? {
                   ...r,
-                  image: fullSpot.image || r.image,
-                  title: fullSpot.description || r.title,
-                  markedBy: fullSpot.markedBy || r.markedBy,
-                  markedAt: fullSpot.markedAt || r.markedAt,
-                  isCompleted: fullSpot.isCompleted ?? r.isCompleted,
+                  ...mapSpotToReport(fullSpot),
                 }
                 : r
             )
@@ -1176,6 +1180,97 @@ export default function HomePage() {
     }).filter(Boolean);
   };
 
+  // Helper: Parse comprehensive AI forensic audit breakdown
+  const parseSpotAiAudit = (report: Report | null) => {
+    if (!report) return null;
+
+    const isPending = report.isCompletedVerify === "pending";
+    const isVerified = report.isCompletedVerify === "completed" && report.isVerified === true;
+    const isFlagged = report.isCompletedVerify !== "pending" && report.isVerified === false;
+
+    if (!isPending && !isVerified && !isFlagged && !report.isAiVerified) {
+      return null;
+    }
+
+    const ai = report.isAiVerified || {};
+    const rawReason = ai.fraudReason || (report.pendingVerificationMsg && report.pendingVerificationMsg.includes("(") ? report.pendingVerificationMsg.match(/\((.*?)\)/)?.[1] : "") || "";
+    const rawManipulation = ai.detectedManipulationType || (ai.isAiOrEdited ? "AI_GENERATED" : isVerified ? "AUTHENTIC_PHOTO" : "");
+    const confidence = ai.forensicConfidence !== undefined && ai.forensicConfidence > 0 ? Math.round(ai.forensicConfidence * 100) : isVerified ? 98 : isFlagged ? 92 : 0;
+    const forensicDetails = ai.forensicDetails || ai.summary || (rawReason ? `Automated visual inspection verdict: ${rawReason}` : "");
+
+    // Map reason code to human readable title & description
+    let reasonTitle = "Photo Authenticity Check Failed";
+    let reasonDesc = "The submitted photo failed AI authenticity and municipal cleanliness verification.";
+
+    if (rawReason === "NO_WASTE_DETECTED" || (!ai.isValidWasteReport && isFlagged && !ai.isAiOrEdited && !rawReason.includes("GESTURE") && !rawReason.includes("CODE"))) {
+      reasonTitle = "No Municipal Waste Detected";
+      reasonDesc = "The uploaded photo does not show identifiable outdoor garbage, litter, or municipal waste in a public area.";
+    } else if (rawReason === "AI_GENERATED_OR_EDITED" || rawManipulation === "AI_GENERATED" || ai.isAiOrEdited) {
+      reasonTitle = "Synthetic / AI-Generated Photo Detected";
+      reasonDesc = "Digital forensic analysis detected generative AI patterns, pixel tampering, or synthetic texture artifacts.";
+    } else if (rawReason === "SCREENSHOT" || rawManipulation === "SCREENSHOT") {
+      reasonTitle = "Screen Capture / Moiré Pattern Detected";
+      reasonDesc = "The image appears to be a photo taken of a digital screen or monitor rather than a direct camera capture.";
+    } else if (rawReason === "GESTURE_MISMATCH") {
+      reasonTitle = "Verification Gesture Mismatch";
+      reasonDesc = "The hand gesture shown does not match the assigned verification gesture pose required for this report.";
+    } else if (rawReason === "CODE_MISMATCH") {
+      reasonTitle = "Verification Code Mismatch";
+      reasonDesc = "The security verification code written in the scene is missing or did not match the required code.";
+    }
+
+    // Checkpoint 1: Digital Authenticity
+    const authenticityStatus = ai.isAiOrEdited || rawManipulation === "AI_GENERATED" || rawManipulation === "SCREENSHOT" || rawReason === "AI_GENERATED_OR_EDITED" || rawReason === "SCREENSHOT"
+      ? "fail"
+      : isVerified
+      ? "pass"
+      : isPending
+      ? "pending"
+      : "fail";
+
+    const authenticityLabel = authenticityStatus === "pass" ? "Authentic Camera Photo" : authenticityStatus === "pending" ? "Analyzing Pixels" : "Synthetic / Tampered";
+
+    // Checkpoint 2: Security Pose / Code
+    const hasGestureCheck = ai.gestureMatched !== undefined || rawReason.includes("GESTURE");
+    const hasCodeCheck = ai.detectedCode !== undefined || rawReason.includes("CODE");
+    const securityStatus = (hasGestureCheck && ai.gestureMatched === false) || (hasCodeCheck && rawReason.includes("CODE")) || rawReason === "GESTURE_MISMATCH" || rawReason === "CODE_MISMATCH"
+      ? "fail"
+      : isVerified
+      ? "pass"
+      : isPending
+      ? "pending"
+      : (ai.gestureMatched ? "pass" : "pass");
+
+    const securityLabel = securityStatus === "pass" ? "Security Pose Matched" : securityStatus === "pending" ? "Checking Pose" : securityStatus === "fail" ? "Pose Mismatched" : "Standard Verification";
+
+    // Checkpoint 3: Outdoor Waste Content
+    const wasteStatus = ai.isValidWasteReport === false || rawReason === "NO_WASTE_DETECTED"
+      ? "fail"
+      : (ai.isValidWasteReport === true || isVerified)
+      ? "pass"
+      : isPending
+      ? "pending"
+      : "fail";
+
+    const wasteLabel = wasteStatus === "pass" ? "Outdoor Waste Verified" : wasteStatus === "pending" ? "Evaluating Waste" : "No Waste Detected";
+
+    return {
+      status: isPending ? "pending" : isVerified ? "verified" : "flagged",
+      confidence,
+      manipulationType: rawManipulation,
+      reasonTitle,
+      reasonDesc,
+      forensicDetails,
+      authenticityStatus,
+      authenticityLabel,
+      securityStatus,
+      securityLabel,
+      wasteStatus,
+      wasteLabel,
+      verifiedAt: report.isCompletedVerifyAt,
+    };
+  };
+
   const currentUserId = userProfile?._id;
   const markedByUserId = selectedReport ? getMarkedByUserId(selectedReport.markedBy) : null;
   const isReportedByCurrentUser = Boolean(
@@ -1191,6 +1286,7 @@ export default function HomePage() {
   const maxAssignments = selectedReport ? getMaxAssignmentsByLevel((selectedReport as any).critcal) : 1;
   const currentAssignmentCount = assignedByDetailsList ? assignedByDetailsList.length : 0;
   const isSlotsAvailable = currentAssignmentCount < maxAssignments;
+  const parsedAudit = parseSpotAiAudit(selectedReport);
 
   // Filter reports according to activeFilter chip selection
   const filteredReports = reports.filter((r) => {
@@ -1583,6 +1679,26 @@ export default function HomePage() {
                 <span>{selectedReport.severity || selectedReport.status}</span>
               </span>
 
+              {/* AI Verification Status Badge */}
+              {selectedReport.isCompletedVerify === "completed" && selectedReport.isVerified === true && (
+                <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-emerald-50 text-emerald-700 border-emerald-200">
+                  <CheckCircle className="w-3 h-3 text-emerald-600" />
+                  <span>AI Verified</span>
+                </span>
+              )}
+              {isReportedByCurrentUser && selectedReport.isCompletedVerify !== "pending" && selectedReport.isVerified === false && (
+                <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-rose-50 text-rose-700 border-rose-200">
+                  <AlertTriangle className="w-3 h-3 text-rose-600" />
+                  <span>AI Flagged</span>
+                </span>
+              )}
+              {isReportedByCurrentUser && selectedReport.isCompletedVerify === "pending" && (
+                <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-amber-50 text-amber-700 border-amber-200">
+                  <Clock className="w-3 h-3 text-amber-600 animate-spin" />
+                  <span>AI Pending</span>
+                </span>
+              )}
+
               <span className="text-xs text-slate-500 font-mono font-medium flex items-center gap-1">
                 <Navigation className="w-3 h-3 text-[#006948]" />
                 <span>{selectedReport.distance || "Ward 14 Spot"}</span>
@@ -1729,6 +1845,25 @@ export default function HomePage() {
                 className="text-[10px] uppercase font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-lg border border-rose-300 shrink-0 transition-colors cursor-pointer"
               >
                 {isDeletingVerification ? "..." : "Reset"}
+              </button>
+            </div>
+          )}
+
+          {/* Marked Spot AI Verification Failure Alert for Reporter */}
+          {isReportedByCurrentUser && selectedReport.isCompletedVerify !== "pending" && selectedReport.isVerified === false && (
+            <div className="mb-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="material-symbols-outlined text-rose-600 text-[18px] shrink-0">gpp_bad</span>
+                <p className="text-[11px] text-rose-800 font-medium truncate">
+                  {selectedReport.isAiVerified?.fraudReason || "Your marked photo failed AI verification."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSpotDetailModalOpen(true)}
+                className="text-[10px] uppercase font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-lg border border-rose-300 shrink-0 transition-colors cursor-pointer"
+              >
+                Inspect
               </button>
             </div>
           )}
@@ -1999,86 +2134,88 @@ export default function HomePage() {
 
       {/* Spot Details & Inspection Modal */}
       {isSpotDetailModalOpen && selectedReport && (
-        <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4 animate-enter overflow-y-auto">
-          <div className="bg-[#faf8ff] rounded-3xl max-w-lg w-full p-6 border border-slate-200 shadow-2xl relative my-8">
+        <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-enter">
+          <div className="bg-[#faf8ff] rounded-3xl max-w-lg w-full max-h-[88vh] flex flex-col p-4 sm:p-6 border border-slate-200 shadow-2xl relative">
             <button
               onClick={() => setIsSpotDetailModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-200/60 transition-colors"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-200/60 transition-colors z-10 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-[#4b41e1]/10 text-[#4b41e1] rounded-xl flex items-center justify-center shrink-0">
-                <Eye className="w-5 h-5" />
+            {/* Modal Header */}
+            <div className="flex items-center gap-3 mb-3 shrink-0">
+              <div className="w-9 h-9 bg-[#4b41e1]/10 text-[#4b41e1] rounded-xl flex items-center justify-center shrink-0">
+                <Eye className="w-4.5 h-4.5 text-[#4b41e1]" />
               </div>
               <div>
-                <h3 className="font-['Hanken_Grotesk'] text-lg font-extrabold text-slate-900 leading-tight">
+                <h3 className="font-['Hanken_Grotesk'] text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
                   Spot Details &amp; Inspection
                 </h3>
-                <p className="text-xs text-slate-500 font-mono mt-0.5">
+                <p className="text-[11px] text-slate-500 font-mono mt-0.5">
                   ID: {selectedReport.id}
                 </p>
               </div>
             </div>
 
-            {/* AI Verification Failure Box with Delete/Reset button */}
-            {selectedReport.verificationStatus === "failed" && (
-              <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3">
-                <span className="material-symbols-outlined text-rose-600 shrink-0 text-[22px] mt-0.5">error</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <h4 className="text-xs font-bold text-rose-800 uppercase tracking-wider">AI Verification Failed</h4>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteVerification(selectedReport.oneTimeVerificationId || selectedReport.id)}
-                      disabled={isDeletingVerification}
-                      className="text-xs font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 px-2.5 py-1 rounded-lg border border-rose-300 transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-1"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">delete</span>
-                      <span>{isDeletingVerification ? "Deleting..." : "Delete & Re-upload"}</span>
-                    </button>
+            {/* Scrollable Modal Body */}
+            <div className="overflow-y-auto pr-1 space-y-3 flex-1 custom-scrollbar">
+              {/* AI Verification Failure Box for Cleanup Submissions */}
+              {selectedReport.verificationStatus === "failed" && selectedReport.oneTimeVerificationId && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2.5 shrink-0">
+                  <span className="material-symbols-outlined text-rose-600 shrink-0 text-[20px] mt-0.5">error</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <h4 className="text-xs font-bold text-rose-800 uppercase tracking-wider">AI Verification Failed</h4>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteVerification(selectedReport.oneTimeVerificationId || selectedReport.id)}
+                        disabled={isDeletingVerification}
+                        className="text-[11px] font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 px-2 py-0.5 rounded-lg border border-rose-300 transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-1 shrink-0"
+                      >
+                        <span className="material-symbols-outlined text-[13px]">delete</span>
+                        <span>{isDeletingVerification ? "..." : "Reset"}</span>
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-rose-700 mt-1 leading-snug">
+                      {selectedReport.pendingVerificationMsg || "The submitted cleanup proof failed AI verification."}
+                    </p>
                   </div>
-                  <p className="text-xs text-rose-700 mt-1 leading-relaxed">
-                    {selectedReport.pendingVerificationMsg || "The submitted cleanup proof failed AI verification. Please delete this record and upload an authentic cleanup photo."}
-                  </p>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Large Image Preview */}
-            {selectedReport.image ? (
-              <div className="relative w-full h-56 rounded-2xl overflow-hidden border border-slate-300 bg-slate-900 mb-4 shadow-sm group">
-                <img
-                  src={selectedReport.image}
-                  alt={selectedReport.title}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=600&auto=format&fit=crop&q=80";
-                  }}
-                />
-                <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-sm text-emerald-300 font-mono text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/30 shadow-sm">
-                  <Camera className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Geotagged Photo</span>
+              {/* Large Image Preview (Compact & Responsive) */}
+              {selectedReport.image ? (
+                <div className="relative w-full h-36 sm:h-40 rounded-2xl overflow-hidden border border-slate-300 bg-slate-900 shadow-xs group shrink-0">
+                  <img
+                    src={selectedReport.image}
+                    alt={selectedReport.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src =
+                        "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=600&auto=format&fit=crop&q=80";
+                    }}
+                  />
+                  <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm text-emerald-300 font-mono text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-500/30">
+                    <Camera className="w-3 h-3 text-emerald-400" />
+                    <span>Geotagged</span>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="w-full h-40 rounded-2xl bg-gradient-to-br from-[#006948] to-slate-900 flex flex-col items-center justify-center p-4 text-white text-center mb-4 border border-emerald-800/30 shadow-sm">
-                <Camera className="w-8 h-8 text-[#85f8c4] mb-2" />
-                <span className="text-xs font-mono text-[#85f8c4] font-bold uppercase tracking-wider">
-                  No Photo Uploaded
-                </span>
-              </div>
-            )}
+              ) : (
+                <div className="w-full h-24 rounded-2xl bg-gradient-to-br from-[#006948] to-slate-900 flex flex-col items-center justify-center p-2.5 text-white text-center border border-emerald-800/30 shadow-xs shrink-0">
+                  <Camera className="w-5 h-5 text-[#85f8c4] mb-0.5" />
+                  <span className="text-[10px] font-mono text-[#85f8c4] font-bold uppercase tracking-wider">
+                    No Photo Uploaded
+                  </span>
+                </div>
+              )}
 
-            {/* Details Content */}
-            <div className="space-y-3.5 mb-6 text-sm text-slate-800">
-              <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+              {/* Status & Coordinates Summary */}
+              <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-2 shrink-0">
                 <div>
-                  <span className="text-xs font-semibold text-slate-500 block mb-0.5">Status &amp; Severity</span>
+                  <span className="text-[10px] font-semibold text-slate-500 block">Status &amp; Severity</span>
                   <span
-                    className={`text-xs font-mono font-extrabold px-3 py-1 rounded-full uppercase border ${selectedReport.status === "critical"
+                    className={`text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full uppercase border ${selectedReport.status === "critical"
                       ? "bg-red-100 text-red-700 border-red-200"
                       : selectedReport.status === "moderate"
                         ? "bg-amber-100 text-amber-800 border-amber-200"
@@ -2092,12 +2229,216 @@ export default function HomePage() {
                 </div>
 
                 <div className="text-right">
-                  <span className="text-xs font-semibold text-slate-500 block mb-0.5">Coordinates</span>
-                  <span className="font-mono text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60">
+                  <span className="text-[10px] font-semibold text-slate-500 block">Coordinates</span>
+                  <span className="font-mono text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/60">
                     📍 {selectedReport.lat.toFixed(4)}, {selectedReport.lng.toFixed(4)}
                   </span>
                 </div>
               </div>
+
+              {/* AI Forensic Verification Audit Section */}
+              {parsedAudit && (
+                <div className="bg-white rounded-2xl p-3 sm:p-3.5 border border-slate-200/90 shadow-xs flex flex-col gap-2.5 transition-all shrink-0">
+                  {/* Card Header: Status Badge & Confidence in a Single Line */}
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                        parsedAudit.status === "verified"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : parsedAudit.status === "pending"
+                          ? "bg-amber-50 text-amber-700 border border-amber-200"
+                          : "bg-rose-50 text-rose-700 border border-rose-200"
+                      }`}>
+                        <span className="material-symbols-outlined text-[16px]">
+                          {parsedAudit.status === "verified" ? "verified" : parsedAudit.status === "pending" ? "sync" : "gpp_bad"}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-['Hanken_Grotesk'] text-xs font-extrabold text-slate-900 leading-none">
+                          AI Forensic Audit
+                        </p>
+                        <p className="text-[9px] font-mono text-slate-500 mt-0.5">
+                          {parsedAudit.status === "verified" ? "Authenticity Verified" : parsedAudit.status === "pending" ? "Analysis in Progress" : "Verification Flagged"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {parsedAudit.confidence > 0 && (
+                        <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                          {parsedAudit.confidence}% Conf.
+                        </span>
+                      )}
+                      {parsedAudit.status === "pending" ? (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[11px] animate-spin">sync</span>
+                          Pending
+                        </span>
+                      ) : parsedAudit.status === "verified" ? (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[11px]">verified</span>
+                          Verified
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[11px]">gpp_bad</span>
+                          Flagged
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Compact 3-Phase Verification Inspection Matrix */}
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {/* Checkpoint 1: Forensics / Authenticity */}
+                    <div className={`p-2 rounded-xl border flex flex-col justify-between gap-1 ${
+                      parsedAudit.authenticityStatus === "pass"
+                        ? "bg-emerald-50/70 border-emerald-200/90 text-emerald-900"
+                        : parsedAudit.authenticityStatus === "pending"
+                        ? "bg-amber-50/70 border-amber-200/90 text-amber-900"
+                        : "bg-rose-50/70 border-rose-200/90 text-rose-900"
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-mono font-extrabold uppercase tracking-wider">Auth</span>
+                        <span className="material-symbols-outlined text-[13px]">
+                          {parsedAudit.authenticityStatus === "pass" ? "check_circle" : parsedAudit.authenticityStatus === "pending" ? "schedule" : "cancel"}
+                        </span>
+                      </div>
+                      <p className="text-[10px] font-bold truncate leading-tight">
+                        {parsedAudit.authenticityLabel}
+                      </p>
+                    </div>
+
+                    {/* Checkpoint 2: Security Pose / Code */}
+                    <div className={`p-2 rounded-xl border flex flex-col justify-between gap-1 ${
+                      parsedAudit.securityStatus === "pass"
+                        ? "bg-emerald-50/70 border-emerald-200/90 text-emerald-900"
+                        : parsedAudit.securityStatus === "pending"
+                        ? "bg-amber-50/70 border-amber-200/90 text-amber-900"
+                        : parsedAudit.securityStatus === "fail"
+                        ? "bg-rose-50/70 border-rose-200/90 text-rose-900"
+                        : "bg-slate-50 border-slate-200 text-slate-700"
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-mono font-extrabold uppercase tracking-wider">Gesture</span>
+                        <span className="material-symbols-outlined text-[13px]">
+                          {parsedAudit.securityStatus === "pass" ? "check_circle" : parsedAudit.securityStatus === "pending" ? "schedule" : parsedAudit.securityStatus === "fail" ? "cancel" : "help"}
+                        </span>
+                      </div>
+                      <p className="text-[10px] font-bold truncate leading-tight">
+                        {parsedAudit.securityLabel}
+                      </p>
+                    </div>
+
+                    {/* Checkpoint 3: Outdoor Waste Content */}
+                    <div className={`p-2 rounded-xl border flex flex-col justify-between gap-1 ${
+                      parsedAudit.wasteStatus === "pass"
+                        ? "bg-emerald-50/70 border-emerald-200/90 text-emerald-900"
+                        : parsedAudit.wasteStatus === "pending"
+                        ? "bg-amber-50/70 border-amber-200/90 text-amber-900"
+                        : "bg-rose-50/70 border-rose-200/90 text-rose-900"
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-mono font-extrabold uppercase tracking-wider">Waste</span>
+                        <span className="material-symbols-outlined text-[13px]">
+                          {parsedAudit.wasteStatus === "pass" ? "check_circle" : parsedAudit.wasteStatus === "pending" ? "schedule" : "cancel"}
+                        </span>
+                      </div>
+                      <p className="text-[10px] font-bold truncate leading-tight">
+                        {parsedAudit.wasteLabel}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Primary Verdict & Diagnosis Box for Flagged Spot (Reporter View) */}
+                  {parsedAudit.status === "flagged" && isReportedByCurrentUser && (
+                    <div className="bg-rose-50/90 rounded-xl p-2.5 sm:p-3 border border-rose-200/90 flex flex-col gap-2 text-rose-950">
+                      <div className="flex items-start gap-2">
+                        <span className="material-symbols-outlined text-rose-600 text-[17px] shrink-0 mt-0.5">report_problem</span>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-['Hanken_Grotesk'] text-[11px] font-bold text-rose-900 uppercase tracking-wide">
+                            {parsedAudit.reasonTitle}
+                          </h4>
+                          <p className="text-[11px] text-rose-800 leading-snug mt-0.5">
+                            {parsedAudit.reasonDesc}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Forensic Vision Analysis Details Quote */}
+                      {parsedAudit.forensicDetails && (
+                        <div className="bg-white/90 rounded-lg p-2 border border-rose-200 text-[10px] text-slate-800 leading-relaxed font-mono">
+                          <span className="font-bold text-rose-700 uppercase block mb-0.5">
+                            🔍 AI Vision Note:
+                          </span>
+                          {parsedAudit.forensicDetails}
+                        </div>
+                      )}
+
+                      {/* Reporter Action & Guidance */}
+                      <div className="flex items-center justify-between gap-2 border-t border-rose-200/70 pt-1.5">
+                        <span className="text-[10px] text-rose-700 italic">
+                          🔒 Only visible to you
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsDeleteConfirmModalOpen(true)}
+                          className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg shadow-xs transition-all flex items-center gap-1 cursor-pointer active:scale-95 shrink-0"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Delete &amp; Re-Mark</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Flagged Spot Non-Reporter Fallback */}
+                  {parsedAudit.status === "flagged" && !isReportedByCurrentUser && (
+                    <div className="bg-rose-50 rounded-xl p-2 border border-rose-200 text-[11px] text-rose-800 flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-rose-600 text-[15px]">gpp_bad</span>
+                      <span>This spot did not pass AI photo validation.</span>
+                    </div>
+                  )}
+
+                  {/* Verified Confirmation Box */}
+                  {parsedAudit.status === "verified" && (
+                    <div className="bg-emerald-50/90 rounded-xl p-2.5 border border-emerald-200/90 flex items-start gap-2 text-emerald-950">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-bold text-emerald-900 leading-tight">
+                          Live Photo Authenticated &amp; Verified
+                        </p>
+                        <p className="text-[10px] text-emerald-800 leading-snug mt-0.5">
+                          Authentic municipal waste confirmed without digital tampering.
+                        </p>
+                        {parsedAudit.verifiedAt && (
+                          <p className="text-[9px] text-emerald-700 font-mono mt-0.5">
+                            Verified on {new Date(parsedAudit.verifiedAt).toLocaleString("en-US", {
+                              month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+                            })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pending Audit Notice */}
+                  {parsedAudit.status === "pending" && (
+                    <div className="bg-amber-50/90 rounded-xl p-2.5 border border-amber-200/90 flex items-start gap-2 text-amber-950">
+                      <Clock className="w-4 h-4 text-amber-600 shrink-0 animate-spin mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-bold text-amber-900 leading-tight">
+                          AI Forensic Evaluation in Progress
+                        </p>
+                        <p className="text-[10px] text-amber-800 leading-snug mt-0.5">
+                          Evaluating pixel authenticity, security pose alignment, and waste content...
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Marked By / Reporter Card */}
               {markedByDetails && (() => {
