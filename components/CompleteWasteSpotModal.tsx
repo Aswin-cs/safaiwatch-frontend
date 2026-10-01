@@ -31,9 +31,15 @@ export default function CompleteWasteSpotModal({
   const [codeId, setCodeId] = useState<string | null>(null);
   const [isLoadingCode, setIsLoadingCode] = useState<boolean>(false);
 
-  // Verification Countdown Timer State (180s for gesture, 300s for code)
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  // Verification Countdown Expiry State (180s for gesture, 300s for code)
+  const [gestureExpiresAt, setGestureExpiresAt] = useState<number | null>(null);
+  const [codeExpiresAt, setCodeExpiresAt] = useState<number | null>(null);
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+
+  // Active time left in seconds computed dynamically from current timestamp
+  const activeExpiresAt = verificationMode === "hand" ? gestureExpiresAt : codeExpiresAt;
+  const timeLeft = activeExpiresAt !== null ? Math.max(0, Math.ceil((activeExpiresAt - currentTime) / 1000)) : null;
 
   // Mode Switch Lock State (max 4 switches per session)
   const [switchCount, setSwitchCount] = useState<number>(0);
@@ -76,7 +82,8 @@ export default function CompleteWasteSpotModal({
     setGestureId(null);
     setCodeText(null);
     setCodeId(null);
-    setTimeLeft(null);
+    setGestureExpiresAt(null);
+    setCodeExpiresAt(null);
     setVerificationMode("hand");
     setRefreshTrigger(0);
     setSwitchCount(0);
@@ -97,6 +104,7 @@ export default function CompleteWasteSpotModal({
 
     setSwitchCount((prev) => prev + 1);
     setVerificationMode(newMode);
+    setCurrentTime(Date.now());
     setErrorMsg(null);
   };
 
@@ -116,7 +124,8 @@ export default function CompleteWasteSpotModal({
       setRefreshCountBeforeExpiry((prev) => prev + 1);
     }
 
-    setTimeLeft(null);
+    setGestureExpiresAt(null);
+    setCodeExpiresAt(null);
     setGestureId(null);
     setGestureImageUrl(null);
     setCodeId(null);
@@ -127,20 +136,14 @@ export default function CompleteWasteSpotModal({
 
   // Countdown Timer Effect
   useEffect(() => {
-    if (timeLeft === null || timeLeft <= 0) return;
+    if (!isOpen) return;
 
     const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev === null || prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
+      setCurrentTime(Date.now());
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timeLeft]);
+  }, [isOpen]);
 
   // Reset state on close
   useEffect(() => {
@@ -176,7 +179,7 @@ export default function CompleteWasteSpotModal({
           const imgId = (res as any).imageId || (res as any).data?.imageId;
           if (imgUrl) setGestureImageUrl(imgUrl);
           if (imgId) setGestureId(imgId);
-          setTimeLeft(180);
+          setGestureExpiresAt(Date.now() + 180 * 1000); // 3 minutes for loaded gesture
         }
       } catch (err) {
         console.error("Failed to fetch completion gesture verification:", err);
@@ -215,7 +218,7 @@ export default function CompleteWasteSpotModal({
           const cId = (res as any).verificationId || (res as any).data?.verificationId;
           if (cVal) setCodeText(cVal);
           if (cId) setCodeId(cId);
-          setTimeLeft(300);
+          setCodeExpiresAt(Date.now() + 300 * 1000); // 5 minutes for loaded code
         }
       } catch (err) {
         console.error("Failed to fetch completion code verification:", err);
