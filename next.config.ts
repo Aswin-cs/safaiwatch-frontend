@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
-const backendUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/$/, "");
+const rawUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim().replace(/^["']|["']$/g, "").replace(/\/$/, "");
+const backendUrl = rawUrl.startsWith("http://") || rawUrl.startsWith("https://") ? rawUrl : "http://localhost:4000";
 
 const nextConfig: NextConfig = {
   async rewrites() {
