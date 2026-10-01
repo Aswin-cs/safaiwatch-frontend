@@ -51,6 +51,11 @@ export interface Report {
   markedBy?: MarkedByUser | string;
   markedAt?: string;
   isCompleted?: boolean;
+  isPendingVerification?: boolean;
+  verificationStatus?: string | null;
+  oneTimeVerificationId?: string | null;
+  pendingVerificationMsg?: string;
+  pendingCleanupImage?: string;
   isAssignedBy?: any[];
   isCompletedBy?: any[];
   critcal?: string;

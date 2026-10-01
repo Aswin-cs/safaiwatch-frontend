@@ -193,8 +193,10 @@ export default function ProfilePage({ params }: PageProps) {
         const toastMsg =
           data.message ||
           (data.isVerified
-            ? "AI Audit Complete: Your reported spot has been verified authentic! ✓"
-            : `AI Audit Alert: Your report was flagged (${data.fraudReason || "verification failed"}).`);
+            ? data.action === "completed"
+              ? "AI Audit Complete: Spot cleanup has been verified authentic! ✓"
+              : "AI Audit Complete: Your reported spot has been verified authentic! ✓"
+            : `AI Audit Alert: Your ${data.action === "completed" ? "cleanup proof" : "report"} was flagged (${data.fraudReason || "verification failed"}).`);
 
         triggerToast(toastMsg);
 

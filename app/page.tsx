@@ -146,6 +146,58 @@ export default function HomePage() {
     }
   };
 
+  const [isDeletingVerification, setIsDeletingVerification] = useState<boolean>(false);
+
+  const handleDeleteVerification = async (spotIdOrRecordId: string) => {
+    if (!spotIdOrRecordId) return;
+    try {
+      setIsDeletingVerification(true);
+      const res = await spotsApi.deleteOneTimeVerification(spotIdOrRecordId);
+      if (res && res.success) {
+        setAiNotice({
+          type: "success",
+          message: "Failed verification removed! You can now take or upload a new cleanup photo.",
+        });
+        setTimeout(() => setAiNotice(null), 6000);
+
+        setReports((prev) =>
+          prev.map((r) =>
+            r.id === spotIdOrRecordId || r.oneTimeVerificationId === spotIdOrRecordId
+              ? {
+                  ...r,
+                  isPendingVerification: false,
+                  verificationStatus: null,
+                  oneTimeVerificationId: null,
+                  pendingVerificationMsg: undefined,
+                  pendingCleanupImage: undefined,
+                }
+              : r
+          )
+        );
+
+        setSelectedReport((prev) =>
+          prev && (prev.id === spotIdOrRecordId || prev.oneTimeVerificationId === spotIdOrRecordId)
+            ? {
+                ...prev,
+                isPendingVerification: false,
+                verificationStatus: null,
+                oneTimeVerificationId: null,
+                pendingVerificationMsg: undefined,
+                pendingCleanupImage: undefined,
+              }
+            : prev
+        );
+      } else {
+        alert(res?.message || "Failed to remove verification document.");
+      }
+    } catch (err: any) {
+      console.error("Error deleting verification:", err);
+      alert(err?.message || "Error deleting verification document.");
+    } finally {
+      setIsDeletingVerification(false);
+    }
+  };
+
   // Handle start/stop route navigation using leaflet-routing-machine
   const handleToggleNavigation = (report: Report) => {
     const isCurrentlyRouting =
@@ -210,35 +262,15 @@ export default function HomePage() {
       }
       const res = await spotsApi.completeSpot(selectedReport.id, formData);
       if (res && res.success) {
-        const returnedSpot = res.spot;
-        const updatedIsCompletedBy = returnedSpot?.isCompletedBy || selectedReport.isCompletedBy || [
-          {
-            completedBy: {
-              _id: userProfile?._id,
-              username: userProfile?.username || userProfile?.name || "Civic Hero",
-              avatar: userProfile?.avatarUrl,
-              role: userProfile?.role || "Coordinator",
-            },
-            completedAt: new Date(),
-          },
-        ];
-        // Update the report to reflect completion
-        const updatedReport: Report = {
-          ...selectedReport,
-          status: "resolved" as Report["status"],
-          severity: "Resolved",
-          isCompleted: true,
-          isCompletedBy: updatedIsCompletedBy,
-          image: returnedSpot?.image || selectedReport.image,
-        };
-        setSelectedReport(updatedReport);
-        setReports((prev) =>
-          prev.map((r) => (r.id === selectedReport.id ? updatedReport : r))
-        );
         setIsCompleteModalOpen(false);
         setCompleteDescription("");
         setCompleteImageFile(null);
         setCompleteImagePreview(null);
+        setAiNotice({
+          type: "success",
+          message: res.message || "Cleanup photo uploaded! AI verification in progress...",
+        });
+        setTimeout(() => setAiNotice(null), 8000);
       } else {
         alert(res?.message || "Failed to complete spot.");
       }
@@ -399,9 +431,15 @@ export default function HomePage() {
       address: spotAddress,
       distance: spotAddress,
       image: spot.image,
+      completedImage: spot.completedImage,
       markedBy: spot.markedBy,
       markedAt: spot.markedAt,
       isCompleted: spot.isCompleted,
+      isPendingVerification: spot.isPendingVerification,
+      verificationStatus: spot.verificationStatus,
+      oneTimeVerificationId: spot.oneTimeVerificationId,
+      pendingVerificationMsg: spot.pendingVerificationMsg,
+      pendingCleanupImage: spot.pendingCleanupImage,
       isAssignedBy: spot.isAssignedBy,
       isCompletedBy: spot.isCompletedBy,
       critcal: spot.critcal,
@@ -464,11 +502,13 @@ export default function HomePage() {
     const onSpotAiVerified = (data: any) => {
       if (userProfile?._id && data?.userId && String(data.userId) === String(userProfile._id)) {
         const isVerified = Boolean(data.isVerified);
-        const msg =
-          data.message ||
-          (isVerified
-            ? "✨ AI Verification Complete: Your spot report has passed AI photo audit and is now live!"
-            : `⚠️ AI Verification Failed: ${data.fraudReason || "Spot verification flag"}`);
+        const defaultSuccessMsg =
+          data.action === "completed"
+            ? "✨ AI Verification Complete: Spot cleanup has been verified authentic! +100 XP Earned ✓"
+            : "✨ AI Verification Complete: Your spot report has passed AI photo audit and is now live! ✓";
+        const defaultFailMsg = `⚠️ AI Verification Failed: Spot ${data.action === "completed" ? "cleanup" : "report"} photo was flagged (${data.fraudReason || "verification failed"}).`;
+
+        const msg = data.message || (isVerified ? defaultSuccessMsg : defaultFailMsg);
 
         setAiNotice({
           type: isVerified ? "success" : "error",
@@ -480,15 +520,44 @@ export default function HomePage() {
           setAiNotice(null);
         }, 8000);
 
-        // Refetch spots dynamically if verified
+        // Refetch spots dynamically so verified or failed status is immediately updated
+        spotsApi.getAllSpots().then((res) => {
+          if (res && res.success && Array.isArray(res.spots)) {
+            const mappedReports: Report[] = res.spots.map((spot: any) => mapSpotToReport(spot));
+            setReports(deduplicateReports(mappedReports));
+          }
+        }).catch((err) => console.warn("Failed to load spots after AI verification:", err));
+
         if (isVerified) {
-          spotsApi.getAllSpots().then((res) => {
-            if (res && res.success && Array.isArray(res.spots)) {
-              const mappedReports: Report[] = res.spots.map((spot: any) => mapSpotToReport(spot));
-              setReports(deduplicateReports(mappedReports));
+          profileApi.getMyProfile().then((res) => {
+            if (res && res.success && res.user) {
+              setUserProfile((prev: any) => ({ ...prev, ...res.user }));
             }
-          }).catch((err) => console.warn("Failed to load spots after AI verification:", err));
+          }).catch((err) => console.warn("Failed to reload profile after AI verification:", err));
         }
+
+        setSelectedReport((prev) => {
+          if (!prev || String(prev.id) !== String(data.spotId)) return prev;
+          return {
+            ...prev,
+            isPendingVerification: false,
+            verificationStatus: isVerified ? "verified" : "failed",
+            pendingVerificationMsg: msg,
+            oneTimeVerificationId: data.oneTimeRecordId || prev.oneTimeVerificationId,
+          };
+        });
+      }
+    };
+
+    const onSpotAiVerifying = (data: any) => {
+      if (userProfile?._id && data?.userId && String(data.userId) === String(userProfile._id)) {
+        setAiNotice({
+          type: "success",
+          message: data.message || "Cleanup photo uploaded! AI verification in progress...",
+        });
+        setTimeout(() => {
+          setAiNotice(null);
+        }, 8000);
       }
     };
 
@@ -497,6 +566,7 @@ export default function HomePage() {
     socket.on("spot:completed", onSpotCompleted);
     socket.on("spot:deleted", onSpotDeleted);
     socket.on("spot:ai-verified", onSpotAiVerified);
+    socket.on("spot:ai-verifying", onSpotAiVerifying);
 
     return () => {
       socket.off("spot:created", onSpotCreated);
@@ -504,6 +574,7 @@ export default function HomePage() {
       socket.off("spot:completed", onSpotCompleted);
       socket.off("spot:deleted", onSpotDeleted);
       socket.off("spot:ai-verified", onSpotAiVerified);
+      socket.off("spot:ai-verifying", onSpotAiVerifying);
     };
   }, [isAuthenticated, userProfile?._id]);
 
@@ -1642,6 +1713,26 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* AI Verification Failure Banner */}
+          {selectedReport.verificationStatus === "failed" && (
+            <div className="mb-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="material-symbols-outlined text-rose-600 text-[18px] shrink-0">error</span>
+                <p className="text-[11px] text-rose-800 font-medium truncate">
+                  {selectedReport.pendingVerificationMsg || "AI Verification failed. Please re-upload proof."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleDeleteVerification(selectedReport.oneTimeVerificationId || selectedReport.id)}
+                disabled={isDeletingVerification}
+                className="text-[10px] uppercase font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-lg border border-rose-300 shrink-0 transition-colors cursor-pointer"
+              >
+                {isDeletingVerification ? "..." : "Reset"}
+              </button>
+            </div>
+          )}
+
           {/* Action Dispatch Buttons */}
           <div className="flex gap-2 sm:gap-3 pt-1">
             <button
@@ -1676,6 +1767,27 @@ export default function HomePage() {
               const hasAssignments = selectedReport.isAssignedBy && selectedReport.isAssignedBy.length > 0;
 
               if (isCurrentUserAssigned) {
+                if (selectedReport.isPendingVerification) {
+                  return (
+                    <div className="flex-1 bg-amber-50 border border-amber-200 text-amber-800 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2 px-2 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5">
+                      <span className="material-symbols-outlined text-[16px] animate-spin text-amber-600">sync</span>
+                      <span className="truncate">AI Verifying...</span>
+                    </div>
+                  );
+                }
+                if (selectedReport.verificationStatus === "failed") {
+                  return (
+                    <button
+                      onClick={() => handleDeleteVerification(selectedReport.oneTimeVerificationId || selectedReport.id)}
+                      disabled={isDeletingVerification}
+                      className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-60"
+                      title={selectedReport.pendingVerificationMsg || "Verification failed"}
+                    >
+                      <span className="material-symbols-outlined text-[16px]">restart_alt</span>
+                      <span>{isDeletingVerification ? "Resetting..." : "Retry Cleanup"}</span>
+                    </button>
+                  );
+                }
                 return (
                   <button
                     onClick={() => setIsCompleteModalOpen(true)}
@@ -1909,6 +2021,30 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
+
+            {/* AI Verification Failure Box with Delete/Reset button */}
+            {selectedReport.verificationStatus === "failed" && (
+              <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3">
+                <span className="material-symbols-outlined text-rose-600 shrink-0 text-[22px] mt-0.5">error</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-xs font-bold text-rose-800 uppercase tracking-wider">AI Verification Failed</h4>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteVerification(selectedReport.oneTimeVerificationId || selectedReport.id)}
+                      disabled={isDeletingVerification}
+                      className="text-xs font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 px-2.5 py-1 rounded-lg border border-rose-300 transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">delete</span>
+                      <span>{isDeletingVerification ? "Deleting..." : "Delete & Re-upload"}</span>
+                    </button>
+                  </div>
+                  <p className="text-xs text-rose-700 mt-1 leading-relaxed">
+                    {selectedReport.pendingVerificationMsg || "The submitted cleanup proof failed AI verification. Please delete this record and upload an authentic cleanup photo."}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Large Image Preview */}
             {selectedReport.image ? (
@@ -2209,6 +2345,27 @@ export default function HomePage() {
                 const hasAssignments = selectedReport.isAssignedBy && selectedReport.isAssignedBy.length > 0;
 
                 if (isCurrentUserAssigned) {
+                  if (selectedReport.isPendingVerification) {
+                    return (
+                      <div className="flex-1 py-2.5 px-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-xs">
+                        <span className="material-symbols-outlined text-[18px] animate-spin text-amber-600">sync</span>
+                        <span>AI Verification Pending</span>
+                      </div>
+                    );
+                  }
+                  if (selectedReport.verificationStatus === "failed") {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteVerification(selectedReport.oneTimeVerificationId || selectedReport.id)}
+                        disabled={isDeletingVerification}
+                        className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-60"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">restart_alt</span>
+                        <span>{isDeletingVerification ? "Resetting..." : "Delete Proof & Re-upload"}</span>
+                      </button>
+                    );
+                  }
                   return (
                     <button
                       type="button"
@@ -2363,31 +2520,14 @@ export default function HomePage() {
         userRole={userProfile?.role || "Civilian"}
         onSuccess={(returnedSpot) => {
           if (!selectedReport) return;
-          const updatedIsCompletedBy = returnedSpot?.isCompletedBy || selectedReport.isCompletedBy || [
-            {
-              completedBy: {
-                _id: userProfile?._id,
-                username: userProfile?.username || userProfile?.name || "Civic Hero",
-                avatar: userProfile?.avatarUrl,
-                role: userProfile?.role || "Coordinator",
-              },
-              completedAt: new Date(),
-            },
-          ];
-          const updatedReport: Report = {
-            ...selectedReport,
-            status: "resolved" as Report["status"],
-            severity: "Resolved",
-            isCompleted: true,
-            isCompletedBy: updatedIsCompletedBy,
-            image: returnedSpot?.image || selectedReport.image,
-            completedImage: returnedSpot?.completedImage,
-          };
-          setSelectedReport(updatedReport);
-          setReports((prev) =>
-            prev.map((r) => (r.id === selectedReport.id ? updatedReport : r))
-          );
           setIsCompleteModalOpen(false);
+          setAiNotice({
+            type: "success",
+            message: "✨ Cleanup proof submitted! AI verification in progress...",
+          });
+          setTimeout(() => {
+            setAiNotice(null);
+          }, 8000);
         }}
       />
     </div>

@@ -308,14 +308,20 @@ export const spotsApi = {
     });
   },
 
-  getRandomGestureVerification: async (params?: { userId?: string; coordinates?: [number, number]; action?: string; target?: string }) => {
+  deleteOneTimeVerification: async (spotIdOrRecordId: string) => {
+    return request<{ success: boolean; message: string }>(`/api/v1/spots/${spotIdOrRecordId}/one-time`, {
+      method: 'DELETE',
+    });
+  },
+
+  getRandomGestureVerification: async (params?: { userId?: string; spotId?: string; markspotid?: string; coordinates?: [number, number]; action?: string; target?: string }) => {
     return request<{ imageId?: string; imageUrl?: string }>('/api/v1/spots/gesture-verification', {
       method: 'POST',
       body: JSON.stringify(params || {}),
     });
   },
 
-  getRandomCodeVerification: async (params?: { userId?: string; coordinates?: [number, number]; action?: string; target?: string }) => {
+  getRandomCodeVerification: async (params?: { userId?: string; spotId?: string; markspotid?: string; coordinates?: [number, number]; action?: string; target?: string }) => {
     return request<{ verificationId?: string; code?: string }>('/api/v1/spots/code-verification', {
       method: 'POST',
       body: JSON.stringify(params || {}),

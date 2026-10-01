@@ -149,7 +149,8 @@ export default function CompleteWasteSpotModal({
     }
   }, [isOpen]);
 
-  // Coordinates helper
+  // Coordinates & target ID helper
+  const targetSpotId = spot?._id || spot?.id;
   const spotCoordinates: [number, number] = spot?.coordinates?.length === 2
     ? [spot.coordinates[1], spot.coordinates[0]] // [lat, lng]
     : [11.7284, 76.2841];
@@ -165,6 +166,8 @@ export default function CompleteWasteSpotModal({
       setIsLoadingGesture(true);
       try {
         const res = await spotsApi.getRandomGestureVerification({
+          spotId: targetSpotId,
+          markspotid: targetSpotId,
           coordinates: [spotCoordinates[1], spotCoordinates[0]], // [lng, lat]
           action: "complete",
         });
@@ -189,7 +192,7 @@ export default function CompleteWasteSpotModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, verificationMode, gestureId, refreshTrigger]);
+  }, [isOpen, verificationMode, gestureId, refreshTrigger, targetSpotId]);
 
   // Fetch Code Verification when mode is "code"
   useEffect(() => {
@@ -202,6 +205,8 @@ export default function CompleteWasteSpotModal({
       setIsLoadingCode(true);
       try {
         const res = await spotsApi.getRandomCodeVerification({
+          spotId: targetSpotId,
+          markspotid: targetSpotId,
           coordinates: [spotCoordinates[1], spotCoordinates[0]], // [lng, lat]
           action: "complete",
         });
@@ -226,7 +231,7 @@ export default function CompleteWasteSpotModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, verificationMode, codeId, refreshTrigger]);
+  }, [isOpen, verificationMode, codeId, refreshTrigger, targetSpotId]);
 
   if (!isOpen || !spot) return null;
 
@@ -292,7 +297,7 @@ export default function CompleteWasteSpotModal({
       const res = await spotsApi.completeSpot(spot._id || spot.id, formData);
 
       if (res && res.success) {
-        setSuccessMsg("Spot cleanup verified and completed successfully! +100 XP Earned.");
+        setSuccessMsg(res.message || "Cleanup photo uploaded! AI verification in progress...");
         if (onSuccess) {
           onSuccess((res as any)?.spot || (res as any)?.data || spot);
         }
@@ -300,7 +305,7 @@ export default function CompleteWasteSpotModal({
           setIsSubmitting(false);
           resetFormState();
           onClose();
-        }, 1200);
+        }, 1400);
       } else {
         setErrorMsg(res?.message || "Failed to complete spot cleanup. Please check your inputs.");
         setIsSubmitting(false);
