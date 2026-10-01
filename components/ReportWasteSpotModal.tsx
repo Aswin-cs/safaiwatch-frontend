@@ -72,7 +72,9 @@ export default function ReportWasteSpotModal({
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const [isStartingCamera, setIsStartingCamera] = useState<boolean>(false);
   const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment");
+  const [cameraRatio, setCameraRatio] = useState<"4:3" | "9:16">("9:16");
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [shutterFlash, setShutterFlash] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -90,6 +92,17 @@ export default function ReportWasteSpotModal({
     setIsStartingCamera(false);
   };
 
+  // Connect stream to video element whenever camera becomes active
+  useEffect(() => {
+    if (isCameraActive && videoRef.current && streamRef.current) {
+      const video = videoRef.current;
+      if (video.srcObject !== streamRef.current) {
+        video.srcObject = streamRef.current;
+      }
+      video.play().catch((err) => console.warn("Video play error:", err));
+    }
+  }, [isCameraActive]);
+
   // Start live camera stream
   const startCamera = async (facing: "environment" | "user" = cameraFacing) => {
     try {
@@ -98,22 +111,35 @@ export default function ReportWasteSpotModal({
       stopCamera();
 
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Live camera is not supported in this browser.");
+        throw new Error("Live camera is not supported in this browser environment.");
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: facing },
-          width: { ideal: 1920, min: 640 },
-          height: { ideal: 1080, min: 480 },
-        },
-        audio: false,
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: facing ? { ideal: facing } : undefined,
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 480 },
+          },
+          audio: false,
+        });
+      } catch (err) {
+        // Fallback to generic video if complex constraints fail
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
 
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        try {
+          await videoRef.current.play();
+        } catch (playErr) {
+          console.warn("Direct video play error:", playErr);
+        }
       }
       setIsCameraActive(true);
       setIsStartingCamera(false);
@@ -135,18 +161,57 @@ export default function ReportWasteSpotModal({
   // Capture photo snapshot from live video stream
   const capturePhoto = () => {
     if (!videoRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current || document.createElement("canvas");
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
 
-    if (cameraFacing === "user") {
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
+    // Trigger visual shutter flash and haptic vibration if supported
+    setShutterFlash(true);
+    if (typeof window !== "undefined" && "vibrate" in navigator) {
+      try {
+        navigator.vibrate(40);
+      } catch (e) {}
     }
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    setTimeout(() => setShutterFlash(false), 200);
+
+    const video = videoRef.current;
+    const vWidth = video.videoWidth || 1280;
+    const vHeight = video.videoHeight || 720;
+    const canvas = canvasRef.current || document.createElement("canvas");
+
+    if (cameraRatio === "9:16") {
+      let srcW = vWidth;
+      let srcH = vHeight;
+      let srcX = 0;
+      let srcY = 0;
+
+      if (vWidth / vHeight > 9 / 16) {
+        srcW = Math.round(vHeight * (9 / 16));
+        srcX = Math.round((vWidth - srcW) / 2);
+      } else {
+        srcH = Math.round(vWidth * (16 / 9));
+        srcY = Math.round((vHeight - srcH) / 2);
+      }
+
+      canvas.width = srcW;
+      canvas.height = srcH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      if (cameraFacing === "user") {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+    } else {
+      canvas.width = vWidth;
+      canvas.height = vHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      if (cameraFacing === "user") {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    }
 
     canvas.toBlob(
       (blob) => {
@@ -602,173 +667,177 @@ export default function ReportWasteSpotModal({
             </div>
           )}
 
-          {/* 1. Interactive Live Viewfinder & Proof of Presence */}
+          {/* 1. Live Camera / Photo Capture Viewfinder */}
           <div className="flex flex-col gap-2">
-            <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-[#1e2430] shadow-md select-none group flex items-center justify-center border border-slate-700/50">
+            <div
+              className={`relative w-full ${
+                cameraRatio === "9:16" && (isCameraActive || imagePreview)
+                  ? "aspect-[9/16] max-h-[68vh]"
+                  : "aspect-[4/3]"
+              } rounded-2xl overflow-hidden bg-slate-900 shadow-sm flex items-center justify-center border border-slate-200 transition-all duration-300`}
+            >
               <canvas ref={canvasRef} className="hidden" />
 
-              {/* State A: Live Video Stream */}
-              {isCameraActive ? (
-                <div className="relative w-full h-full bg-black flex items-center justify-center">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                  {/* Central Reticle HUD */}
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-70">
-                    <div className="relative w-36 h-36 flex items-center justify-center">
-                      <div className="absolute w-full h-[1px] bg-emerald-400/60"></div>
-                      <div className="absolute h-full w-[1px] bg-emerald-400/60"></div>
-                      <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-emerald-400/80 animate-pulse"></div>
-                    </div>
-                  </div>
-                </div>
-              ) : imagePreview ? (
-                /* State B: Photo Captured Preview */
+              {/* Permanent Video Element */}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-cover ${isCameraActive ? "block" : "hidden"}`}
+              />
+
+              {/* Shutter White Flash Effect */}
+              {shutterFlash && (
+                <div className="absolute inset-0 bg-white pointer-events-none z-30 transition-opacity duration-150" />
+              )}
+
+              {/* State A: Photo Captured Preview */}
+              {!isCameraActive && imagePreview && (
                 <img
                   src={imagePreview}
                   alt="Waste spot preview"
                   className="w-full h-full object-cover"
                 />
-              ) : (
-                /* State C: Idle Viewfinder (Prompt to Open Camera) */
-                <div className="flex flex-col items-center justify-center p-6 text-center text-slate-200 gap-3">
-                  <div className="w-16 h-16 rounded-full bg-[#006948]/20 border-2 border-[#85f8c4]/40 flex items-center justify-center shadow-lg">
-                    <span className="material-symbols-outlined text-3xl text-[#85f8c4] animate-pulse">
-                      photo_camera
-                    </span>
+              )}
+
+              {/* State B: Idle Viewfinder (Simple Light Call-to-Action) */}
+              {!isCameraActive && !imagePreview && (
+                <div className="flex flex-col items-center justify-center p-6 text-center text-[#131b2e] gap-3 bg-[#f2f3ff] w-full h-full">
+                  <div className="w-14 h-14 rounded-full bg-[#006948]/10 text-[#006948] flex items-center justify-center">
+                    <span className="material-symbols-outlined text-3xl">photo_camera</span>
                   </div>
+
                   <div>
-                    <p className="text-sm font-['Hanken_Grotesk'] font-extrabold text-white">
-                      Live Liveness Camera
-                    </p>
-                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                      Capture real-time optical photo of waste
+                    <h3 className="text-sm font-['Hanken_Grotesk'] font-bold text-[#131b2e]">
+                      Capture Waste Spot Photo
+                    </h3>
+                    <p className="text-xs text-[#535f70] font-['Inter'] mt-0.5">
+                      Take a real-time photo or upload from your device
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => startCamera("environment")}
-                    disabled={isStartingCamera}
-                    className="mt-1 px-5 py-2.5 rounded-full bg-[#006948] hover:bg-[#00855d] active:scale-95 text-white font-['Hanken_Grotesk'] text-xs font-extrabold shadow-lg flex items-center gap-2 transition-all cursor-pointer border border-[#85f8c4]/30"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">videocam</span>
-                    <span>{isStartingCamera ? "Starting Camera..." : "Open Live Camera"}</span>
-                  </button>
+                  <div className="flex items-center gap-2 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => startCamera("environment")}
+                      disabled={isStartingCamera}
+                      className="px-5 py-2.5 rounded-xl bg-[#006948] hover:bg-[#00855d] active:scale-95 text-white font-['Hanken_Grotesk'] text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">videocam</span>
+                      <span>{isStartingCamera ? "Opening..." : "Open Camera"}</span>
+                    </button>
+
+                    <label className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#3d4a42] font-['Hanken_Grotesk'] text-xs font-semibold border border-[#dae2fd] flex items-center gap-1.5 transition-all cursor-pointer shadow-xs">
+                      <span className="material-symbols-outlined text-[18px]">attach_file</span>
+                      <span>Upload</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
 
                   {cameraError && (
-                    <p className="text-[10px] text-rose-400 font-medium px-2 mt-1">
-                      {cameraError}
-                    </p>
+                    <p className="text-xs text-rose-600 font-medium mt-1">{cameraError}</p>
                   )}
                 </div>
               )}
 
-              {/* Camera HUD Layer Overlay */}
-              <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 bg-gradient-to-b from-black/60 via-transparent to-black/80">
-                {/* Top Badge & Controls */}
-                <div className="flex items-center justify-between pointer-events-auto">
-                  <span className="bg-black/70 backdrop-blur-md text-[#85f8c4] font-['JetBrains_Mono'] text-[10px] font-bold px-2.5 py-1 rounded-full border border-[#85f8c4]/30 flex items-center gap-1.5 shadow-sm">
-                    <span className={`w-2 h-2 rounded-full ${isCameraActive ? "bg-red-500 animate-ping" : "bg-[#85f8c4]"}`}></span>
-                    <span>{isCameraActive ? "LIVE CAMERA ON" : imagePreview ? "PHOTO CAPTURED" : "AI LIVENESS"}</span>
-                  </span>
+              {/* Active Camera Overlay Controls */}
+              {isCameraActive && (
+                <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3.5 bg-gradient-to-b from-black/40 via-transparent to-black/50 z-20">
+                  {/* Top Bar: Live indicator, Aspect Ratio & Flip Camera */}
+                  <div className="flex items-center justify-between pointer-events-auto">
+                    <span className="bg-black/50 backdrop-blur-sm text-white font-['Inter'] text-[11px] font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span>Live View</span>
+                    </span>
 
-                  <div className="flex items-center gap-2">
-                    {isCameraActive && (
+                    <div className="flex items-center gap-2">
+                      {/* Aspect Ratio Toggle (9:16 / 4:3) */}
+                      <button
+                        type="button"
+                        onClick={() => setCameraRatio((prev) => (prev === "9:16" ? "4:3" : "9:16"))}
+                        className="px-2.5 py-1 rounded-full bg-black/50 hover:bg-black/70 text-white text-[11px] font-['JetBrains_Mono'] font-bold backdrop-blur-sm transition-all cursor-pointer active:scale-90 flex items-center gap-1 border border-white/10"
+                        title="Toggle Aspect Ratio"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">aspect_ratio</span>
+                        <span>{cameraRatio}</span>
+                      </button>
+
+                      {/* Flip Camera Button */}
                       <button
                         type="button"
                         onClick={toggleCameraFacing}
-                        className="w-8 h-8 rounded-full bg-black/70 hover:bg-black/90 text-white flex items-center justify-center border border-white/20 transition-all cursor-pointer"
-                        title="Switch Camera (Front/Back)"
+                        className="w-9 h-9 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm transition-all cursor-pointer active:scale-90 border border-white/10"
+                        title="Switch Camera"
                       >
-                        <span className="material-symbols-outlined text-[16px]">flip_camera_ios</span>
+                        <span className="material-symbols-outlined text-[18px]">flip_camera_ios</span>
                       </button>
-                    )}
+                    </div>
+                  </div>
 
-                    <span className="bg-black/70 backdrop-blur-md text-white font-['JetBrains_Mono'] text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/10 hidden sm:inline-block">
-                      GNSS: {coords[0].toFixed(4)}°N, {coords[1].toFixed(4)}°E
-                    </span>
+                  {/* Bottom Bar: Cancel and Simple Shutter */}
+                  <div className="flex items-center justify-between pointer-events-auto px-2 pb-1">
+                    <button
+                      type="button"
+                      onClick={stopCamera}
+                      className="px-3 py-1.5 rounded-lg bg-black/40 hover:bg-black/60 text-white text-xs font-['Inter'] font-medium backdrop-blur-sm transition-all cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+
+                    {/* Clean Native Shutter Button */}
+                    <button
+                      type="button"
+                      onClick={capturePhoto}
+                      className="w-14 h-14 rounded-full border-4 border-white bg-white/20 hover:bg-white/40 active:scale-90 p-1 flex items-center justify-center transition-all cursor-pointer shadow-lg"
+                      title="Capture Photo"
+                    >
+                      <div className="w-full h-full rounded-full bg-white transition-transform active:scale-95"></div>
+                    </button>
+
+                    <div className="w-14"></div>
                   </div>
                 </div>
+              )}
 
-                {/* Bottom Control Bar */}
-                <div className="relative flex items-center justify-between pointer-events-auto gap-2">
-                  {isCameraActive ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={stopCamera}
-                        className="px-3 py-1.5 rounded-full bg-black/70 hover:bg-black text-white text-xs font-['JetBrains_Mono'] font-bold border border-white/20 transition-all cursor-pointer"
-                      >
-                        Cancel
-                      </button>
+              {/* Photo Captured Controls Overlay */}
+              {!isCameraActive && imagePreview && (
+                <div className="absolute inset-0 pointer-events-none flex flex-col justify-end p-3 bg-gradient-to-t from-black/60 via-transparent to-transparent z-20">
+                  <div className="flex items-center justify-between pointer-events-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageFile(null);
+                        setImagePreview(null);
+                        startCamera("environment");
+                      }}
+                      className="inline-flex items-center gap-1.5 bg-white/95 hover:bg-white text-[#006948] px-3.5 py-2 rounded-xl text-xs font-['Hanken_Grotesk'] font-bold shadow-md active:scale-95 transition-all cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">replay</span>
+                      <span>Retake</span>
+                    </button>
 
-                      {/* Large Center Shutter Button */}
-                      <button
-                        type="button"
-                        onClick={capturePhoto}
-                        className="w-14 h-14 rounded-full bg-white hover:bg-emerald-50 active:scale-90 border-4 border-[#006948] shadow-2xl flex items-center justify-center text-[#006948] transition-all cursor-pointer group"
-                        title="Capture Photo"
-                      >
-                        <span className="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">photo_camera</span>
-                      </button>
-
-                      <div className="w-14"></div>
-                    </>
-                  ) : imagePreview ? (
-                    <div className="w-full flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setImageFile(null);
-                          setImagePreview(null);
-                          startCamera("environment");
-                        }}
-                        className="inline-flex items-center gap-1.5 bg-white/90 hover:bg-white text-[#006948] px-3.5 py-1.5 rounded-full text-xs font-['JetBrains_Mono'] font-bold shadow-md active:scale-95 transition-all cursor-pointer border border-[#006948]/30"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">replay</span>
-                        <span>Retake Photo</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setImageFile(null);
-                          setImagePreview(null);
-                          stopCamera();
-                        }}
-                        className="bg-[#ba1a1a] hover:bg-[#93000a] text-white text-xs font-['JetBrains_Mono'] font-bold px-3.5 py-1.5 rounded-full shadow-md active:scale-95 transition-all cursor-pointer"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="w-full flex items-center justify-between">
-                      {/* Secondary file fallback */}
-                      <label className="inline-flex items-center gap-1.5 bg-black/60 hover:bg-black/80 text-slate-300 px-3 py-1 rounded-full text-[10px] font-['JetBrains_Mono'] font-semibold cursor-pointer border border-white/15">
-                        <span className="material-symbols-outlined text-[14px]">attach_file</span>
-                        <span>Choose File</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          onChange={handleFileChange}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageFile(null);
+                        setImagePreview(null);
+                        stopCamera();
+                      }}
+                      className="bg-rose-600/90 hover:bg-rose-600 text-white text-xs font-['Hanken_Grotesk'] font-bold px-3.5 py-2 rounded-xl shadow-md active:scale-95 transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">delete</span>
+                      <span>Remove</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-
-            <p className="text-[11px] text-[#3d4a42] text-center px-2 font-['Inter']">
-              Real-time optical anti-spoofing confirms you are standing at the waste spot.
-            </p>
           </div>
 
           {/* 2. Liveness Verification Card */}
