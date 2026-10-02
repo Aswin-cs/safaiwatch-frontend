@@ -46,6 +46,7 @@ interface CaseItem {
   completedAt?: string;
   assignedAt?: string;
   critical?: string;
+  isCompleted?: boolean;
   isVerified?: boolean;
   isCompletedVerify?: "pending" | "completed" | "uncompleted" | string;
   isCompletedVerifyAt?: string;
@@ -120,7 +121,23 @@ function formatUserFriendlyDate(dateVal?: string | Date): string {
 }
 
 function getAiVerificationBadge(item: CaseItem) {
-  // 1. Flagged / Fraudulent / Invalid Check
+  // 1. If AI verification is still in progress / pending (based on isCompletedVerify)
+  const isPending =
+    item.isCompletedVerify === "pending" ||
+    (!item.isCompletedVerify && item.isVerified === undefined);
+
+  if (isPending) {
+    return {
+      label: "In Progress",
+      icon: "sync",
+      className: "text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE]",
+      iconClass: "text-[#2563EB] animate-spin",
+      isPending: true,
+    };
+  }
+
+  // 2. If AI audit is completed (isCompletedVerify === "completed"):
+  // Flagged / Fraudulent / Invalid Check
   const isFlagged =
     item.isVerified === false ||
     item.isAiVerified?.isFraudulent === true ||
@@ -133,33 +150,17 @@ function getAiVerificationBadge(item: CaseItem) {
       icon: "gpp_bad",
       className: "text-[#DC2626] bg-[#FEF2F2] border border-[#FCA5A5]",
       iconClass: "text-[#DC2626]",
+      isPending: false,
     };
   }
 
-  // 2. Verified Authentic Check
-  const isVerified =
-    item.isVerified === true ||
-    (item.isAiVerified &&
-      (item.isAiVerified.isValidWasteReport === true || item.isAiVerified.gestureMatched === true) &&
-      !item.isAiVerified.isAiOrEdited &&
-      !item.isAiVerified.isFraudulent) ||
-    (item.isCompletedVerify === "completed" && item.isVerified !== false);
-
-  if (isVerified) {
-    return {
-      label: "AI Verified ✓",
-      icon: "verified",
-      className: "text-[#059669] bg-[#ECFDF5] border border-[#A7F3D0]",
-      iconClass: "text-[#059669]",
-    };
-  }
-
-  // 3. Pending AI Audit
+  // 3. Verified Authentic Check
   return {
-    label: "Pending Verification",
-    icon: "sync",
-    className: "text-[#D97706] bg-[#FFFBEB] border border-[#FCD34D]",
-    iconClass: "text-[#D97706] animate-spin",
+    label: "AI Verified ✓",
+    icon: "verified",
+    className: "text-[#059669] bg-[#ECFDF5] border border-[#A7F3D0]",
+    iconClass: "text-[#059669]",
+    isPending: false,
   };
 }
 
@@ -549,6 +550,7 @@ export default function ProfilePage({ params }: PageProps) {
             assignedAt: assignedObj?.assignedAt || prev.assignedAt,
             completedAt: completedObj?.completedAt || s.updatedAt || prev.completedAt,
             critical: s.critcal || s.critical || prev.critical,
+            isCompleted: s.isCompleted !== undefined ? Boolean(s.isCompleted) : prev.isCompleted,
             isVerified: s.isVerified !== undefined ? Boolean(s.isVerified) : prev.isVerified,
             isCompletedVerify: s.isCompletedVerify || prev.isCompletedVerify,
             isCompletedVerifyAt: s.isCompletedVerifyAt || prev.isCompletedVerifyAt,
@@ -834,6 +836,7 @@ export default function ProfilePage({ params }: PageProps) {
       completedAt: c.completedAt || c.updatedAt,
       assignedAt: c.assignedAt,
       critical: c.critical || c.critcal || "Medium",
+      isCompleted: isCompleted,
       isVerified: c.isVerified,
       isCompletedVerify: c.isCompletedVerify,
       isCompletedVerifyAt: c.isCompletedVerifyAt,
@@ -1619,7 +1622,7 @@ export default function ProfilePage({ params }: PageProps) {
                           </div>
                         )}
 
-                        {/* AI Verification Badge */}
+                        {/* AI Verification / In Progress Badge */}
                         <div
                           className={`flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${aiBadge.className}`}
                           title={aiBadge.label}
@@ -1630,19 +1633,21 @@ export default function ProfilePage({ params }: PageProps) {
                           <span>{aiBadge.label}</span>
                         </div>
 
-                        {/* Completion / Progress Badge */}
-                        <div
-                          className={`flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${
-                            item.status === "resolved"
-                              ? "text-[#10B981] bg-[#10B981]/10 border border-[#10B981]/20"
-                              : "text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE]"
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-xs">
-                            {item.status === "resolved" ? "check_circle" : "pending_actions"}
-                          </span>
-                          <span>{item.status === "resolved" ? "Completed" : "In Progress"}</span>
-                        </div>
+                        {/* In Work Progress Badge: Only for marked spots with isVerified === true, isCompletedVerify === "completed", and isCompleted === false */}
+                        {isMarked && item.isVerified === true && item.isCompletedVerify === "completed" && !isCompleted && (
+                          <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-[#D97706] bg-[#FFFBEB] border border-[#FCD34D]">
+                            <span className="material-symbols-outlined text-xs text-[#D97706]">engineering</span>
+                            <span>In Work Progress</span>
+                          </div>
+                        )}
+
+                        {/* Completion Status Badge (Only shown if spot has been cleaned/resolved) */}
+                        {isCompleted && (
+                          <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-[#10B981] bg-[#10B981]/10 border border-[#10B981]/20">
+                            <span className="material-symbols-outlined text-xs">check_circle</span>
+                            <span>Completed</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1950,15 +1955,27 @@ export default function ProfilePage({ params }: PageProps) {
                   </h3>
                   <div
                     className={`flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold shrink-0 ${
-                      selectedSpotDetails.status === "resolved" || selectedSpotDetails.badgeType === "green"
+                      selectedSpotDetails.status === "resolved" || selectedSpotDetails.isCompleted || selectedSpotDetails.badgeType === "green"
                         ? "text-[#10B981] bg-[#10B981]/10 border border-[#10B981]/20"
-                        : "text-[#D97706] bg-[#FFFBEB] border border-[#FCD34D]"
+                        : selectedSpotDetails.isVerified === true && selectedSpotDetails.isCompletedVerify === "completed"
+                        ? "text-[#D97706] bg-[#FFFBEB] border border-[#FCD34D]"
+                        : "text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE]"
                     }`}
                   >
                     <span className="material-symbols-outlined text-xs">
-                      {selectedSpotDetails.status === "resolved" || selectedSpotDetails.badgeType === "green" ? "check_circle" : "engineering"}
+                      {selectedSpotDetails.status === "resolved" || selectedSpotDetails.isCompleted || selectedSpotDetails.badgeType === "green"
+                        ? "check_circle"
+                        : selectedSpotDetails.isVerified === true && selectedSpotDetails.isCompletedVerify === "completed"
+                        ? "engineering"
+                        : "sync"}
                     </span>
-                    <span>{selectedSpotDetails.status === "resolved" || selectedSpotDetails.badgeType === "green" ? "Completed" : "Pending"}</span>
+                    <span>
+                      {selectedSpotDetails.status === "resolved" || selectedSpotDetails.isCompleted || selectedSpotDetails.badgeType === "green"
+                        ? "Completed"
+                        : selectedSpotDetails.isVerified === true && selectedSpotDetails.isCompletedVerify === "completed"
+                        ? "In Work Progress"
+                        : "In Progress"}
+                    </span>
                   </div>
                 </div>
 
@@ -2053,8 +2070,8 @@ export default function ProfilePage({ params }: PageProps) {
                       AI FORENSIC VERIFICATION AUDIT
                     </p>
                     {selectedSpotDetails.isCompletedVerify === "pending" ? (
-                      <span className="text-[11px] font-bold text-[#D97706] bg-[#FFFBEB] px-2.5 py-0.5 rounded-full border border-[#FCD34D] flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs animate-spin">sync</span> Pending Audit
+                      <span className="text-[11px] font-bold text-[#2563EB] bg-[#EFF6FF] px-2.5 py-0.5 rounded-full border border-[#BFDBFE] flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs animate-spin">sync</span> In Progress
                       </span>
                     ) : selectedSpotDetails.isVerified ? (
                       <span className="text-[11px] font-bold text-[#059669] bg-[#ECFDF5] px-2.5 py-0.5 rounded-full border border-[#A7F3D0] flex items-center gap-1">

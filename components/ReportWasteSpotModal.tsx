@@ -1156,10 +1156,10 @@ export default function ReportWasteSpotModal({
               <div className="flex flex-col min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-['Hanken_Grotesk'] font-bold text-[#131b2e] truncate">
-                    GPS Coordinates
+                    Current Location Locked
                   </h3>
                   <span className="inline-flex items-center gap-1 text-[10px] font-['JetBrains_Mono'] bg-[#85f8c4] text-[#002114] px-1.5 py-0.5 rounded font-bold whitespace-nowrap">
-                    RTK GNSS
+                    GPS LOCKED
                   </span>
                 </div>
                 <div className="font-['JetBrains_Mono'] text-xs font-bold text-[#006948] mt-0.5 flex items-center gap-3">
@@ -1168,10 +1168,9 @@ export default function ReportWasteSpotModal({
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="inline-flex items-center gap-1 text-[11px] text-[#006948] font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#006948]"></span>
-                    ±3.2m accuracy
+                    <span className="material-symbols-outlined text-[13px]">lock</span>
+                    Locked to verified device GPS position
                   </span>
-                  <span className="text-[11px] text-[#3d4a42] font-['JetBrains_Mono']">• Drain Sector B</span>
                 </div>
               </div>
             </div>

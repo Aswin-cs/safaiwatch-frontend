@@ -103,10 +103,23 @@ export default function HomePage() {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isLocating, setIsLocating] = useState<boolean>(false);
 
-  // Google Maps-style Auto Navigate / Recenter to Current Location
+  // Google Maps-style Auto Navigate / Recenter to Current Location (Instant 0ms flyTo response)
   const handleNavigateToCurrentLocation = () => {
+    // 1. Immediately fly to best known current coordinates (0ms lag!)
+    const currentLoc =
+      userLocation ||
+      (userGpsCoords ? [userGpsCoords[1], userGpsCoords[0]] as [number, number] : null);
+
+    if (currentLoc) {
+      // Micro-jitter ensure React re-renders and MapController triggers flyTo every click even if coordinates are identical
+      setMapCenter([currentLoc[0] + (Math.random() - 0.5) * 0.0000001, currentLoc[1]]);
+    }
+
+    // 2. Refresh/refine location in background with generous maximumAge to avoid cold GPS delay
     if (typeof window !== "undefined" && "geolocation" in navigator) {
-      setIsLocating(true);
+      if (!currentLoc) {
+        setIsLocating(true);
+      }
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const coords: [number, number] = [
@@ -114,18 +127,15 @@ export default function HomePage() {
             position.coords.longitude,
           ];
           setUserLocation(coords);
-          // Set new array reference to ensure Leaflet MapController triggers smooth flyTo
-          setMapCenter([coords[0], coords[1]]);
+          setUserGpsCoords([coords[1], coords[0]]);
+          setMapCenter([coords[0] + (Math.random() - 0.5) * 0.0000001, coords[1]]);
           setIsLocating(false);
         },
         (error) => {
           console.warn("GPS navigation error:", error.message);
           setIsLocating(false);
-          if (userLocation) {
-            setMapCenter([userLocation[0], userLocation[1]]);
-          }
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
       );
     }
   };
@@ -663,8 +673,58 @@ export default function HomePage() {
     };
   }, [isAuthenticated, userProfile?._id]);
 
-  // Handle map coordinate selection from Leaflet click event
-  const handleSelectCoordinates = (coords: [number, number]) => {
+  // Start spot reporting locked strictly to user's verified current GPS location (Civilians & Hybrid roles)
+  const handleStartReportSpotAtCurrentLocation = () => {
+    const isCoordinator = (userProfile?.role || "").trim().toLowerCase() === "coordinator";
+    if (isCoordinator) {
+      setRoleNotice(
+        "Waste spot reporting is not available for Coordinators. Coordinators can view, claim, assign, and complete spots."
+      );
+      return;
+    }
+
+    setRoleNotice(null);
+
+    // 1. Immediately lock best available coordinates (existing GPS or device coords)
+    const existingCoords =
+      userLocation ||
+      (userGpsCoords ? [userGpsCoords[1], userGpsCoords[0]] as [number, number] : null);
+
+    if (existingCoords) {
+      setDroppedCoordinates(existingCoords);
+      setMapCenter([existingCoords[0], existingCoords[1]]);
+    }
+
+    // 2. Open modal IMMEDIATELY on click (Instant 0ms response!)
+    setSelectedReport(null);
+    setIsReportModalOpen(true);
+
+    // 3. Asynchronously refine / refresh high-accuracy GPS in the background without blocking the UI
+    if (typeof window !== "undefined" && "geolocation" in navigator) {
+      setIsLocating(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const freshCoords: [number, number] = [
+            position.coords.latitude,
+            position.coords.longitude,
+          ];
+          setUserLocation(freshCoords);
+          setUserGpsCoords([freshCoords[1], freshCoords[0]]);
+          setDroppedCoordinates(freshCoords);
+          setMapCenter([freshCoords[0], freshCoords[1]]);
+          setIsLocating(false);
+        },
+        (error) => {
+          console.warn("GPS background refinement:", error.message);
+          setIsLocating(false);
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+      );
+    }
+  };
+
+  // Handle map coordinate click event (Location Lock: prevents arbitrary coordinate selection)
+  const handleSelectCoordinates = (_coords: [number, number]) => {
     const isCoordinator = (userProfile?.role || "").trim().toLowerCase() === "coordinator";
     if (isCoordinator) {
       setRoleNotice(
@@ -674,8 +734,11 @@ export default function HomePage() {
       setDroppedCoordinates(null);
       return;
     }
-    setRoleNotice(null);
-    setDroppedCoordinates(coords);
+
+    // Location Lock-up: Spot reporting is locked strictly to user's current GPS location
+    setRoleNotice(
+      "📍 Location Locked: Spot reporting is restricted to your verified current physical location. Tap the (+) button or 'Mark Spot Here' to report at your current location."
+    );
     setSelectedReport(null);
   };
 
@@ -1405,21 +1468,14 @@ export default function HomePage() {
       {/* Ultra-Stylish Floating Command Bar (Uber/Apple Style) */}
       <header className="fixed top-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-xl flex items-center justify-between px-4 py-2.5 bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-full shadow-[0_12px_40px_rgba(15,23,42,0.1)] transition-all hover:shadow-[0_16px_45px_rgba(15,23,42,0.14)]">
         {/* Left Brand & Live Status */}
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="font-['Hanken_Grotesk'] font-extrabold text-xs text-[#131b2e] tracking-wider uppercase">
-                SafaiWatch Dispatch
-              </span>
-              <span className="bg-emerald-500 text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs tracking-wider">
-                <Radio className="w-2.5 h-2.5 animate-pulse text-white" />
-                LIVE
-              </span>
-            </div>
-            <span className="text-[11px] text-[#006948] font-mono font-bold flex items-center gap-1 mt-0.5">
-              <MapPin className="w-3 h-3 text-[#006948]" /> Ward 14 · Central Sector
-            </span>
-          </div>
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          <span className="font-['Hanken_Grotesk'] font-extrabold text-xs sm:text-sm text-[#131b2e] tracking-wider uppercase">
+            SafaiWatch Dispatch
+          </span>
+          <span className="bg-emerald-500 text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs tracking-wider">
+            <Radio className="w-2.5 h-2.5 animate-pulse text-white" />
+            LIVE
+          </span>
         </div>
 
         {/* Right Controls */}
@@ -1741,17 +1797,20 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Interactive Pin Drop Instruction Banner (White Theme) */}
+      {/* Interactive Current Location Lock Banner (White Theme) */}
       {droppedCoordinates && (userProfile?.role || "").trim().toLowerCase() !== "coordinator" && (
         <div className="fixed top-32 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-md bg-white/95 backdrop-blur-xl text-[#131b2e] rounded-2xl p-4 shadow-2xl flex items-center justify-between animate-enter border border-slate-200">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0 border border-emerald-200 text-[#006948]">
-              <MapPin className="w-5 h-5" />
+              <LocateFixed className="w-5 h-5 animate-pulse text-[#006948]" />
             </div>
             <div>
-              <p className="font-bold text-xs text-[#131b2e]">Pin Dropped on Map!</p>
-              <p className="text-[11px] font-mono text-[#006948] font-bold">
-                {droppedCoordinates[0].toFixed(4)}, {droppedCoordinates[1].toFixed(4)}
+              <div className="flex items-center gap-1.5">
+                <p className="font-bold text-xs text-[#131b2e]">Current Location Locked</p>
+                <span className="text-[9px] bg-emerald-100 text-[#006948] px-1.5 py-0.5 rounded font-mono font-bold">GPS Verified</span>
+              </div>
+              <p className="text-[11px] font-mono text-[#006948] font-bold mt-0.5">
+                {droppedCoordinates[0].toFixed(5)}, {droppedCoordinates[1].toFixed(5)}
               </p>
             </div>
           </div>
@@ -2177,6 +2236,8 @@ export default function HomePage() {
     </div>
   )}
 
+
+
       {/* Floating Google Maps-Style Auto Navigate / Recenter Current Location FAB Button */}
       <button
         type="button"
@@ -2219,24 +2280,16 @@ export default function HomePage() {
           <span className="text-[10px] mt-0.5">Explore</span>
         </Link>
 
-        {/* Plus Action Dispatch Button */}
-        <button
-          onClick={() => {
-            const isCoordinator = (userProfile?.role || "").trim().toLowerCase() === "coordinator";
-            if (isCoordinator) {
-              setRoleNotice(
-                "Waste spot reporting is not available for Coordinators. Coordinators can view, claim, assign, and complete spots."
-              );
-              return;
-            }
-            setActiveTab("add");
-            alert("Click anywhere on the map to drop a geotagged pin!");
-          }}
-          className="relative -top-3 w-12 h-12 rounded-full bg-[#006948] hover:bg-[#00855d] text-white flex items-center justify-center shadow-[0_4px_20px_rgba(0,105,72,0.35)] transition-transform hover:scale-105 cursor-pointer border-2 border-white"
-          title="Report Spot"
-        >
-          <PlusCircle className="w-7 h-7 text-[#85f8c4]" />
-        </button>
+        {/* Plus Action Dispatch Button (Hidden for Coordinators) */}
+        {(userProfile?.role || "").trim().toLowerCase() !== "coordinator" && (
+          <button
+            onClick={handleStartReportSpotAtCurrentLocation}
+            className="relative -top-3 w-12 h-12 rounded-full bg-[#006948] hover:bg-[#00855d] text-white flex items-center justify-center shadow-[0_4px_20px_rgba(0,105,72,0.35)] transition-transform hover:scale-105 cursor-pointer border-2 border-white"
+            title="Report Spot at Current Location (Location Locked)"
+          >
+            <PlusCircle className="w-7 h-7 text-[#85f8c4]" />
+          </button>
+        )}
 
         {/* Ranks Tab */}
         <Link

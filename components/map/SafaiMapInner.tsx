@@ -136,18 +136,21 @@ const createCustomMarkerIcon = (status: Report["status"]) => {
   });
 };
 
-// Selected Pin Drop Marker Icon
+// Selected Pin Drop Marker Icon (Locked Current Location Pin)
 const dropPinIcon = L.divIcon({
   html: `
     <div class="flex items-center justify-center animate-bounce">
-      <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white shadow-xl border-2 border-white">
-        <span class="material-symbols-outlined text-[20px]">location_on</span>
+      <div class="relative w-11 h-11 bg-[#006948] rounded-full flex items-center justify-center text-white shadow-xl border-2 border-white">
+        <span class="material-symbols-outlined text-[20px]">my_location</span>
+        <span class="absolute -top-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border border-white flex items-center justify-center text-[10px] text-white">
+          <span class="material-symbols-outlined text-[10px]">lock</span>
+        </span>
       </div>
     </div>
   `,
   className: "custom-drop-pin !bg-transparent !border-0",
-  iconSize: [40, 40],
-  iconAnchor: [20, 20],
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
   popupAnchor: [0, -22],
 });
 
@@ -172,7 +175,7 @@ function MapController({ center }: { center?: [number, number] }) {
   const map = useMap();
   useEffect(() => {
     if (center && center.length === 2 && !isNaN(center[0]) && !isNaN(center[1])) {
-      map.flyTo(center, Math.max(map.getZoom(), 15), { animate: true, duration: 1.2 });
+      map.flyTo(center, Math.max(map.getZoom(), 16), { animate: true, duration: 0.8 });
     }
   }, [center, map]);
   return null;
