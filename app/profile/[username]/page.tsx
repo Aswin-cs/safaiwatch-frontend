@@ -119,6 +119,50 @@ function formatUserFriendlyDate(dateVal?: string | Date): string {
   }
 }
 
+function getAiVerificationBadge(item: CaseItem) {
+  // 1. Flagged / Fraudulent / Invalid Check
+  const isFlagged =
+    item.isVerified === false ||
+    item.isAiVerified?.isFraudulent === true ||
+    item.isAiVerified?.isAiOrEdited === true ||
+    item.isAiVerified?.isValidWasteReport === false;
+
+  if (isFlagged) {
+    return {
+      label: "AI Flagged",
+      icon: "gpp_bad",
+      className: "text-[#DC2626] bg-[#FEF2F2] border border-[#FCA5A5]",
+      iconClass: "text-[#DC2626]",
+    };
+  }
+
+  // 2. Verified Authentic Check
+  const isVerified =
+    item.isVerified === true ||
+    (item.isAiVerified &&
+      (item.isAiVerified.isValidWasteReport === true || item.isAiVerified.gestureMatched === true) &&
+      !item.isAiVerified.isAiOrEdited &&
+      !item.isAiVerified.isFraudulent) ||
+    (item.isCompletedVerify === "completed" && item.isVerified !== false);
+
+  if (isVerified) {
+    return {
+      label: "AI Verified ✓",
+      icon: "verified",
+      className: "text-[#059669] bg-[#ECFDF5] border border-[#A7F3D0]",
+      iconClass: "text-[#059669]",
+    };
+  }
+
+  // 3. Pending AI Audit
+  return {
+    label: "Pending Verification",
+    icon: "sync",
+    className: "text-[#D97706] bg-[#FFFBEB] border border-[#FCD34D]",
+    iconClass: "text-[#D97706] animate-spin",
+  };
+}
+
 export default function ProfilePage({ params }: PageProps) {
   const router = useRouter();
   const resolvedParams = use(params);
@@ -293,7 +337,7 @@ export default function ProfilePage({ params }: PageProps) {
 
   // Interactive States
   const [karmaBalance, setKarmaBalance] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState<"all" | "in_progress" | "resolved">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "marked" | "completed">("all");
   const [selectedTrophy, setSelectedTrophy] = useState<Trophy | null>(null);
   const [selectedSpotDetails, setSelectedSpotDetails] = useState<CaseItem | null>(null);
   const [isLoadingSpotDetails, setIsLoadingSpotDetails] = useState<boolean>(false);
@@ -722,35 +766,74 @@ export default function ProfilePage({ params }: PageProps) {
 
   const unlockedCount = fetchedBadges.length;
 
+  const markedList: any[] = Array.isArray(userStatus?.markedSpotsList)
+    ? userStatus.markedSpotsList
+    : Array.isArray(userStatus?.MarkedSpots)
+    ? userStatus.MarkedSpots
+    : [];
+
+  const completedList: any[] = Array.isArray(userStatus?.completedSpotsList)
+    ? userStatus.completedSpotsList
+    : Array.isArray(userStatus?.CompletedSpots)
+    ? userStatus.CompletedSpots
+    : [];
+
   const rawCases: CaseItem[] = (
-    Array.isArray(userStatus?.cases)
+    Array.isArray(userStatus?.cases) && userStatus.cases.length > 0
       ? userStatus.cases
-      : Array.isArray(userStatus?.markedSpotsList)
-      ? userStatus.markedSpotsList
+      : markedList.length > 0 || completedList.length > 0
+      ? [...markedList, ...completedList]
       : isMyProfile
       ? cases
       : []
   ).map((c: any, idx: number) => {
     if (!c || typeof c !== "object") return c;
+
+    const isCompleted = Boolean(
+      c.isCompleted ||
+      c.status === "resolved" ||
+      c.caseType === "completed" ||
+      c.completedAt ||
+      (typeof c.id === "string" && c.id.endsWith("-completed"))
+    );
+
+    const caseType = c.caseType === "completed" || (typeof c.id === "string" && c.id.endsWith("-completed"))
+      ? "completed"
+      : c.caseType === "assigned" || (typeof c.id === "string" && c.id.endsWith("-assigned"))
+      ? "assigned"
+      : "marked";
+
+    // Clean human-friendly title
+    let displayTitle = "Civic Waste Spot";
+    if (typeof c.description === "string" && c.description.trim() && !c.description.startsWith("Lat ")) {
+      displayTitle = c.description.trim();
+    } else if (typeof c.title === "string" && c.title.trim() && !c.title.startsWith("Lat ") && c.title !== "Civic Spot Case") {
+      displayTitle = c.title.trim();
+    } else if (typeof c.address === "string" && c.address.trim() && !c.address.startsWith("Lat ")) {
+      displayTitle = c.address.trim();
+    } else if (typeof c.title === "string" && c.title.trim()) {
+      displayTitle = c.title.trim();
+    }
+
     return {
       id: typeof c.id === "string" || typeof c.id === "number" ? String(c.id) : (c._id ? String(c._id) : `case-${idx}`),
-      title: typeof c.title === "string" ? c.title : (typeof c.description === "string" ? c.description : (typeof c.address === "string" ? c.address : "Civic Spot Case")),
+      title: displayTitle,
       location: typeof c.location === "string" ? c.location : (typeof c.address === "string" ? c.address : "Ward Locality"),
-      status: c.status === "resolved" ? "resolved" : "in_progress",
-      karmaChange: typeof c.karmaChange === "number" ? c.karmaChange : (c.status === "resolved" ? 150 : undefined),
-      badgeText: c.isCompleted || c.status === "resolved" ? "Completed" : "Pending",
-      badgeType: c.badgeType === "green" || c.badgeType === "yellow" || c.badgeType === "red" ? c.badgeType : (c.status === "resolved" ? "green" : "yellow"),
-      image: typeof c.image === "string" && c.image ? c.image : "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=300&auto=format&fit=crop&q=80",
-      imageAfter: c.imageAfter,
-      caseType: typeof c.caseType === "string" ? c.caseType : "marked",
-      description: typeof c.description === "string" ? c.description : (typeof c.title === "string" ? c.title : c.location),
-      markedBy: c.markedBy,
-      assignedTo: c.assignedTo,
-      completedBy: c.completedBy,
-      markedAt: c.markedAt,
-      completedAt: c.completedAt,
+      status: isCompleted ? "resolved" : "in_progress",
+      karmaChange: typeof c.karmaChange === "number" ? c.karmaChange : (isCompleted ? 150 : 50),
+      badgeText: isCompleted ? "Completed" : "Pending",
+      badgeType: isCompleted ? "green" : "yellow",
+      image: typeof c.image === "string" && c.image ? c.image : (typeof c.imageAfter === "string" && c.imageAfter ? c.imageAfter : "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=300&auto=format&fit=crop&q=80"),
+      imageAfter: c.imageAfter || c.completedImage,
+      caseType: caseType,
+      description: typeof c.description === "string" ? c.description : displayTitle,
+      markedBy: typeof c.markedBy === "object" ? (c.markedBy?.name || c.markedBy?.username || `@${c.markedBy?.username}`) : c.markedBy,
+      assignedTo: typeof c.assignedTo === "object" ? (c.assignedTo?.name || c.assignedTo?.username || `@${c.assignedTo?.username}`) : c.assignedTo,
+      completedBy: typeof c.completedBy === "object" ? (c.completedBy?.name || c.completedBy?.username || `@${c.completedBy?.username}`) : c.completedBy,
+      markedAt: c.markedAt || c.createdAt,
+      completedAt: c.completedAt || c.updatedAt,
       assignedAt: c.assignedAt,
-      critical: c.critical || c.critcal,
+      critical: c.critical || c.critcal || "Medium",
       isVerified: c.isVerified,
       isCompletedVerify: c.isCompletedVerify,
       isCompletedVerifyAt: c.isCompletedVerifyAt,
@@ -758,12 +841,16 @@ export default function ProfilePage({ params }: PageProps) {
     };
   });
 
-  // Backend controller already builds role-based userStatus.cases specifically for Civilian, Coordinator, or Hybrid role
   const backendCases: CaseItem[] = rawCases;
+
+  const markedCases = backendCases.filter((c: CaseItem) => c.caseType === "marked" || c.id.endsWith("-marked"));
+  const completedCases = backendCases.filter((c: CaseItem) => c.caseType === "completed" || c.id.endsWith("-completed") || c.status === "resolved");
 
   const filteredCases = backendCases.filter((c: CaseItem) => {
     if (activeTab === "all") return true;
-    return c.status === activeTab;
+    if (activeTab === "marked") return c.caseType === "marked" || c.id.endsWith("-marked");
+    if (activeTab === "completed") return c.caseType === "completed" || c.id.endsWith("-completed") || c.status === "resolved";
+    return true;
   });
 
   const handleRedeem = (v: Voucher) => {
@@ -1366,201 +1453,204 @@ export default function ProfilePage({ params }: PageProps) {
           </div>
         </section>
 
-        {/* 5. CASES / COMPLETED SPOTS CONDITIONAL SECTION */}
-        {isMyProfile ? (
-          /* MY PROFILE: MY CIVIC CASES (WITH TABS) */
-          <section>
-            <div className="flex items-center gap-2 mb-3">
-              <h3 className="font-['Hanken_Grotesk'] text-xl font-bold text-[#131b2e]">My Civic Cases</h3>
+        {/* 5. CIVIC SPOTS (MARKED & COMPLETED SPOTS WITH AI VERIFICATION STATUS) */}
+        <section className="mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <h3 className="font-['Hanken_Grotesk'] text-xl font-bold text-[#131b2e]">
+                {isMyProfile ? "My Civic Cases" : "Civic Spots"}
+              </h3>
               <span className="bg-[#E2E8F0] text-[#6d7a72] font-['JetBrains_Mono'] text-xs px-2.5 py-0.5 rounded-full font-bold">
-                {backendCases.length > 0 ? `(${backendCases.length})` : "None"}
+                {backendCases.length > 0 ? `(${backendCases.length})` : "0"}
               </span>
             </div>
 
-            <div className="flex gap-2 mb-4 overflow-x-auto hide-scrollbar pb-1">
+            {/* Filter Tabs */}
+            <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
               <button
+                type="button"
                 onClick={() => setActiveTab("all")}
-                className={`font-['Inter'] text-xs font-semibold px-4 py-2 rounded-full whitespace-nowrap transition-all cursor-pointer ${
+                className={`font-['Inter'] text-xs font-semibold px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
                   activeTab === "all"
                     ? "bg-[#0F172A] text-white border border-[#0F172A] shadow-xs"
                     : "bg-white text-[#6d7a72] border border-[#E2E8F0] hover:border-[#6d7a72]"
                 }`}
               >
-                All
+                <span>All</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                  activeTab === "all" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                }`}>
+                  {backendCases.length}
+                </span>
               </button>
+
               <button
-                onClick={() => setActiveTab("in_progress")}
-                className={`font-['Inter'] text-xs font-semibold px-4 py-2 rounded-full whitespace-nowrap transition-all cursor-pointer ${
-                  activeTab === "in_progress"
+                type="button"
+                onClick={() => setActiveTab("marked")}
+                className={`font-['Inter'] text-xs font-semibold px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === "marked"
+                    ? "bg-[#006948] text-white border border-[#006948] shadow-xs"
+                    : "bg-white text-[#6d7a72] border border-[#E2E8F0] hover:border-[#6d7a72]"
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">add_location_alt</span>
+                <span>Marked Spots</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                  activeTab === "marked" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                }`}>
+                  {markedCases.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("completed")}
+                className={`font-['Inter'] text-xs font-semibold px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === "completed"
                     ? "bg-[#0F172A] text-white border border-[#0F172A] shadow-xs"
                     : "bg-white text-[#6d7a72] border border-[#E2E8F0] hover:border-[#6d7a72]"
                 }`}
               >
-                In Progress
-              </button>
-              <button
-                onClick={() => setActiveTab("resolved")}
-                className={`font-['Inter'] text-xs font-semibold px-4 py-2 rounded-full whitespace-nowrap transition-all cursor-pointer ${
-                  activeTab === "resolved"
-                    ? "bg-[#0F172A] text-white border border-[#0F172A] shadow-xs"
-                    : "bg-white text-[#6d7a72] border border-[#E2E8F0] hover:border-[#6d7a72]"
-                }`}
-              >
-                Resolved
+                <span className="material-symbols-outlined text-sm">check_circle</span>
+                <span>Completed Spots</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                  activeTab === "completed" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                }`}>
+                  {completedCases.length}
+                </span>
               </button>
             </div>
+          </div>
 
-            {filteredCases.length === 0 ? (
-              <div className="bg-white rounded-[20px] border border-[#E2E8F0] p-8 text-center flex flex-col items-center justify-center shadow-xs animate-enter">
-                <div className="w-12 h-12 rounded-full bg-[#FAF8FF] flex items-center justify-center text-[#6d7a72] mb-3 border border-[#E2E8F0]">
-                  <span className="material-symbols-outlined text-2xl">folder_off</span>
-                </div>
-                <h4 className="font-['Hanken_Grotesk'] text-base font-bold text-[#131b2e]">
-                  {backendCases.length === 0 ? "None (No Civic Cases)" : `None (${activeTab === "in_progress" ? "In Progress" : activeTab === "resolved" ? "Resolved" : "Matching"} Cases)`}
-                </h4>
-                <p className="text-xs text-[#6d7a72] max-w-xs mt-1 leading-relaxed">
-                  {backendCases.length === 0
-                    ? "You haven't reported or participated in any civic cases yet. Keep your neighborhood clean by filing your first report!"
-                    : `There are currently no ${activeTab === "in_progress" ? "in-progress" : activeTab === "resolved" ? "resolved" : ""} civic cases to display.`}
-                </p>
+          {filteredCases.length === 0 ? (
+            <div className="bg-white rounded-[20px] border border-[#E2E8F0] p-8 text-center flex flex-col items-center justify-center shadow-xs animate-enter">
+              <div className="w-12 h-12 rounded-full bg-[#FAF8FF] flex items-center justify-center text-[#6d7a72] mb-3 border border-[#E2E8F0]">
+                <span className="material-symbols-outlined text-2xl">folder_off</span>
+              </div>
+              <h4 className="font-['Hanken_Grotesk'] text-base font-bold text-[#131b2e]">
+                {backendCases.length === 0
+                  ? "No Civic Spots Recorded"
+                  : `No ${activeTab === "marked" ? "Marked" : activeTab === "completed" ? "Completed" : "Matching"} Spots`}
+              </h4>
+              <p className="text-xs text-[#6d7a72] max-w-xs mt-1 leading-relaxed">
+                {activeTab === "marked"
+                  ? "No sanitation spots have been marked/reported by this user yet."
+                  : activeTab === "completed"
+                  ? "No cleanup drives or completed spots have been recorded for this user yet."
+                  : "Keep your neighborhood clean by marking your first spot!"}
+              </p>
+              {isMyProfile && (
                 <Link
                   href="/"
                   className="mt-4 px-4 py-2 bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] text-xs font-bold rounded-xl transition-all shadow-xs"
                 >
                   Report a Civic Issue
                 </Link>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {filteredCases.map((item, idx) => (
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {filteredCases.map((item, idx) => {
+                const aiBadge = getAiVerificationBadge(item);
+                const isMarked = item.caseType === "marked" || item.id.endsWith("-marked");
+                const isCompleted = item.caseType === "completed" || item.id.endsWith("-completed") || item.status === "resolved";
+
+                return (
                   <div
                     key={`${item.id}-${item.caseType || idx}`}
-                    className="bg-white rounded-[20px] border border-[#E2E8F0] p-3.5 flex gap-4 hover:border-[#006948]/40 transition-all shadow-xs"
+                    className="bg-white rounded-[20px] border border-[#E2E8F0] p-3.5 sm:p-4 flex flex-col sm:flex-row gap-3.5 sm:gap-4 hover:border-[#006948]/40 transition-all shadow-xs group"
                   >
-                    <img
-                      className="w-20 h-20 rounded-xl object-cover flex-shrink-0 bg-[#F1F5F9] border border-[#E2E8F0]"
-                      src={typeof item.image === "string" ? item.image : "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=300&auto=format&fit=crop&q=80"}
-                      alt={typeof item.title === "string" ? item.title : "Case Item"}
-                    />
-                    <div className="flex flex-col flex-grow justify-center">
-                      <div className="flex justify-between items-start mb-1">
-                        <h4 className="font-['Inter'] text-sm font-bold text-[#0F172A] line-clamp-1">
-                          {typeof item.title === "string" ? item.title : String(item.title || "Civic Case")}
-                        </h4>
-                        <button
-                          onClick={() => handleOpenSpotDetails(item)}
-                          className="font-['Inter'] text-xs font-semibold text-[#006948] bg-[#006948]/10 hover:bg-[#006948]/20 px-3 py-1 rounded-lg transition-all flex items-center gap-1 shrink-0 cursor-pointer ml-2"
-                        >
-                          <span className="material-symbols-outlined text-sm">visibility</span>
-                          <span>Details</span>
-                        </button>
-                      </div>
-                      <p className="font-['Inter'] text-xs text-[#6d7a72]">
-                        {typeof item.location === "string" ? item.location : String(item.location || "Ward Locality")}
-                      </p>
+                    <div className="relative w-full sm:w-24 h-36 sm:h-24 rounded-xl overflow-hidden flex-shrink-0 bg-[#F1F5F9] border border-[#E2E8F0]">
+                      <img
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        src={typeof item.image === "string" ? item.image : "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=300&auto=format&fit=crop&q=80"}
+                        alt={typeof item.title === "string" ? item.title : "Case Item"}
+                      />
+                      {item.imageAfter && (
+                        <span className="absolute bottom-1 right-1 bg-emerald-600/90 text-white text-[9px] font-['JetBrains_Mono'] font-bold px-1.5 py-0.5 rounded backdrop-blur-xs">
+                          CLEANED
+                        </span>
+                      )}
+                    </div>
 
-                      <div className="flex items-center gap-2 flex-wrap mt-2">
+                    <div className="flex flex-col flex-grow justify-between min-w-0">
+                      <div>
+                        <div className="flex justify-between items-start gap-2 mb-1">
+                          <h4 className="font-['Hanken_Grotesk'] text-sm sm:text-base font-bold text-[#0F172A] line-clamp-1">
+                            {typeof item.title === "string" ? item.title : String(item.title || "Civic Case")}
+                          </h4>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenSpotDetails(item)}
+                            className="font-['Inter'] text-xs font-semibold text-[#006948] bg-[#006948]/10 hover:bg-[#006948]/20 px-3 py-1 rounded-lg transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-sm">visibility</span>
+                            <span>Details</span>
+                          </button>
+                        </div>
+
+                        <p className="font-['Inter'] text-xs text-[#6d7a72] line-clamp-1 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-sm text-slate-400">location_on</span>
+                          <span>{typeof item.location === "string" ? item.location : String(item.location || "Ward Locality")}</span>
+                          {item.markedAt && (
+                            <>
+                              <span className="text-slate-300">·</span>
+                              <span className="font-mono text-[11px] text-slate-500">
+                                {new Date(item.markedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                              </span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+
+                      {/* Badges Row: Action Type, AI Verification, Completion Status */}
+                      <div className="flex items-center gap-2 flex-wrap mt-3 pt-2.5 border-t border-slate-100">
+                        {/* Spot Category Tag (Marked vs Cleaned) */}
+                        {isMarked && (
+                          <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-slate-700 bg-slate-100 border border-slate-200">
+                            <span className="material-symbols-outlined text-xs text-[#006948]">add_location_alt</span>
+                            <span>Marked Spot</span>
+                          </div>
+                        )}
+                        {isCompleted && !isMarked && (
+                          <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-teal-800 bg-teal-50 border border-teal-200">
+                            <span className="material-symbols-outlined text-xs text-teal-600">cleaning_services</span>
+                            <span>Cleaned Spot</span>
+                          </div>
+                        )}
+
+                        {/* AI Verification Badge */}
                         <div
-                          className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${
-                            item.status === "resolved" || item.badgeType === "green"
+                          className={`flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${aiBadge.className}`}
+                          title={aiBadge.label}
+                        >
+                          <span className={`material-symbols-outlined text-xs ${aiBadge.iconClass}`}>
+                            {aiBadge.icon}
+                          </span>
+                          <span>{aiBadge.label}</span>
+                        </div>
+
+                        {/* Completion / Progress Badge */}
+                        <div
+                          className={`flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${
+                            item.status === "resolved"
                               ? "text-[#10B981] bg-[#10B981]/10 border border-[#10B981]/20"
-                              : "text-[#D97706] bg-[#FFFBEB] border border-[#FCD34D]"
+                              : "text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE]"
                           }`}
                         >
                           <span className="material-symbols-outlined text-xs">
-                            {item.status === "resolved" || item.badgeType === "green" ? "check_circle" : "engineering"}
+                            {item.status === "resolved" ? "check_circle" : "pending_actions"}
                           </span>
-                          <span>{item.status === "resolved" || item.badgeType === "green" ? "Completed" : "Pending"}</span>
+                          <span>{item.status === "resolved" ? "Completed" : "In Progress"}</span>
                         </div>
-
-                        {/* AI Verification Label */}
-                        {item.isCompletedVerify === "pending" && (
-                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-[#D97706] bg-[#FFFBEB] border border-[#FCD34D]">
-                            <span className="material-symbols-outlined text-xs animate-spin">sync</span>
-                            <span>AI Audit Pending</span>
-                          </div>
-                        )}
-                        {item.isCompletedVerify === "completed" && item.isVerified === true && (
-                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-[#059669] bg-[#ECFDF5] border border-[#A7F3D0]">
-                            <span className="material-symbols-outlined text-xs">verified</span>
-                            <span>AI Verified ✓</span>
-                          </div>
-                        )}
-                        {item.isCompletedVerify === "completed" && item.isVerified === false && (
-                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-[#DC2626] bg-[#FEF2F2] border border-[#FCA5A5]">
-                            <span className="material-symbols-outlined text-xs">gpp_bad</span>
-                            <span>AI Flagged</span>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
-        ) : (
-          /* OTHER USER PROFILE (/profile/:username): COMPLETED SPOTS ONLY STRICTLY FROM GETPROFILEBYUSERNAME */
-          <section className="mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <h3 className="font-['Hanken_Grotesk'] text-xl font-bold text-[#131b2e]">Completed Spots</h3>
-                <span className="bg-[#85f8c4]/40 text-[#006948] font-['JetBrains_Mono'] text-xs px-2.5 py-0.5 rounded-full font-bold border border-[#006948]/20">
-                  {userStatus?.completedSpots ?? (Array.isArray(userStatus?.cases) ? userStatus.cases.length : 0)}
-                </span>
-              </div>
+                );
+              })}
             </div>
-
-            {(!Array.isArray(userStatus?.cases) || userStatus.cases.length === 0) ? (
-              <div className="bg-white rounded-[20px] border border-[#E2E8F0] p-8 text-center flex flex-col items-center justify-center shadow-xs animate-enter">
-                <div className="w-12 h-12 rounded-full bg-[#FAF8FF] flex items-center justify-center text-[#6d7a72] mb-3 border border-[#E2E8F0]">
-                  <span className="material-symbols-outlined text-2xl text-[#006948]">check_circle</span>
-                </div>
-                <h4 className="font-['Hanken_Grotesk'] text-base font-bold text-[#131b2e]">No Completed Spots Yet</h4>
-                <p className="text-xs text-[#6d7a72] max-w-xs mt-1 leading-relaxed">
-                  Cleaned spots and resolved civic issues will appear here once verified by AI &amp; ward coordinators.
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {(Array.isArray(userStatus?.cases) ? userStatus.cases : []).map((item: any, idx: number) => (
-                  <div
-                    key={`${item?.id || idx}-completed-other`}
-                    className="bg-white rounded-[20px] border border-[#E2E8F0] p-3.5 flex gap-4 hover:border-[#006948]/40 transition-all shadow-xs"
-                  >
-                    <img
-                      className="w-20 h-20 rounded-xl object-cover flex-shrink-0 bg-[#F1F5F9] border border-[#E2E8F0]"
-                      src={typeof item?.image === "string" ? item.image : "https://images.unsplash.com/photo-1618477461853-cf6ed80faba5?w=300&auto=format&fit=crop&q=80"}
-                      alt={typeof item?.title === "string" ? item.title : "Completed Spot"}
-                    />
-                    <div className="flex flex-col flex-grow justify-center">
-                      <div className="flex justify-between items-start mb-1">
-                        <h4 className="font-['Inter'] text-sm font-bold text-[#0F172A] line-clamp-1">
-                          {typeof item?.title === "string" ? item.title : String(item?.title || "Cleaned Spot")}
-                        </h4>
-                        <button
-                          onClick={() => handleOpenSpotDetails(item)}
-                          className="font-['Inter'] text-xs font-semibold text-[#006948] bg-[#006948]/10 hover:bg-[#006948]/20 px-3 py-1 rounded-lg transition-all flex items-center gap-1 shrink-0 cursor-pointer ml-2"
-                        >
-                          <span className="material-symbols-outlined text-sm">visibility</span>
-                          <span>Details</span>
-                        </button>
-                      </div>
-                      <p className="font-['Inter'] text-xs text-[#6d7a72] mb-2">
-                        {typeof item?.location === "string" ? item.location : String(item?.location || "Ward Locality")}
-                      </p>
-
-                      <div className="flex items-center gap-1.5 self-start px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-[#10B981] bg-[#10B981]/10 border border-[#10B981]/20">
-                        <span className="material-symbols-outlined text-xs">check_circle</span>
-                        <span>{typeof item?.badgeText === "string" ? item.badgeText : String(item?.badgeText || "AI Verified Clean")}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
+          )}
+        </section>
 
         {/* 6. KARMA LEDGER (MY PROFILE ONLY) */}
         {isMyProfile && (
