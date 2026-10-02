@@ -581,124 +581,6 @@ export default function ProfilePage({ params }: PageProps) {
     }
   };
 
-  const trophies: Trophy[] = [
-    {
-      id: "ward-guardian",
-      name: "Ward Guardian",
-      subtitle: "Ward Champion",
-      levelTag: "LV. 3",
-      isUnlocked: true,
-      type: "gold",
-      icon: "security",
-      description: "Successfully resolved over 10 critical municipal alerts within Ward 14.",
-      unlockedDate: "Aug 24, 2026",
-      karmaBonus: 300,
-    },
-    {
-      id: "first-responder",
-      name: "First Responder",
-      subtitle: "<6HR CLEAN",
-      levelTag: "<6HR CLEAN",
-      isUnlocked: true,
-      type: "silver",
-      icon: "bolt",
-      description: "Reported and participated in a cleanup drive completed under 6 hours.",
-      unlockedDate: "Aug 29, 2026",
-      karmaBonus: 150,
-    },
-    {
-      id: "eagle-eye",
-      name: "Eagle Eye",
-      subtitle: "5 Reports",
-      levelTag: "5 REPORTS",
-      isUnlocked: true,
-      type: "bronze",
-      icon: "visibility",
-      description: "Submitted 5 consecutive AI-verified authentic trash reports.",
-      unlockedDate: "Sep 01, 2026",
-      karmaBonus: 100,
-    },
-    {
-      id: "eco-warrior",
-      name: "Eco Warrior",
-      subtitle: "Segregation Champion",
-      levelTag: "LV. 2",
-      isUnlocked: true,
-      type: "gold",
-      icon: "spa",
-      description: "Led 3 organic waste composting initiatives in the neighborhood.",
-      unlockedDate: "Sep 03, 2026",
-      karmaBonus: 200,
-    },
-  ];
-
-  const cases: CaseItem[] = [
-    {
-      id: "case-1",
-      title: "MG Road Drain Silt",
-      location: "Ward 14, Ottapalam • Yesterday, 4:15 PM",
-      status: "resolved",
-      karmaChange: 200,
-      badgeText: "Completed",
-      badgeType: "green",
-      image: "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=300&auto=format&fit=crop&q=80",
-      imageAfter: "https://images.unsplash.com/photo-1618477461853-cf6ed80faba5?w=500&auto=format&fit=crop&q=80",
-      markedBy: "Anil Kumar (Citizen)",
-      assignedTo: "Rajesh K. (Coordinator)",
-      completedBy: "Clean Ranger Unit 14",
-      markedAt: "2026-09-08",
-      completedAt: "2026-09-09",
-      critical: "High",
-      description: "Severe drain blockage cleared and cleared silt disposed.",
-    },
-    {
-      id: "case-2",
-      title: "Market Lane Plastic Pile",
-      location: "Sep 1, 10:30 AM • Lv. 4 Critical",
-      status: "in_progress",
-      badgeText: "Pending",
-      badgeType: "yellow",
-      image: "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=300&auto=format&fit=crop&q=80",
-      markedBy: "Meera Nair",
-      assignedTo: "Rajesh K.",
-      markedAt: "2026-09-01",
-      critical: "Very High",
-      description: "Accumulated plastic waste pile near Market Lane vegetable stalls.",
-    },
-    {
-      id: "case-[#3]",
-      title: "High Street Overfilling Bin",
-      location: "Ward 12, Main Sq • Today, 9:20 AM",
-      status: "in_progress",
-      badgeText: "Pending",
-      badgeType: "yellow",
-      image: "https://images.unsplash.com/photo-1604186837056-8e7c286756f2?w=300&auto=format&fit=crop&q=80",
-      markedBy: "Suresh P.",
-      assignedTo: "Ward 12 Inspector",
-      markedAt: "2026-09-10",
-      critical: "Medium",
-      description: "Overfilling public bin at Main Square awaiting municipal pickup.",
-    },
-    {
-      id: "case-4",
-      title: "Park Avenue Plastic Dump",
-      location: "Ward 14 • Aug 30, 2:10 PM",
-      status: "resolved",
-      karmaChange: 150,
-      badgeText: "Completed",
-      badgeType: "green",
-      image: "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=300&auto=format&fit=crop&q=80",
-      imageAfter: "https://images.unsplash.com/photo-1618477461853-cf6ed80faba5?w=500&auto=format&fit=crop&q=80",
-      markedBy: "Pooja V.",
-      assignedTo: "Ward 14 Volunteer Team",
-      completedBy: "Rajesh K. & Team",
-      markedAt: "2026-08-30",
-      completedAt: "2026-08-31",
-      critical: "Medium",
-      description: "Plastic bottle dumping behind community park cleared completely.",
-    },
-  ];
-
   const vouchers: Voucher[] = [
     {
       id: "v-1",
@@ -786,8 +668,6 @@ export default function ProfilePage({ params }: PageProps) {
       ? userStatus.cases
       : markedList.length > 0 || completedList.length > 0
       ? [...markedList, ...completedList]
-      : isMyProfile
-      ? cases
       : []
   ).map((c: any, idx: number) => {
     if (!c || typeof c !== "object") return c;
