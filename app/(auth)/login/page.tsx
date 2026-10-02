@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { authApi } from "@/lib/api";
 import ValidationAlertModal from "@/components/ValidationAlertModal";
+import SafaiWatchLogo from "@/components/SafaiWatchLogo";
 
 type AuthMode = "sign-in" | "sign-up";
 
@@ -326,15 +327,14 @@ export default function AuthPage() {
 
       {/* Header Section */}
       <header className="w-full max-w-md mx-auto pt-4 pb-2 flex flex-col items-center text-center">
-        {/* Brand Shield Icon */}
+        {/* Brand Logo Icon */}
         <Link
           href="/"
-          className="w-16 h-16 bg-[#006948] rounded-2xl flex items-center justify-center mb-3 shield-glow relative overflow-hidden cursor-pointer shadow-lg group"
+          className="mb-3 cursor-pointer transition-transform duration-300 hover:scale-105 active:scale-95 inline-flex items-center justify-center p-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 shadow-sm"
           id="brand-shield"
-          title="SafaiWatch Civic Shield"
+          title="SafaiWatch: Return to Home"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-[#00855d] to-transparent opacity-60"></div>
-          <Shield className="w-8 h-8 text-[#85f8c4] z-10 drop-shadow-[0_0_8px_rgba(133,248,196,0.8)] transition-transform duration-300 group-hover:scale-110" />
+          <SafaiWatchLogo variant="icon" size="xl" animated={true} />
         </Link>
 
         <h1 className="font-['Hanken_Grotesk'] text-3xl font-extrabold tracking-tight text-[#131b2e] mb-1">

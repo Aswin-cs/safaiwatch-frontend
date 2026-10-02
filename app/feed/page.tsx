@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { authApi, profileApi, feedsApi, FeedPost } from "@/lib/api";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 import FeedCardSkeleton from "@/components/FeedCardSkeleton";
+import SafaiWatchLogo from "@/components/SafaiWatchLogo";
 
 interface Comment {
   id: string;
@@ -350,9 +351,10 @@ export default function FeedPage() {
       <header className="fixed top-0 left-0 right-0 z-50 flex flex-col border-b border-[#dae2fd]/60 bg-white/95 backdrop-blur-md shadow-xs">
         <div className="flex items-center justify-between px-3.5 py-2.5 sm:px-6 max-w-6xl mx-auto w-full gap-2">
           {/* Left: Brand Title & Locality Selector */}
-          <div className="flex items-center gap-2 min-w-0">
-            <Link href="/" className="flex items-center shrink-0">
-              <h1 className="font-['Hanken_Grotesk'] text-lg sm:text-xl md:text-2xl font-black text-[#006948] tracking-tight">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Link href="/" className="flex items-center gap-2 shrink-0 group" title="Return to Map">
+              <SafaiWatchLogo variant="icon" size="sm" animated={true} />
+              <h1 className="font-['Hanken_Grotesk'] text-lg sm:text-xl md:text-2xl font-black text-[#006948] tracking-tight group-hover:text-[#00855d] transition-colors">
                 Civic Feed
               </h1>
             </Link>

@@ -7,6 +7,7 @@ import SafaiMap, { Report } from "@/components/map/SafaiMap";
 import ReportWasteSpotModal from "@/components/ReportWasteSpotModal";
 import CompleteWasteSpotModal from "@/components/CompleteWasteSpotModal";
 import SplashLoader from "@/components/SplashLoader";
+import SafaiWatchLogo from "@/components/SafaiWatchLogo";
 import { profileApi, authApi, spotsApi } from "@/lib/api";
 import { socket } from "@/lib/socket";
 import {
@@ -925,18 +926,8 @@ export default function HomePage() {
         <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-[#E2E7FF] px-4 md:px-8 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             {/* Brand Logo & Name */}
-            <Link href="/" className="flex items-center gap-3 group cursor-pointer">
-              <div className="w-10 h-10 bg-[#006948] rounded-xl flex items-center justify-center shield-glow relative overflow-hidden shadow-md">
-                <Shield className="w-5 h-5 text-[#85f8c4] z-10 drop-shadow-[0_0_6px_rgba(133,248,196,0.8)]" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-['Hanken_Grotesk'] text-xl font-extrabold tracking-tight text-[#131b2e] leading-none">
-                  SafaiWatch
-                </span>
-                <span className="font-mono text-[10px] text-[#006948] font-bold uppercase tracking-widest mt-0.5">
-                  Civic Action &amp; Cleanliness Network
-                </span>
-              </div>
+            <Link href="/" className="cursor-pointer">
+              <SafaiWatchLogo variant="full" size="md" animated={true} />
             </Link>
 
             {/* Desktop Nav Links */}
@@ -1469,6 +1460,9 @@ export default function HomePage() {
       <header className="fixed top-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-xl flex items-center justify-between px-4 py-2.5 bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-full shadow-[0_12px_40px_rgba(15,23,42,0.1)] transition-all hover:shadow-[0_16px_45px_rgba(15,23,42,0.14)]">
         {/* Left Brand & Live Status */}
         <div className="flex items-center gap-2 sm:gap-2.5">
+          <Link href="/" className="cursor-pointer shrink-0 flex items-center" title="SafaiWatch Home">
+            <SafaiWatchLogo variant="icon" size="xs" animated={true} />
+          </Link>
           <span className="font-['Hanken_Grotesk'] font-extrabold text-xs sm:text-sm text-[#131b2e] tracking-wider uppercase">
             SafaiWatch Dispatch
           </span>

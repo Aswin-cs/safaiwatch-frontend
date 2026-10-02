@@ -2,8 +2,15 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SafaiWatch - Login & Civic Auth",
+  title: "SafaiWatch - Clean Streets & Civic Action",
   description: "Clean Streets. Verified Action. Join your local ward's civic coordination network.",
+  icons: {
+    icon: [
+      { url: "/logo-icon.svg", type: "image/svg+xml" }
+    ],
+    shortcut: "/logo-icon.svg",
+    apple: "/logo-icon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -14,6 +21,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased light" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="any" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="shortcut icon" href="/logo-icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/logo-icon.svg" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

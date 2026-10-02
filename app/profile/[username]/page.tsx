@@ -7,6 +7,7 @@ import { authApi, profileApi, spotsApi } from "@/lib/api";
 import { socket } from "@/lib/socket";
 import HoldButton from "@/components/HoldButton";
 import SplashLoader from "@/components/SplashLoader";
+import SafaiWatchLogo from "@/components/SafaiWatchLogo";
 
 interface PageProps {
   params: Promise<{ username?: string; id?: string }>;
@@ -904,13 +905,11 @@ export default function ProfilePage({ params }: PageProps) {
 
       {/* 1. TOP NAVIGATION (Desktop Web) */}
       <div className="hidden md:flex fixed top-0 left-0 right-0 z-50 items-center justify-between bg-[#faf8ff]/80 dark:bg-[#faf8ff]/80 backdrop-blur-md rounded-full mt-4 mx-6 border border-[#dae2fd] shadow-md h-16 px-6 max-w-6xl mx-auto">
-        <Link href="/" className="flex items-center gap-3 group">
-          <img
-            className="w-8 h-8 rounded-full object-cover border border-[#006948]"
-            alt={displayName}
-            src={userAvatar}
-          />
-          <span className="font-['Hanken_Grotesk'] text-xl font-extrabold text-[#006948]">SafaiWatch</span>
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <SafaiWatchLogo variant="icon" size="sm" animated={true} />
+          <span className="font-['Hanken_Grotesk'] text-xl font-extrabold text-[#006948] tracking-tight">
+            SafaiWatch
+          </span>
         </Link>
 
         <div className="flex gap-2">

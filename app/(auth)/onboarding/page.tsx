@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { authApi } from "@/lib/api";
 import ValidationAlertModal from "@/components/ValidationAlertModal";
+import SafaiWatchLogo from "@/components/SafaiWatchLogo";
 
 // Custom useDebounce hook for input text debouncing
 function useDebounce<T>(value: T, delay: number = 450): T {
@@ -382,7 +383,7 @@ function OnboardingContent() {
         </div>
 
         <div className="inline-flex items-center gap-1.5 bg-[#85f8c4]/30 px-3 py-1 rounded-full mb-2 border border-[#006948]/20">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#006948]" />
+          <SafaiWatchLogo variant="icon" size="xs" animated={true} />
           <span className="font-mono text-[10px] text-[#006948] font-bold uppercase tracking-wider">
             SafaiWatch Registration
           </span>

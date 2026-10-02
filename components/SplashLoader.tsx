@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
-import { Shield } from "lucide-react";
+import React, { memo } from "react";
+import SafaiWatchLogo from "./SafaiWatchLogo";
 
-interface SplashLoaderProps {
+export interface SplashLoaderProps {
   /** Main headline text */
   title?: string;
   /** Secondary description text */
@@ -14,22 +14,14 @@ interface SplashLoaderProps {
 
 /**
  * Premium branded splash/loading screen for SafaiWatch.
- *
- * Features:
- * - Breathing shield logo with gradient
- * - Orbital spinning dots (dual-ring)
- * - Expanding ripple pulse rings
- * - Animated progress bar with shimmer
- * - Staggered text reveal with blur-to-focus transition
- * - Subtle dot-grid background pattern
  */
-export default function SplashLoader({
+export const SplashLoader = memo(function SplashLoader({
   title = "SafaiWatch",
   subtitle = "Preparing your civic dashboard…",
   showProgress = true,
 }: SplashLoaderProps) {
   return (
-    <div className="splash-screen" id="splash-loader">
+    <div className="splash-screen" id="splash-loader" role="status" aria-live="polite">
       {/* ── Animated Logo Assembly ── */}
       <div className="relative flex items-center justify-center mb-6">
         {/* Ripple rings */}
@@ -52,10 +44,9 @@ export default function SplashLoader({
           <div className="splash-orbit-dot splash-orbit-dot-sm" />
         </div>
 
-        {/* Shield logo */}
-        <div className="splash-logo">
-          <div className="absolute inset-0 rounded-[24px] bg-gradient-to-br from-[#00855d] to-transparent opacity-50" />
-          <Shield className="w-10 h-10 text-[#85f8c4] z-10 drop-shadow-[0_0_10px_rgba(133,248,196,0.9)]" />
+        {/* SafaiWatch AI Leaf-Pin Logo */}
+        <div className="splash-logo flex items-center justify-center p-2">
+          <SafaiWatchLogo variant="icon" size="lg" animated={true} />
         </div>
       </div>
 
@@ -87,4 +78,7 @@ export default function SplashLoader({
       </div>
     </div>
   );
-}
+});
+
+SplashLoader.displayName = "SplashLoader";
+export default SplashLoader;

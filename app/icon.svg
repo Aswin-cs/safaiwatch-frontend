@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="SafaiWatch logo">
+  <title>SafaiWatch</title>
+  <defs>
+    <linearGradient id="pinGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#bef264"/>
+      <stop offset="0.5" stop-color="#4ade80"/>
+      <stop offset="1" stop-color="#15803d"/>
+    </linearGradient>
+    <linearGradient id="irisGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ecfccb"/>
+      <stop offset="1" stop-color="#84cc16"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.45" r="0.5">
+      <stop offset="0" stop-color="#4ade80" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#4ade80" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="pinClip">
+      <path d="M100 172 C70 150 46 122 46 86 C46 52 72 30 118 24 C140 40 154 62 154 86 C154 122 130 150 100 172 Z"/>
+    </clipPath>
+    <clipPath id="eyeClip">
+      <path d="M68 86 Q100 58 132 86 Q100 114 68 86 Z"/>
+    </clipPath>
+  </defs>
+
+  <style>
+    :root { --bg:#0f2a14; }
+
+    .pin { opacity: 1; transform-origin: center; animation: bob 3.2s ease-in-out infinite; }
+    .body { fill: url(#pinGrad); }
+    .glow { opacity: 0.8; transform-origin: center; animation: breathe 3.2s ease-in-out infinite; }
+    .shadow { fill: #000; opacity: 0.35; transform-origin: center; }
+
+    .vein { fill: none; stroke: #052e16; stroke-opacity: 0.65; stroke-width: 1.8; stroke-linecap: round; }
+    .midrib { stroke-width: 2.8; stroke-opacity: 0.85; }
+    .node { fill: #0f2a14; stroke: #ecfccb; stroke-width: 1.2; transform-box: fill-box; transform-origin: center;
+            animation: nodePulse 2.4s ease-in-out infinite; }
+    .n2 { animation-delay: 0.4s; } .n3 { animation-delay: 0.8s; } .n4 { animation-delay: 1.2s; }
+    .n5 { animation-delay: 1.6s; } .n6 { animation-delay: 2.0s; } .n7 { animation-delay: 0.6s; }
+    .signal { fill: #fff; }
+
+    .eye { transform-box: fill-box; transform-origin: center; animation: blink 5s ease-in-out 1.8s infinite; }
+    .sclera { fill: var(--bg); }
+    .iris { fill: url(#irisGrad); animation: look 4s ease-in-out 1.4s infinite; }
+    .pupil { fill: var(--bg); animation: look 4s ease-in-out 1.4s infinite; }
+    .glint { fill: #fff; animation: look 4s ease-in-out 1.4s infinite; }
+
+    @keyframes bob     { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+    @keyframes blink   { 0%,90%,100% { transform: scaleY(1); } 94% { transform: scaleY(0.08); } }
+    @keyframes look    { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 60% { transform: translateX(8px); } 80% { transform: translateX(0); } }
+    @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+    @keyframes nodePulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.4); } }
+  </style>
+
+  <circle class="glow" cx="100" cy="90" r="80" fill="url(#glow)"/>
+  <ellipse class="shadow" cx="100" cy="180" rx="26" ry="5"/>
+
+  <g class="pin">
+    <path class="body" d="M100 172 C70 150 46 122 46 86 C46 52 72 30 118 24 C140 40 154 62 154 86 C154 122 130 150 100 172 Z"/>
+
+    <g clip-path="url(#pinClip)">
+      <path class="vein midrib" d="M100 172 Q98 140 100 106"/>
+      <path class="vein" d="M99 152 Q82 144 70 128"/>
+      <path class="vein" d="M99 152 Q118 144 130 128"/>
+      <path class="vein" d="M99 132 Q84 126 62 110"/>
+      <path class="vein" d="M99 132 Q116 126 138 110"/>
+      <path class="vein midrib" d="M100 70 Q106 48 118 26"/>
+      <path class="vein" d="M100 70 Q96 54 80 46"/>
+      <path class="vein" d="M101 62 Q118 60 134 52"/>
+
+      <circle class="node n1" cx="70" cy="128" r="2.8"/>
+      <circle class="node n2" cx="130" cy="128" r="2.8"/>
+      <circle class="node n3" cx="62" cy="110" r="2.8"/>
+      <circle class="node n4" cx="138" cy="110" r="2.8"/>
+      <circle class="node n5" cx="80" cy="46" r="2.8"/>
+      <circle class="node n6" cx="134" cy="52" r="2.8"/>
+      <circle class="node n7" cx="100" cy="152" r="2.4"/>
+
+      <circle class="signal" r="2">
+        <animateMotion dur="2.4s" begin="1.4s" repeatCount="indefinite" path="M100 172 Q98 140 100 106"/>
+        <animate attributeName="opacity" values="0;1;1;0" dur="2.4s" begin="1.4s" repeatCount="indefinite"/>
+      </circle>
+      <circle class="signal" r="1.8">
+        <animateMotion dur="1.6s" begin="2.0s" repeatCount="indefinite" path="M99 152 Q82 144 70 128"/>
+        <animate attributeName="opacity" values="0;1;1;0" dur="1.6s" begin="2.0s" repeatCount="indefinite"/>
+      </circle>
+      <circle class="signal" r="1.8">
+        <animateMotion dur="1.6s" begin="2.5s" repeatCount="indefinite" path="M99 152 Q118 144 130 128"/>
+        <animate attributeName="opacity" values="0;1;1;0" dur="1.6s" begin="2.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle class="signal" r="1.8">
+        <animateMotion dur="1.8s" begin="1.8s" repeatCount="indefinite" path="M100 70 Q96 54 80 46"/>
+        <animate attributeName="opacity" values="0;1;1;0" dur="1.8s" begin="1.8s" repeatCount="indefinite"/>
+      </circle>
+      <circle class="signal" r="1.8">
+        <animateMotion dur="1.8s" begin="2.6s" repeatCount="indefinite" path="M101 62 Q118 60 134 52"/>
+        <animate attributeName="opacity" values="0;1;1;0" dur="1.8s" begin="2.6s" repeatCount="indefinite"/>
+      </circle>
+      <circle class="signal" r="2">
+        <animateMotion dur="2s" begin="2.2s" repeatCount="indefinite" path="M100 70 Q106 48 118 26"/>
+        <animate attributeName="opacity" values="0;1;1;0" dur="2s" begin="2.2s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+
+    <g class="eye">
+      <path class="sclera" d="M68 86 Q100 58 132 86 Q100 114 68 86 Z"/>
+      <g clip-path="url(#eyeClip)">
+        <circle class="iris" cx="100" cy="86" r="13"/>
+        <circle class="pupil" cx="100" cy="86" r="6"/>
+        <circle class="glint" cx="104" cy="82" r="2.2"/>
+      </g>
+    </g>
+  </g>
+</svg>
