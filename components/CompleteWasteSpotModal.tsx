@@ -661,11 +661,11 @@ export default function CompleteWasteSpotModal({
                       Capture Cleanup Photo
                     </h3>
                     <p className="text-xs text-[#535f70] font-['Inter'] mt-0.5">
-                      Take a real-time photo of the cleaned area or upload from device
+                      Take a real-time photo of the cleaned area using your camera
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center justify-center gap-2 mt-1">
                     <button
                       type="button"
                       onClick={() => startCamera("environment")}
@@ -675,17 +675,6 @@ export default function CompleteWasteSpotModal({
                       <span className="material-symbols-outlined text-[18px]">videocam</span>
                       <span>{isStartingCamera ? "Opening..." : "Open Camera"}</span>
                     </button>
-
-                    <label className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#3d4a42] font-['Hanken_Grotesk'] text-xs font-semibold border border-[#dae2fd] flex items-center gap-1.5 transition-all cursor-pointer shadow-xs">
-                      <span className="material-symbols-outlined text-[18px]">attach_file</span>
-                      <span>Upload</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
-                    </label>
                   </div>
 
                   {cameraError && (

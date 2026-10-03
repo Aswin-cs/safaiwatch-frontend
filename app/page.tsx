@@ -9,6 +9,7 @@ import CompleteWasteSpotModal from "@/components/CompleteWasteSpotModal";
 import SplashLoader from "@/components/SplashLoader";
 import SafaiWatchLogo from "@/components/SafaiWatchLogo";
 import UnauthenticatedIntro from "@/components/landing/UnauthenticatedIntro";
+import NotificationPopup from "@/components/NotificationPopup";
 import { profileApi, authApi, spotsApi } from "@/lib/api";
 import { socket } from "@/lib/socket";
 import {
@@ -1466,65 +1467,28 @@ export default function HomePage() {
         </>
       )}
 
-      {/* Real-time AI Verification Toast Banner (Targeted strictly to spot creator) */}
+      {/* Real-time AI Verification Premium Toast Notification */}
       {aiNotice && (
-        <div
-          className={`fixed top-28 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-md backdrop-blur-xl text-white rounded-2xl p-4 shadow-2xl flex items-center justify-between animate-enter border transition-all ${
-            aiNotice.type === "success"
-              ? "bg-emerald-600/95 border-emerald-400"
-              : "bg-rose-600/95 border-rose-400"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border text-white ${
-                aiNotice.type === "success"
-                  ? "bg-emerald-700/60 border-emerald-300/40"
-                  : "bg-rose-700/60 border-rose-300/40"
-              }`}
-            >
-              {aiNotice.type === "success" ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-100" />
-              ) : (
-                <AlertCircle className="w-5 h-5 text-rose-100" />
-              )}
-            </div>
-            <div>
-              <p className="font-bold text-[10px] uppercase tracking-wider text-white/80">
-                AI Audit Notification
-              </p>
-              <p className="font-semibold text-xs leading-snug text-white mt-0.5">
-                {aiNotice.message}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => setAiNotice(null)}
-            className="p-1 hover:bg-white/20 rounded-lg text-white/80 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        <NotificationPopup
+          type={aiNotice.type === "success" ? "ai_audit" : "error"}
+          title="AI Audit Notification"
+          message={aiNotice.message}
+          duration={7000}
+          onClose={() => setAiNotice(null)}
+          position="top-center"
+        />
       )}
 
-      {/* Role Restriction Toast Notice (e.g. for Coordinators) */}
+      {/* Role Restriction Premium Toast Notification */}
       {roleNotice && (
-        <div className="fixed top-32 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-md bg-amber-500/95 backdrop-blur-xl text-white rounded-2xl p-3.5 shadow-2xl flex items-center justify-between animate-enter border border-amber-400">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-amber-600/60 rounded-xl flex items-center justify-center shrink-0 border border-amber-300/40 text-white">
-              <AlertCircle className="w-4 h-4" />
-            </div>
-            <p className="font-bold text-xs leading-snug">
-              {roleNotice}
-            </p>
-          </div>
-          <button
-            onClick={() => setRoleNotice(null)}
-            className="p-1 hover:bg-amber-600/50 rounded-lg text-white/80 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        <NotificationPopup
+          type="warning"
+          title="Access Restricted"
+          message={roleNotice}
+          duration={5000}
+          onClose={() => setRoleNotice(null)}
+          position="top-center"
+        />
       )}
 
       {/* Interactive Current Location Lock Banner (White Theme) */}

@@ -1255,4 +1255,39 @@ body {
 .d-23 { animation-delay: 1.15s, 2.25s; }
 .d-24 { animation-delay: 1.20s, 2.35s; }
 
+/* ============================================================
+   ULTRA-PREMIUM NOTIFICATION POPUP ANIMATIONS
+   ============================================================ */
+@keyframes notificationBounceIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-24px) scale(0.9);
+    filter: blur(8px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(4px) scale(1.02);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes notificationTimerBar {
+  0% {
+    width: 100%;
+  }
+  100% {
+    width: 0%;
+  }
+}
+
+.animate-notification-pop {
+  animation: notificationBounceIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+
 

@@ -7,6 +7,7 @@ import { authApi, profileApi, feedsApi, FeedPost } from "@/lib/api";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 import FeedCardSkeleton from "@/components/FeedCardSkeleton";
 import SafaiWatchLogo from "@/components/SafaiWatchLogo";
+import NotificationPopup from "@/components/NotificationPopup";
 
 interface Comment {
   id: string;
@@ -339,12 +340,13 @@ export default function FeedPage() {
     <div className="min-h-screen bg-[#F8FAFC] text-[#131b2e] font-['Inter'] antialiased selection:bg-[#85f8c4] selection:text-[#002114] pb-24 md:pb-12 pt-32 md:pt-28">
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed top-24 right-4 z-50 bg-[#006948] text-white px-5 py-3 rounded-2xl shadow-xl border border-[#85f8c4]/30 flex items-center gap-3 animate-enter">
-          <span className="material-symbols-outlined text-[#85f8c4]" style={{ fontVariationSettings: "'FILL' 1" }}>
-            check_circle
-          </span>
-          <span className="text-sm font-semibold">{toast}</span>
-        </div>
+        <NotificationPopup
+          type="success"
+          message={toast}
+          duration={3500}
+          onClose={() => setToast(null)}
+          position="top-right"
+        />
       )}
 
       {/* TOP NAVIGATION & SUB-FILTERS HEADER */}
