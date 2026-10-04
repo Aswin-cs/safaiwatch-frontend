@@ -302,9 +302,10 @@ export const spotsApi = {
     });
   },
 
-  deleteSpot: async (spotId: string) => {
-    return request(`/api/v1/spots/${spotId}`, {
+  deleteSpot: async (spotId: string, action: 'markedSpot' | 'unMarked' | string = 'markedSpot') => {
+    return request(`/api/v1/spots/${spotId}?action=${encodeURIComponent(action)}`, {
       method: 'DELETE',
+      body: JSON.stringify({ action }),
     });
   },
 

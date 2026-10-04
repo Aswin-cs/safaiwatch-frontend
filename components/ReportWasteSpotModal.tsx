@@ -81,6 +81,11 @@ export default function ReportWasteSpotModal({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // Form Submission & Draft Discard State
+  const [isFullySubmitted, setIsFullySubmitted] = useState<boolean>(false);
+  const isFullySubmittedRef = useRef<boolean>(false);
+  const [isDiscardingDraft, setIsDiscardingDraft] = useState<boolean>(false);
+
   // Stop live camera stream
   const stopCamera = () => {
     if (streamRef.current) {
@@ -333,6 +338,38 @@ export default function ReportWasteSpotModal({
     setIsStartingCamera(false);
     isFetchingGestureRef.current = false;
     isFetchingCodeRef.current = false;
+    setIsFullySubmitted(false);
+    isFullySubmittedRef.current = false;
+    setIsDiscardingDraft(false);
+  };
+
+  // Back Navigation Handler: Checks if form is fully submitted before discarding draft spot
+  const handleBack = async () => {
+    if (isDiscardingDraft) return;
+
+    // Check whether form is fully submitted or currently in active submission
+    if (isFullySubmittedRef.current || isSubmitting) {
+      onClose();
+      return;
+    }
+
+    // If form is not fully submitted, discard any pre-verification draft spots generated in this session
+    const spotIdsToClean = Array.from(new Set([gestureId, codeId].filter(Boolean) as string[]));
+    if (spotIdsToClean.length > 0) {
+      setIsDiscardingDraft(true);
+      try {
+        await Promise.all(
+          spotIdsToClean.map((id) => spotsApi.deleteSpot(id, "unMarked"))
+        );
+      } catch (err) {
+        console.warn("Error discarding draft verification spot on back:", err);
+      } finally {
+        setIsDiscardingDraft(false);
+      }
+    }
+
+    resetFormState();
+    onClose();
   };
 
   // Manual refresh handler for verification gesture/code with pre-expiry (3) and post-expiry (2) limits
@@ -636,6 +673,8 @@ export default function ReportWasteSpotModal({
       const res = await spotsApi.createSpot(formData);
 
       if (res && res.success) {
+        isFullySubmittedRef.current = true;
+        setIsFullySubmitted(true);
         setSuccessMsg("Spot verified and uploaded successfully! +50 XP Earned.");
         if (onSuccess) {
           onSuccess(res.spot);
@@ -664,9 +703,10 @@ export default function ReportWasteSpotModal({
         <header className="sticky top-0 z-30 bg-[#faf8ff]/90 backdrop-blur-md border-b border-[#dae2fd] px-4 py-3 flex items-center justify-between gap-3 shrink-0">
           <button
             type="button"
-            aria-label="Close modal"
-            onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center rounded-xl text-[#3d4a42] hover:text-[#131b2e] hover:bg-[#e2e7ff] transition-colors cursor-pointer"
+            aria-label="Back to dashboard"
+            onClick={handleBack}
+            disabled={isDiscardingDraft}
+            className="w-10 h-10 flex items-center justify-center rounded-xl text-[#3d4a42] hover:text-[#131b2e] hover:bg-[#e2e7ff] transition-colors cursor-pointer disabled:opacity-50"
           >
             <span className="material-symbols-outlined text-[20px]">arrow_back_ios_new</span>
           </button>

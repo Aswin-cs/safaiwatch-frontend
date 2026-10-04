@@ -216,18 +216,30 @@ export default function HomePage() {
     if (!selectedReport || isDeletingSpot) return;
     setIsDeletingSpot(true);
     try {
-      const res = await spotsApi.deleteSpot(selectedReport.id);
+      const res = await spotsApi.deleteSpot(selectedReport.id, "markedSpot");
       if (res && res.success) {
         setReports((prev) => prev.filter((r) => r.id !== selectedReport.id));
         setSelectedReport(null);
         setIsSpotDetailModalOpen(false);
         setIsDeleteConfirmModalOpen(false);
       } else {
-        alert(res?.message || "Failed to delete spot.");
+        const errorText = res?.message || "Failed to delete spot.";
+        setAiNotice({
+          type: "error",
+          message: errorText,
+        });
+        setTimeout(() => setAiNotice(null), 6000);
+        setIsDeleteConfirmModalOpen(false);
       }
     } catch (err: any) {
       console.error("Failed to delete spot:", err);
-      alert(err?.message || "Failed to delete spot. Please try again.");
+      const errorText = err?.message || "Failed to delete spot. Please try again.";
+      setAiNotice({
+        type: "error",
+        message: errorText,
+      });
+      setTimeout(() => setAiNotice(null), 6000);
+      setIsDeleteConfirmModalOpen(false);
     } finally {
       setIsDeletingSpot(false);
     }
