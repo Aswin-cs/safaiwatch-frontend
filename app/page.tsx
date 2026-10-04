@@ -738,7 +738,7 @@ export default function HomePage() {
     }
   };
 
-  // Handle map coordinate click event (Location Lock: prevents arbitrary coordinate selection)
+  // Handle map coordinate click event (Location Lock: prevents arbitrary coordinate selection silently without popup)
   const handleSelectCoordinates = (_coords: [number, number]) => {
     const isCoordinator = (userProfile?.role || "").trim().toLowerCase() === "coordinator";
     if (isCoordinator) {
@@ -750,10 +750,8 @@ export default function HomePage() {
       return;
     }
 
-    // Location Lock-up: Spot reporting is locked strictly to user's current GPS location
-    setRoleNotice(
-      "📍 Location Locked: Spot reporting is restricted to your verified current physical location. Tap the (+) button or 'Mark Spot Here' to report at your current location."
-    );
+    // Location Lock remains active (reporting restricted to verified current physical location);
+    // popup notification for this warning is suppressed.
     setSelectedReport(null);
   };
 
