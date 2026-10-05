@@ -2,34 +2,40 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { spotsApi } from "@/lib/api";
-import ContestSpotReportModal from "@/components/ContestSpotReportModal";
 
-export interface CompleteWasteSpotModalProps {
+export interface ContestSpotReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   spot: any;
-  onSuccess?: (updatedSpot: any) => void;
-  onReportSpot?: (spot: any, reportData: { reason: string; details?: string }) => void;
+  onSubmitReport?: (
+    spot: any,
+    reportData: {
+      reason: string;
+      reasonTitle: string;
+      details: string;
+      counterPhoto?: File | null;
+      counterPhotoPreview?: string | null;
+      verificationMode?: "hand" | "code";
+      verificationId?: string | null;
+    }
+  ) => void;
   userRole?: string;
 }
 
-export default function CompleteWasteSpotModal({
+export default function ContestSpotReportModal({
   isOpen,
   onClose,
   spot,
-  onSuccess,
-  onReportSpot,
+  onSubmitReport,
   userRole = "Civilian",
-}: CompleteWasteSpotModalProps) {
-  // Report Spot / Issue Modal State
-  const [isReportIssueOpen, setIsReportIssueOpen] = useState<boolean>(false);
-  const [reportReason, setReportReason] = useState<string>("fake_or_ai");
-  const [reportDetails, setReportDetails] = useState<string>("");
-  const [isSubmittingReport, setIsSubmittingReport] = useState<boolean>(false);
-  const [reportError, setReportError] = useState<string | null>(null);
-  const [reportSuccess, setReportSuccess] = useState<string | null>(null);
+}: ContestSpotReportModalProps) {
+  // 1. Objection Reason State
+  const [selectedReason, setSelectedReason] = useState<string>("fake_or_ai");
 
-  // Verification Mode Tab State ("hand" gesture or "code")
+  // 2. Detailed Explanation
+  const [explanation, setExplanation] = useState<string>("");
+
+  // 3. Verification Mode Tab State ("hand" gesture or "code")
   const [verificationMode, setVerificationMode] = useState<"hand" | "code">("hand");
 
   // Gesture Verification State
@@ -42,27 +48,24 @@ export default function CompleteWasteSpotModal({
   const [codeId, setCodeId] = useState<string | null>(null);
   const [isLoadingCode, setIsLoadingCode] = useState<boolean>(false);
 
-  // Verification Countdown Expiry State (180s for gesture, 300s for code)
+  // Verification Countdown Expiry State
   const [gestureExpiresAt, setGestureExpiresAt] = useState<number | null>(null);
   const [codeExpiresAt, setCodeExpiresAt] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState<number>(Date.now());
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
-  // Active time left in seconds computed dynamically from current timestamp
+  // Active time left in seconds
   const activeExpiresAt = verificationMode === "hand" ? gestureExpiresAt : codeExpiresAt;
   const timeLeft = activeExpiresAt !== null ? Math.max(0, Math.ceil((activeExpiresAt - currentTime) / 1000)) : null;
 
   // Mode Switch Lock State (max 4 switches per session)
   const [switchCount, setSwitchCount] = useState<number>(0);
 
-  // Refresh Quota State
+  // Refresh Quotas
   const [refreshCountBeforeExpiry, setRefreshCountBeforeExpiry] = useState<number>(0);
   const [refreshCountAfterExpiry, setRefreshCountAfterExpiry] = useState<number>(0);
 
-  // Cleanup Description
-  const [description, setDescription] = useState<string>("");
-
-  // After Photo State & Live Camera State
+  // 4. Live Camera & Counter-Proof Photo State
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
@@ -73,9 +76,52 @@ export default function CompleteWasteSpotModal({
   const [isTorchOn, setIsTorchOn] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [shutterFlash, setShutterFlash] = useState<boolean>(false);
+
+  // Form submitting & notifications
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  const isFetchingGestureRef = useRef<boolean>(false);
+  const isFetchingCodeRef = useRef<boolean>(false);
+
+  // Formatter for MM:SS timer display
+  const formatTimeLeft = (seconds: number | null): string => {
+    if (seconds === null) return "--:--";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
+  // Reset form helper
+  const resetFormState = () => {
+    setSelectedReason("fake_or_ai");
+    setExplanation("");
+    setImageFile(null);
+    setImagePreview(null);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setGestureImageUrl(null);
+    setGestureId(null);
+    setCodeText(null);
+    setCodeId(null);
+    setGestureExpiresAt(null);
+    setCodeExpiresAt(null);
+    setVerificationMode("hand");
+    setRefreshTrigger(0);
+    setSwitchCount(0);
+    setRefreshCountBeforeExpiry(0);
+    setRefreshCountAfterExpiry(0);
+    stopCamera();
+    setCameraError(null);
+    setIsStartingCamera(false);
+    isFetchingGestureRef.current = false;
+    isFetchingCodeRef.current = false;
+  };
 
   // Stop live camera stream
   const stopCamera = () => {
@@ -91,17 +137,6 @@ export default function CompleteWasteSpotModal({
     setIsTorchSupported(false);
     setIsTorchOn(false);
   };
-
-  // Connect stream to video element whenever camera becomes active
-  useEffect(() => {
-    if (isCameraActive && videoRef.current && streamRef.current) {
-      const video = videoRef.current;
-      if (video.srcObject !== streamRef.current) {
-        video.srcObject = streamRef.current;
-      }
-      video.play().catch((err) => console.warn("Video play error:", err));
-    }
-  }, [isCameraActive]);
 
   // Start live camera stream
   const startCamera = async (facing: "environment" | "user" = cameraFacing) => {
@@ -125,7 +160,6 @@ export default function CompleteWasteSpotModal({
           audio: false,
         });
       } catch (err) {
-        // Fallback to generic video if complex constraints fail
         stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: false,
@@ -134,7 +168,6 @@ export default function CompleteWasteSpotModal({
 
       streamRef.current = stream;
 
-      // Check flashlight / torch capability on the current video track
       const track = stream.getVideoTracks()[0];
       const capabilities = track?.getCapabilities ? (track.getCapabilities() as any) : null;
       if (capabilities && "torch" in capabilities) {
@@ -158,9 +191,20 @@ export default function CompleteWasteSpotModal({
       console.warn("Live camera start failed:", err);
       setIsStartingCamera(false);
       setIsCameraActive(false);
-      setCameraError(err?.message || "Could not access live camera. Please allow camera permissions or use fallback.");
+      setCameraError(err?.message || "Could not access live camera. Please allow camera permissions.");
     }
   };
+
+  // Connect stream when camera becomes active
+  useEffect(() => {
+    if (isCameraActive && videoRef.current && streamRef.current) {
+      const video = videoRef.current;
+      if (video.srcObject !== streamRef.current) {
+        video.srcObject = streamRef.current;
+      }
+      video.play().catch((err) => console.warn("Video play error:", err));
+    }
+  }, [isCameraActive]);
 
   // Toggle front/rear camera
   const toggleCameraFacing = () => {
@@ -180,7 +224,7 @@ export default function CompleteWasteSpotModal({
             advanced: [{ torch: nextTorch }],
           });
         } catch (constraintErr) {
-          console.warn("Hardware torch constraint failed (device may use screen illumination):", constraintErr);
+          console.warn("Hardware torch constraint failed:", constraintErr);
         }
       }
       setIsTorchOn(nextTorch);
@@ -190,11 +234,10 @@ export default function CompleteWasteSpotModal({
     }
   };
 
-  // Capture photo snapshot from live video stream
+  // Capture photo snapshot
   const capturePhoto = () => {
     if (!videoRef.current) return;
 
-    // Trigger visual shutter flash and haptic vibration if supported
     setShutterFlash(true);
     if (typeof window !== "undefined" && "vibrate" in navigator) {
       try {
@@ -248,7 +291,7 @@ export default function CompleteWasteSpotModal({
     canvas.toBlob(
       (blob) => {
         if (blob) {
-          const file = new File([blob], `cleanup_spot_capture_${Date.now()}.jpg`, {
+          const file = new File([blob], `counter_proof_capture_${Date.now()}.jpg`, {
             type: "image/jpeg",
           });
           setImageFile(file);
@@ -263,86 +306,46 @@ export default function CompleteWasteSpotModal({
     );
   };
 
-  // Auto-stop camera on modal close and unmount
+  // Reset state on close
   useEffect(() => {
     if (!isOpen) {
-      stopCamera();
+      resetFormState();
     }
   }, [isOpen]);
 
+  // Countdown Timer Effect
   useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
+    if (!isOpen) return;
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isOpen]);
 
-  // Form State
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  const isFetchingGestureRef = useRef<boolean>(false);
-  const isFetchingCodeRef = useRef<boolean>(false);
-
-  // Formatter for MM:SS timer display
-  const formatTimeLeft = (seconds: number | null): string => {
-    if (seconds === null) return "--:--";
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  };
-
-  // Reset form helper
-  const resetFormState = () => {
-    setDescription("");
-    setImageFile(null);
-    setImagePreview(null);
-    setErrorMsg(null);
-    setSuccessMsg(null);
-    setGestureImageUrl(null);
-    setGestureId(null);
-    setCodeText(null);
-    setCodeId(null);
-    setGestureExpiresAt(null);
-    setCodeExpiresAt(null);
-    setVerificationMode("hand");
-    setRefreshTrigger(0);
-    setSwitchCount(0);
-    setRefreshCountBeforeExpiry(0);
-    setRefreshCountAfterExpiry(0);
-    stopCamera();
-    setCameraError(null);
-    setIsStartingCamera(false);
-    isFetchingGestureRef.current = false;
-    isFetchingCodeRef.current = false;
-  };
-
-  // Mode Switch Handler
+  // Mode switch handler
   const handleSelectMode = (newMode: "hand" | "code") => {
     if (newMode === verificationMode) return;
-
     if (switchCount >= 4) {
       setErrorMsg("Maximum verification mode switches reached (4/4). Mode selection is locked.");
       return;
     }
-
     setSwitchCount((prev) => prev + 1);
     setVerificationMode(newMode);
     setCurrentTime(Date.now());
     setErrorMsg(null);
   };
 
-  // Refresh Verification handler
+  // Refresh handler
   const handleRefreshVerification = () => {
     if (timeLeft === 0) {
       if (refreshCountAfterExpiry >= 2) {
-        setErrorMsg("Maximum post-expiry refreshes reached (2/2). Please reopen the modal to restart verification.");
+        setErrorMsg("Maximum post-expiry refreshes reached (2/2). Please reopen to restart.");
         return;
       }
       setRefreshCountAfterExpiry((prev) => prev + 1);
     } else {
       if (refreshCountBeforeExpiry >= 3) {
-        setErrorMsg("Maximum pre-expiry refreshes reached (3/3). Please wait for timer to expire or submit resolution.");
+        setErrorMsg("Maximum pre-expiry refreshes reached (3/3). Please wait for timer to expire.");
         return;
       }
       setRefreshCountBeforeExpiry((prev) => prev + 1);
@@ -358,31 +361,12 @@ export default function CompleteWasteSpotModal({
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  // Countdown Timer Effect
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const interval = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isOpen]);
-
-  // Reset state on close
-  useEffect(() => {
-    if (!isOpen) {
-      resetFormState();
-    }
-  }, [isOpen]);
-
-  // Coordinates & target ID helper
+  // Fetch Gesture Verification when mode is "hand"
   const targetSpotId = spot?._id || spot?.id;
   const spotCoordinates: [number, number] = spot?.coordinates?.length === 2
-    ? [spot.coordinates[1], spot.coordinates[0]] // [lat, lng]
+    ? [spot.coordinates[1], spot.coordinates[0]]
     : [11.7284, 76.2841];
 
-  // Fetch Gesture Verification when mode is "hand"
   useEffect(() => {
     if (!isOpen || verificationMode !== "hand") return;
     if (gestureId || isFetchingGestureRef.current) return;
@@ -395,22 +379,20 @@ export default function CompleteWasteSpotModal({
         const res = await spotsApi.getRandomGestureVerification({
           spotId: targetSpotId,
           markspotid: targetSpotId,
-          coordinates: [spotCoordinates[1], spotCoordinates[0]], // [lng, lat]
-          action: "complete",
+          coordinates: [spotCoordinates[1], spotCoordinates[0]],
+          action: "contest",
         });
         if (isMounted && res && res.success) {
           const imgUrl = (res as any).imageUrl || (res as any).data?.imageUrl;
           const imgId = (res as any).imageId || (res as any).data?.imageId;
           if (imgUrl) setGestureImageUrl(imgUrl);
           if (imgId) setGestureId(imgId);
-          setGestureExpiresAt(Date.now() + 180 * 1000); // 3 minutes for loaded gesture
+          setGestureExpiresAt(Date.now() + 180 * 1000);
         }
       } catch (err) {
-        console.error("Failed to fetch completion gesture verification:", err);
+        console.error("Failed to fetch contest gesture verification:", err);
       } finally {
-        if (isMounted) {
-          setIsLoadingGesture(false);
-        }
+        if (isMounted) setIsLoadingGesture(false);
         isFetchingGestureRef.current = false;
       }
     };
@@ -434,22 +416,20 @@ export default function CompleteWasteSpotModal({
         const res = await spotsApi.getRandomCodeVerification({
           spotId: targetSpotId,
           markspotid: targetSpotId,
-          coordinates: [spotCoordinates[1], spotCoordinates[0]], // [lng, lat]
-          action: "complete",
+          coordinates: [spotCoordinates[1], spotCoordinates[0]],
+          action: "contest",
         });
         if (isMounted && res && res.success) {
           const cVal = (res as any).code || (res as any).data?.code;
           const cId = (res as any).verificationId || (res as any).data?.verificationId;
           if (cVal) setCodeText(cVal);
           if (cId) setCodeId(cId);
-          setCodeExpiresAt(Date.now() + 300 * 1000); // 5 minutes for loaded code
+          setCodeExpiresAt(Date.now() + 300 * 1000);
         }
       } catch (err) {
-        console.error("Failed to fetch completion code verification:", err);
+        console.error("Failed to fetch contest code verification:", err);
       } finally {
-        if (isMounted) {
-          setIsLoadingCode(false);
-        }
+        if (isMounted) setIsLoadingCode(false);
         isFetchingCodeRef.current = false;
       }
     };
@@ -462,223 +442,226 @@ export default function CompleteWasteSpotModal({
 
   if (!isOpen || !spot) return null;
 
-  // Handle file change
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 8 * 1024 * 1024) {
-        setErrorMsg("Image file size must be under 8MB.");
-        return;
-      }
-      setImageFile(file);
-      setErrorMsg(null);
-      const reader = new FileReader();
-      reader.onload = (ev) => setImagePreview(ev.target?.result as string);
-      reader.readAsDataURL(file);
+  const spotIdShort = (spot._id || spot.id || "SW-7741").slice(-6).toUpperCase();
+  const spotCoords = spot.lat && spot.lng
+    ? `${spot.lat.toFixed(4)}° N, ${spot.lng.toFixed(4)}° E`
+    : spot.coordinates && Array.isArray(spot.coordinates)
+    ? `${Number(spot.coordinates[1]).toFixed(4)}° N, ${Number(spot.coordinates[0]).toFixed(4)}° E`
+    : "11.7291° N, 76.2854° E";
+
+  const extractUsername = (val: any): string | null => {
+    if (!val) return null;
+    if (typeof val === "object") {
+      if (val.username) return val.username.startsWith("@") ? val.username : `@${val.username}`;
+      if (val.name) return val.name;
+    } else if (typeof val === "string" && val.trim().length > 0 && !val.match(/^[0-9a-fA-F]{24}$/)) {
+      return val.startsWith("@") ? val : `@${val}`;
     }
+    return null;
   };
 
-  // Handle Form Submit
+  const reporterName =
+    extractUsername(spot.markedBy) ||
+    extractUsername(spot.reportedBy) ||
+    extractUsername(spot.user) ||
+    extractUsername(spot.SpotedUser) ||
+    "Citizen Reporter";
+
+  // Exact 5 non-duplicated reasons matching user specification
+  const objectionReasons = [
+    {
+      id: "fake_or_ai",
+      title: "Fake or AI-Generated Spot",
+      desc: "Photo is fabricated, AI generated, or stock image from internet",
+      icon: "sentiment_dissatisfied",
+      iconColor: "text-[#ba1a1a]",
+      dotColor: "bg-[#ba1a1a]",
+    },
+    {
+      id: "already_cleaned",
+      title: "Already Clean / No Waste Found",
+      desc: "Area is clean; no waste or debris exists at this location",
+      icon: "cleaning_services",
+      iconColor: "text-[#006948]",
+      dotColor: "bg-[#006948]",
+    },
+    {
+      id: "inaccessible",
+      title: "Inaccessible or Hazardous Area",
+      desc: "Private property, gated zone, or physically dangerous site",
+      icon: "block",
+      iconColor: "text-[#ba1a1a]",
+      dotColor: "bg-[#ba1a1a]",
+    },
+    {
+      id: "wrong_location",
+      title: "Incorrect Location / Coordinates",
+      desc: "GPS coordinates or pin do not match the real spot location",
+      icon: "wrong_location",
+      iconColor: "text-[#a33900]",
+      dotColor: "bg-[#a33900]",
+    },
+    {
+      id: "other_spam",
+      title: "Other Policy Violation / Spam",
+      desc: "Duplicate report, spam, or inappropriate content",
+      icon: "report",
+      iconColor: "text-[#ba1a1a]",
+      dotColor: "bg-[#ba1a1a]",
+    },
+  ];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
-
-    const activeVerificationId = verificationMode === "hand" ? gestureId : (codeId || gestureId);
-
-    if (!imageFile) {
-      setErrorMsg("Please upload an after-cleanup photo to verify spot remediation.");
+    if (!selectedReason) {
+      setErrorMsg("Please select an objection reason.");
       return;
     }
-
-    if (!activeVerificationId) {
-      setErrorMsg("Valid liveness verification ID is required. Please wait for verification to load.");
-      return;
-    }
-
-    if (timeLeft !== null && timeLeft <= 0) {
-      setErrorMsg("Verification token has expired (00:00). Please click 'Refresh' to generate a new verification token.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    setErrorMsg(null);
-    setSuccessMsg(null);
 
     try {
-      const formData = new FormData();
-      if (description.trim()) {
-        formData.append("description", description.trim());
+      setIsSubmitting(true);
+      setErrorMsg(null);
+
+      const matchedReason = objectionReasons.find((r) => r.id === selectedReason);
+
+      if (onSubmitReport) {
+        onSubmitReport(spot, {
+          reason: selectedReason,
+          reasonTitle: matchedReason?.title || selectedReason,
+          details: explanation.trim(),
+          counterPhoto: imageFile,
+          counterPhotoPreview: imagePreview,
+          verificationMode: verificationMode,
+          verificationId: verificationMode === "hand" ? gestureId : codeId,
+        });
       }
-      formData.append("imageAfter", imageFile);
 
-      if (activeVerificationId) {
-        formData.append("verificationId", activeVerificationId);
-        formData.append("gestureVerificationId", activeVerificationId);
-        formData.append("gestureImageId", activeVerificationId);
-        formData.append("gestureId", activeVerificationId);
-        formData.append("codeId", activeVerificationId);
-        formData.append("type", verificationMode === "hand" ? "gesture" : "code");
-        formData.append("action", "complete");
-      }
-
-      const res = await spotsApi.completeSpot(spot._id || spot.id, formData);
-
-      if (res && res.success) {
-        setSuccessMsg(res.message || "Cleanup photo uploaded! AI verification in progress...");
-        if (onSuccess) {
-          onSuccess((res as any)?.spot || (res as any)?.data || spot);
-        }
-        setTimeout(() => {
-          setIsSubmitting(false);
-          resetFormState();
-          onClose();
-        }, 1400);
-      } else {
-        setErrorMsg(res?.message || "Failed to complete spot cleanup. Please check your inputs.");
+      setSuccessMsg("Dispute registered! Dossier dispatched to Tier-2 Arbitrators & AI Vision Auditor.");
+      setTimeout(() => {
         setIsSubmitting(false);
-      }
+        onClose();
+      }, 1500);
     } catch (err: any) {
-      console.error("Error submitting spot completion:", err);
-      setErrorMsg(err?.message || "Network error while completing spot.");
+      console.error("Error submitting contest report:", err);
+      setErrorMsg(err?.message || "Failed to submit contest report. Please try again.");
       setIsSubmitting(false);
     }
   };
 
-  // Submit Report / Dispute for this spot (e.g. fake, inaccessible, already clean)
-  const handleReportSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!reportReason) {
-      setReportError("Please select a reason for reporting this spot.");
-      return;
-    }
-
-    try {
-      setIsSubmittingReport(true);
-      setReportError(null);
-
-      const reasonLabels: Record<string, string> = {
-        fake_or_ai: "Fake / AI-Generated Spot",
-        already_clean: "Already Clean / No Waste Found",
-        inaccessible: "Inaccessible / Hazardous Area",
-        wrong_location: "Incorrect Location / Wrong Coordinates",
-        other: "Other Policy Violation / Spam",
-      };
-
-      const selectedReasonLabel = reasonLabels[reportReason] || reportReason;
-
-      if (onReportSpot) {
-        onReportSpot(spot, {
-          reason: selectedReasonLabel,
-          details: reportDetails.trim(),
-        });
-      }
-
-      setReportSuccess("Report submitted successfully. Our municipal moderators and AI audit team have been notified.");
-      setTimeout(() => {
-        setIsSubmittingReport(false);
-        setIsReportIssueOpen(false);
-        setReportSuccess(null);
-        setReportDetails("");
-        onClose();
-      }, 1500);
-    } catch (err: any) {
-      console.error("Error reporting spot issue:", err);
-      setReportError(err?.message || "Failed to submit spot report. Please try again.");
-      setIsSubmittingReport(false);
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-50 bg-[#131b2e]/70 backdrop-blur-md flex flex-col justify-end sm:justify-center items-center p-0 sm:p-4 overflow-y-auto animate-enter">
+    <div className="fixed inset-0 z-60 bg-[#131b2e]/75 backdrop-blur-md flex flex-col justify-end sm:justify-center items-center p-0 sm:p-4 overflow-y-auto animate-enter">
       {/* Modal Container */}
-      <div className="w-full max-w-xl bg-[#faf8ff] text-[#131b2e] rounded-t-3xl sm:rounded-3xl shadow-2xl border border-[#dae2fd] overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh]">
+      <div className="w-full max-w-lg bg-[#faf8ff] text-[#131b2e] rounded-t-3xl sm:rounded-3xl shadow-2xl border border-[#dae2fd] overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[90vh]">
         {/* Header Bar */}
-        <header className="sticky top-0 z-30 bg-[#faf8ff]/90 backdrop-blur-md border-b border-[#dae2fd] px-4 py-3 flex items-center justify-between gap-3 shrink-0">
+        <header className="sticky top-0 z-30 bg-[#faf8ff]/95 backdrop-blur-xl border-b border-[#dae2fd] px-4 py-3 flex items-center justify-between gap-2 shrink-0">
           <button
             type="button"
-            aria-label="Close modal"
+            aria-label="Go Back"
             onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center rounded-xl text-[#3d4a42] hover:text-[#131b2e] hover:bg-[#e2e7ff] transition-colors cursor-pointer"
+            className="w-10 h-10 -ml-1 flex items-center justify-center rounded-xl text-[#131b2e] hover:bg-[#eaedff] active:bg-[#e2e7ff] transition-colors cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[20px]">arrow_back_ios_new</span>
+            <span className="material-symbols-outlined text-[22px]">arrow_back</span>
           </button>
 
-          <div className="flex-1 flex flex-col items-center justify-center min-w-0">
-            <h2 className="text-base font-['Hanken_Grotesk'] font-bold text-[#131b2e] truncate max-w-[240px] text-center tracking-tight">
-              Complete Spot Cleanup
-            </h2>
-            <span className="text-[11px] font-['JetBrains_Mono'] text-[#006948] font-bold uppercase tracking-wider">
-              Verification &amp; Remediation Proof
-            </span>
+          <div className="flex-1 px-2 text-center min-w-0">
+            <h1 className="text-base font-['Hanken_Grotesk'] font-bold tracking-tight text-[#131b2e] truncate">
+              Contest Spot Report
+            </h1>
           </div>
 
-          <div className="w-9 h-9 rounded-full bg-[#006948] text-white flex items-center justify-center shrink-0 shadow-xs">
-            <span className="material-symbols-outlined text-[18px]">task_alt</span>
-          </div>
+          <div className="w-10 h-10 -mr-1 shrink-0" />
         </header>
 
         {/* Scrollable Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           {errorMsg && (
-            <div className="bg-[#ffdad6] text-[#93000a] p-3 rounded-2xl border border-[#ffb4ab] text-xs flex items-center gap-2 font-medium">
-              <span className="material-symbols-outlined text-[18px]">error</span>
+            <div className="bg-[#ffdad6] text-[#93000a] p-3 rounded-xl border border-[#ffb4ab] text-xs flex items-center gap-2 font-medium">
+              <span className="material-symbols-outlined text-[16px]">error</span>
               <span>{errorMsg}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="bg-[#85f8c4]/40 text-[#005137] p-3 rounded-2xl border border-[#006948]/30 text-xs flex items-center gap-2 font-bold">
-              <span className="material-symbols-outlined text-[18px]">check_circle</span>
+            <div className="bg-[#85f8c4]/40 text-[#005137] p-3 rounded-xl border border-[#006948]/30 text-xs flex items-center gap-2 font-bold animate-pulse">
+              <span className="material-symbols-outlined text-[16px]">check_circle</span>
               <span>{successMsg}</span>
             </div>
           )}
 
-          {/* Spot Before Reference Card */}
-          {spot.image && (
-            <div className="bg-[#f2f3ff] rounded-2xl p-3 border border-[#dae2fd]/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-[#bccac0]/40 bg-[#283044]">
-                  <img
-                    src={spot.image}
-                    alt="Original spot"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute top-1 left-1 bg-black/75 backdrop-blur-xs text-rose-300 font-['JetBrains_Mono'] text-[8px] font-bold px-1.5 py-0.5 rounded-sm border border-rose-500/30">
-                    BEFORE
-                  </div>
+          {/* Status Context Ribbon */}
+          <div className="flex items-center justify-between bg-[#e2e7ff] rounded-xl px-3 py-2 text-[#3d4a42]">
+            <div className="flex items-center space-x-2">
+              <span className="material-symbols-outlined text-[#a33900] text-sm">gavel</span>
+              <span className="font-['JetBrains_Mono'] text-xs font-semibold tracking-wider text-[#a33900] uppercase">
+                Dispute Arbitration Protocol
+              </span>
+            </div>
+            <span className="inline-flex items-center text-xs font-['JetBrains_Mono'] text-[#131b2e] bg-[#faf8ff] px-2 py-0.5 rounded-full shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#a33900] mr-1.5 animate-pulse"></span>
+              T1-LOCK
+            </span>
+          </div>
+
+          {/* Section 1: Assigned Spot Summary Card */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#dae2fd]/70 space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="inline-flex items-center gap-1.5 bg-[#85f8c4] text-[#002114] px-2 py-0.5 rounded-full font-['JetBrains_Mono'] text-[11px] font-bold mb-1">
+                  <span className="material-symbols-outlined text-[13px]">verified_user</span>
+                  Assigned Target Spot
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="bg-[#006948]/10 text-[#006948] text-[10px] font-['JetBrains_Mono'] font-bold px-2 py-0.5 rounded-md">
-                      {spot.category || spot.wasteCategory || "Waste Spot"}
-                    </span>
-                    <span className="text-[10px] text-[#535f70] font-['JetBrains_Mono']">
-                      ID: {(spot._id || spot.id || "").slice(-6)}
-                    </span>
+                <h2 className="text-sm sm:text-base font-['Hanken_Grotesk'] font-bold text-[#131b2e] truncate">
+                  Spot #{spotIdShort} • {spot.title || spot.address || "Reported Location"}
+                </h2>
+              </div>
+              <span className="material-symbols-outlined text-[#6d7a72] text-xl shrink-0">near_me</span>
+            </div>
+
+            {/* Telemetry Strip */}
+            <div className="bg-[#f2f3ff] rounded-xl p-2.5 flex items-center justify-between font-['JetBrains_Mono'] text-[11px] text-[#3d4a42] border border-[#dae2fd]/50">
+              <div className="flex items-center gap-1.5 truncate">
+                <span className="material-symbols-outlined text-[#006948] text-sm">satellite_alt</span>
+                <span className="truncate">{spotCoords}</span>
+              </div>
+              <span className="text-[#006948] font-bold shrink-0">±2.8m (RTK GNSS)</span>
+            </div>
+
+            {/* Civilian Submission Preview */}
+            <div className="flex gap-3 items-center bg-[#f2f3ff] rounded-xl p-2.5 border border-[#dae2fd]/50">
+              <div className="relative w-18 h-18 sm:w-20 sm:h-20 rounded-xl overflow-hidden shrink-0 shadow-2xs border border-[#bccac0]/40 bg-[#283044]">
+                {spot.image ? (
+                  <img
+                    alt="Civilian reported garbage spot preview"
+                    className="w-full h-full object-cover"
+                    src={spot.image}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-slate-400">
+                    <span className="material-symbols-outlined text-2xl">image</span>
                   </div>
-                  <h4 className="text-xs font-['Hanken_Grotesk'] font-bold text-[#131b2e] truncate mt-1">
-                    {spot.title || spot.address || "Reported Location"}
-                  </h4>
-                  <p className="text-[11px] text-[#3d4a42] line-clamp-1 mt-0.5">
-                    {spot.description || "Reported waste area awaiting cleanup resolution"}
-                  </p>
+                )}
+                <span className="absolute bottom-0 inset-x-0 bg-[#283044]/85 backdrop-blur-xs text-[8px] font-['JetBrains_Mono'] text-[#eef0ff] font-bold text-center py-0.5 uppercase tracking-tight">
+                  Citizen Evid.
+                </span>
+              </div>
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="inline-block bg-[#ffdbce] text-[#370e00] text-[10px] font-['JetBrains_Mono'] font-bold px-2 py-0.5 rounded">
+                  CIVILIAN REPORTED PHOTO
+                </div>
+                <p className="text-xs font-['Inter'] text-[#131b2e] truncate font-medium">
+                  {spot.description || "Flagged site photo under contestation"}
+                </p>
+                <div className="flex items-center text-[11px] text-[#3d4a42] font-['JetBrains_Mono'] gap-1">
+                  <span className="material-symbols-outlined text-xs text-[#6d7a72]">schedule</span>
+                  <span className="truncate">
+                    Reported by <strong className="text-[#131b2e] font-semibold">{reporterName}</strong>
+                  </span>
                 </div>
               </div>
-
-              {/* Quick Report Button on Spot Card */}
-              <button
-                type="button"
-                onClick={() => setIsReportIssueOpen(true)}
-                className="self-start sm:self-center shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-[#ba1a1a] border border-rose-200/90 text-[11px] font-['Hanken_Grotesk'] font-bold transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
-                title="Report this spot as fake, inaccessible, or already clean"
-              >
-                <span className="material-symbols-outlined text-[14px]">flag</span>
-                <span>Report Issue</span>
-              </button>
             </div>
-          )}
+          </div>
 
-          {/* 1. Live Camera / Photo Capture Viewfinder (After Photo) */}
+          {/* Section 2: 1. Live Camera / Photo Capture Viewfinder (Image 2 Design) */}
           <div className="flex flex-col gap-2">
             <div
               className={`relative w-full ${
@@ -712,12 +695,12 @@ export default function CompleteWasteSpotModal({
               {!isCameraActive && imagePreview && (
                 <img
                   src={imagePreview}
-                  alt="Remediated spot cleanup preview"
+                  alt="Counter-proof capture preview"
                   className="w-full h-full object-cover"
                 />
               )}
 
-              {/* State B: Idle Viewfinder (Simple Light Call-to-Action) */}
+              {/* State B: Idle Viewfinder (Exact Image 2 Style) */}
               {!isCameraActive && !imagePreview && (
                 <div className="flex flex-col items-center justify-center p-6 text-center text-[#131b2e] gap-3 bg-[#f2f3ff] w-full h-full">
                   <div className="w-14 h-14 rounded-full bg-[#006948]/10 text-[#006948] flex items-center justify-center">
@@ -762,23 +745,23 @@ export default function CompleteWasteSpotModal({
                     </span>
 
                     <div className="flex items-center gap-2">
-                      {/* Flashlight / Torch Toggle */}
-                      <button
-                        type="button"
-                        onClick={toggleTorch}
-                        className={`w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-sm transition-all cursor-pointer active:scale-90 border border-white/10 ${
-                          isTorchOn
-                            ? "bg-amber-400 text-slate-900 shadow-md shadow-amber-400/40"
-                            : "bg-black/50 hover:bg-black/70 text-white"
-                        }`}
-                        title={isTorchOn ? "Flashlight ON (Click to turn off)" : "Flashlight OFF (Click to turn on)"}
-                      >
-                        <span className="material-symbols-outlined text-[18px]">
-                          {isTorchOn ? "flashlight_on" : "flashlight_off"}
-                        </span>
-                      </button>
+                      {isTorchSupported && (
+                        <button
+                          type="button"
+                          onClick={toggleTorch}
+                          className={`w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-sm transition-all cursor-pointer active:scale-90 border border-white/10 ${
+                            isTorchOn
+                              ? "bg-amber-400 text-slate-900 shadow-md shadow-amber-400/40"
+                              : "bg-black/50 hover:bg-black/70 text-white"
+                          }`}
+                          title={isTorchOn ? "Flashlight ON" : "Flashlight OFF"}
+                        >
+                          <span className="material-symbols-outlined text-[18px]">
+                            {isTorchOn ? "flashlight_on" : "flashlight_off"}
+                          </span>
+                        </button>
+                      )}
 
-                      {/* Aspect Ratio Toggle (9:16 / 4:3) */}
                       <button
                         type="button"
                         onClick={() => setCameraRatio((prev) => (prev === "9:16" ? "4:3" : "9:16"))}
@@ -789,7 +772,6 @@ export default function CompleteWasteSpotModal({
                         <span>{cameraRatio}</span>
                       </button>
 
-                      {/* Flip Camera Button */}
                       <button
                         type="button"
                         onClick={toggleCameraFacing}
@@ -811,7 +793,6 @@ export default function CompleteWasteSpotModal({
                       Cancel
                     </button>
 
-                    {/* Clean Native Shutter Button */}
                     <button
                       type="button"
                       onClick={capturePhoto}
@@ -861,7 +842,7 @@ export default function CompleteWasteSpotModal({
             </div>
           </div>
 
-          {/* 2. Liveness Verification Card */}
+          {/* Section 3: 2. Liveness Verification Card (Exact Image 2 Style) */}
           <div className="bg-white rounded-2xl p-4 shadow-xs border border-[#bccac0]/30 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="inline-flex items-center gap-1.5 text-[#006948] text-[11px] font-['JetBrains_Mono'] font-bold uppercase tracking-wider">
@@ -960,7 +941,7 @@ export default function CompleteWasteSpotModal({
                         gestureImageUrl ||
                         "https://res.cloudinary.com/pwtmlbit/image/upload/v1789486427/gestures_Hand_holding_three_fingers_up_20260915102611.png"
                       }
-                      alt="Instructional hand gesture for optical verification"
+                      alt="Pose verification gesture"
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.currentTarget.src =
@@ -991,7 +972,7 @@ export default function CompleteWasteSpotModal({
                         ⏱ {formatTimeLeft(timeLeft)}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#3d4a42] font-['Inter'] mt-1 leading-snug">
+                    <p className="text-[11px] text-[#3d4a42] font-['Inter'] leading-snug mt-1">
                       Hold your hand in the camera viewfinder showing this exact gesture above the cleaned area.
                     </p>
                   </div>
@@ -1001,7 +982,7 @@ export default function CompleteWasteSpotModal({
                       type="button"
                       onClick={handleRefreshVerification}
                       disabled={refreshCountAfterExpiry >= 2}
-                      className={`mt-1 text-[11px] font-['Hanken_Grotesk'] font-bold flex items-center gap-1 ${
+                      className={`text-[11px] font-['Hanken_Grotesk'] font-bold flex items-center gap-1 ${
                         refreshCountAfterExpiry >= 2
                           ? "text-gray-400 cursor-not-allowed"
                           : "text-[#ba1a1a] hover:underline cursor-pointer"
@@ -1009,11 +990,11 @@ export default function CompleteWasteSpotModal({
                     >
                       <span className="material-symbols-outlined text-[14px]">refresh</span>
                       <span>
-                        Gesture expired. {refreshCountAfterExpiry >= 2 ? "No refreshes left." : "Click to refresh token."}
+                        Gesture expired. {refreshCountAfterExpiry >= 2 ? "No refreshes left." : "Click to refresh."}
                       </span>
                     </button>
                   ) : (
-                    <div className="flex items-center gap-1.5 text-[10px] font-['JetBrains_Mono'] text-[#006948]">
+                    <div className="flex items-center gap-1 text-[10px] font-['JetBrains_Mono'] text-[#006948]">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#006948] animate-pulse"></span>
                       <span>
                         {gestureId ? `Token: ${gestureId.slice(-6)}` : "Live Verification Active"}
@@ -1096,100 +1077,130 @@ export default function CompleteWasteSpotModal({
             )}
           </div>
 
-          {/* 3. Remediation & Cleanup Notes */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-['Hanken_Grotesk'] font-bold text-[#131b2e] flex items-center justify-between">
-              <span>Cleanup Notes &amp; Methods</span>
-              <span className="text-[10px] font-['JetBrains_Mono'] text-[#535f70] font-normal">Optional</span>
-            </label>
-            <textarea
-              rows={2}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe cleanup efforts, tools used, waste bags collected, recycling dispatch..."
-              className="w-full px-3.5 py-2.5 rounded-xl border border-[#bccac0]/40 text-xs font-['Inter'] focus:outline-none focus:ring-2 focus:ring-[#006948] bg-white resize-none text-[#131b2e] placeholder-[#737f77]"
-            />
+          {/* Section 4: Objection Reason Selector */}
+          <div className="space-y-2">
+            <div className="px-1">
+              <h3 className="text-xs font-['JetBrains_Mono'] uppercase tracking-wider font-bold text-[#131b2e]">
+                Select Reason <span className="text-rose-500">*</span>
+              </h3>
+              <p className="text-[11px] text-[#3d4a42] font-['Inter']">
+                Required classification for AI-Admin dispute arbitration
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {objectionReasons.map((reason) => {
+                const isSelected = selectedReason === reason.id;
+                return (
+                  <label
+                    key={reason.id}
+                    onClick={() => setSelectedReason(reason.id)}
+                    className={`flex items-start gap-3 p-3.5 rounded-2xl cursor-pointer transition-all border ${
+                      isSelected
+                        ? "bg-rose-50/80 border-[#ba1a1a] shadow-xs ring-1 ring-[#ba1a1a]/30"
+                        : "bg-white border-[#bccac0]/40 hover:bg-[#f2f3ff] hover:border-[#bccac0]"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="objection_reason"
+                      value={reason.id}
+                      checked={isSelected}
+                      onChange={() => setSelectedReason(reason.id)}
+                      className="hidden"
+                    />
+                    <div
+                      className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 border ${
+                        isSelected ? "bg-white border-[#ba1a1a]" : "bg-[#eaedff] border-[#bccac0]"
+                      }`}
+                    >
+                      {isSelected && <span className={`w-2.5 h-2.5 rounded-full ${reason.dotColor}`}></span>}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm font-['Hanken_Grotesk'] font-bold text-[#131b2e]">
+                          {reason.title}
+                        </span>
+                        <span className={`material-symbols-outlined text-lg ${reason.iconColor}`}>
+                          {reason.icon}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#3d4a42] font-['Inter'] mt-0.5 leading-snug">
+                        {reason.desc}
+                      </p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
           </div>
 
-          {/* 4. Impact & Reward Badge */}
-          <div className="bg-[#85f8c4]/20 rounded-xl p-3 border border-[#006948]/20 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#006948] text-white flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-[18px]">eco</span>
-            </div>
-            <div className="text-xs">
-              <span className="font-['Hanken_Grotesk'] font-bold text-[#005137] block">
-                Civic Resolution Reward
+          {/* Section 5: Detailed Explanation Textarea */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between px-1">
+              <label
+                htmlFor="explanationText"
+                className="text-xs font-['JetBrains_Mono'] uppercase tracking-wider font-bold text-[#131b2e]"
+              >
+                Detailed Explanation{" "}
+                <span className="text-[#3d4a42] font-normal lowercase">(optional)</span>
+              </label>
+              <span className="font-['JetBrains_Mono'] text-xs text-[#3d4a42]">
+                {explanation.length} / 400
               </span>
-              <span className="text-[11px] font-['Inter'] text-[#3d4a42]">
-                Earn <strong>+100 Civic XP</strong> and boost your municipal leaderboard rank upon completion.
-              </span>
             </div>
+            <div className="relative bg-white rounded-2xl p-3 shadow-xs border border-[#bccac0]/40">
+              <textarea
+                id="explanationText"
+                rows={3}
+                maxLength={400}
+                value={explanation}
+                onChange={(e) => setExplanation(e.target.value)}
+                placeholder="Describe why this report is invalid (e.g., area is a clean park, old photograph used, wall painted yesterday)..."
+                className="w-full bg-transparent text-xs sm:text-sm font-['Inter'] text-[#131b2e] placeholder:text-[#6d7a72] focus:outline-none resize-none"
+              />
+            </div>
+          </div>
+
+          {/* Section 6: Accountability Warning Banner */}
+          <div className="bg-[#ffdbce]/40 rounded-2xl p-3.5 flex items-start gap-3 border border-[#cc4900]/20">
+            <div className="w-7 h-7 rounded-full bg-[#cc4900] text-white flex items-center justify-center shrink-0 mt-0.5">
+              <span className="material-symbols-outlined text-base">shield_with_heart</span>
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs font-['Hanken_Grotesk'] font-bold text-[#131b2e] uppercase tracking-wide block">
+                Coordinator Accountability Guardrail
+              </span>
+              <p className="text-xs font-['Inter'] text-[#3d4a42] leading-relaxed">
+                Submitting bad-faith objections to avoid cleanup duties will degrade your{" "}
+                <strong className="text-[#131b2e]">Coordinator Trust Rating (-15%)</strong> and trigger a slash penalty on locked civic karma.
+              </p>
+            </div>
+          </div>
+
+          {/* Section 7: Bottom Action Area */}
+          <div className="pt-2 pb-2">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-3.5 px-4 rounded-xl bg-[#ba1a1a] hover:bg-[#93000a] text-white font-['Hanken_Grotesk'] font-bold text-sm tracking-wide flex items-center justify-center gap-2 shadow-md active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Registering Dispute...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-lg">gavel</span>
+                  <span>Register Report Against Marked User</span>
+                </>
+              )}
+            </button>
           </div>
         </form>
-
-        {/* Footer Actions */}
-        <footer className="sticky bottom-0 z-30 bg-[#faf8ff]/95 backdrop-blur-md border-t border-[#dae2fd] p-4 flex gap-2.5 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="py-3 px-4 rounded-xl border border-[#bccac0] text-[#131b2e] font-['Hanken_Grotesk'] font-bold text-xs hover:bg-[#e2e7ff] transition-colors cursor-pointer disabled:opacity-50"
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsReportIssueOpen(true)}
-            disabled={isSubmitting}
-            className="py-3 px-3.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-[#ba1a1a] font-['Hanken_Grotesk'] font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 active:scale-95"
-            title="Report this spot as fake, inaccessible, or already clean"
-          >
-            <span className="material-symbols-outlined text-[16px]">flag</span>
-            <span>Report Spot</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting || !imageFile || (timeLeft !== null && timeLeft <= 0)}
-            className="flex-1 py-3 px-4 rounded-xl bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] font-bold text-xs shadow-md disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Verifying Cleanup...</span>
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-[16px]">task_alt</span>
-                <span>Mark as Completed</span>
-              </>
-            )}
-          </button>
-        </footer>
       </div>
-
-      {/* 5. CONTEST / REPORT SPOT MODAL (GOOGLE STITCH SPECIFICATION) */}
-      <ContestSpotReportModal
-        isOpen={isReportIssueOpen}
-        onClose={() => setIsReportIssueOpen(false)}
-        spot={spot}
-        userRole={userRole}
-        onSubmitReport={(reportedSpot, reportData) => {
-          setIsReportIssueOpen(false);
-          if (onReportSpot) {
-            onReportSpot(reportedSpot, {
-              reason: reportData.reasonTitle || reportData.reason,
-              details: reportData.details,
-            });
-          }
-          setSuccessMsg("Dispute registered! Dossier dispatched to AI Vision Auditor.");
-          setTimeout(() => {
-            onClose();
-          }, 1200);
-        }}
-      />
     </div>
   );
 }

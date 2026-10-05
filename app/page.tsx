@@ -2801,6 +2801,16 @@ export default function HomePage() {
         }}
         spot={selectedReport}
         userRole={userProfile?.role || "Civilian"}
+        onReportSpot={(reportedSpot, reportData) => {
+          setIsCompleteModalOpen(false);
+          setAiNotice({
+            type: "success",
+            message: `🚩 Spot reported (${reportData.reason}). Municipal moderators & AI auditors will review.`,
+          });
+          setTimeout(() => {
+            setAiNotice(null);
+          }, 8000);
+        }}
         onSuccess={(returnedSpot) => {
           if (!selectedReport) return;
           setIsCompleteModalOpen(false);
