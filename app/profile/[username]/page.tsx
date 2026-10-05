@@ -9,6 +9,7 @@ import HoldButton from "@/components/HoldButton";
 import SplashLoader from "@/components/SplashLoader";
 import SafaiWatchLogo from "@/components/SafaiWatchLogo";
 import NotificationPopup from "@/components/NotificationPopup";
+import BottomNav from "@/components/BottomNav";
 
 interface PageProps {
   params: Promise<{ username?: string; id?: string }>;
@@ -2150,45 +2151,7 @@ export default function ProfilePage({ params }: PageProps) {
       )}
 
       {/* 10. MOBILE BOTTOM NAVIGATION BAR */}
-      <nav className="md:hidden fixed bottom-0 w-full z-50 flex justify-around items-center px-4 py-2 bg-[#eaedff]/90 dark:bg-[#eaedff]/90 backdrop-blur-md rounded-t-2xl border-t border-[#dae2fd] shadow-lg">
-        <Link
-          className="flex flex-col items-center justify-center text-[#3d4a42] hover:text-[#006948] transition-colors w-16"
-          href="/"
-        >
-          <span className="material-symbols-outlined">map</span>
-          <span className="font-['JetBrains_Mono'] text-[10px] font-semibold mt-0.5">Map</span>
-        </Link>
-        <Link
-          className="flex flex-col items-center justify-center text-[#3d4a42] hover:text-[#006948] transition-colors w-16"
-          href="/feed"
-        >
-          <span className="material-symbols-outlined">rss_feed</span>
-          <span className="font-['JetBrains_Mono'] text-[10px] font-semibold mt-0.5">Feed</span>
-        </Link>
-        <Link
-          className="flex flex-col items-center justify-center text-[#3d4a42] hover:text-[#006948] transition-colors w-16"
-          href="/"
-        >
-          <span className="material-symbols-outlined text-2xl">add_circle</span>
-          <span className="font-['JetBrains_Mono'] text-[10px] font-semibold mt-0.5">Report</span>
-        </Link>
-        <Link
-          className="flex flex-col items-center justify-center text-[#3d4a42] hover:text-[#006948] transition-colors w-16"
-          href="/reward"
-        >
-          <span className="material-symbols-outlined">military_tech</span>
-          <span className="font-['JetBrains_Mono'] text-[10px] font-semibold mt-0.5">Rewards</span>
-        </Link>
-        <Link
-          className="flex flex-col items-center justify-center bg-[#00855d] text-white rounded-xl px-3 py-1.5 w-16 shadow-xs"
-          href="/profile"
-        >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-            person
-          </span>
-          <span className="font-['JetBrains_Mono'] text-[10px] font-bold mt-0.5">Profile</span>
-        </Link>
-      </nav>
+      <BottomNav userRole={profileData?.user?.role} />
     </div>
   );
 }

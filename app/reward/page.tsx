@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { rewardsApi, authApi, profileApi } from "@/lib/api";
 import NotificationPopup from "@/components/NotificationPopup";
+import BottomNav from "@/components/BottomNav";
 
 interface RewardItem {
   id: string;
@@ -850,45 +851,7 @@ export default function RewardPage() {
       )}
 
       {/* 8. MOBILE BOTTOM NAVIGATION BAR */}
-      <nav className="md:hidden fixed bottom-0 w-full z-50 flex justify-around items-center px-4 py-2 bg-[#faf8ff]/90 backdrop-blur-md rounded-t-2xl border-t border-[#dae2fd] shadow-lg">
-        <Link
-          className="flex flex-col items-center justify-center text-[#3d4a42] hover:text-[#006948] transition-colors w-16"
-          href="/"
-        >
-          <span className="material-symbols-outlined">map</span>
-          <span className="font-['JetBrains_Mono'] text-[10px] font-semibold mt-0.5">Map</span>
-        </Link>
-        <Link
-          className="flex flex-col items-center justify-center text-[#3d4a42] hover:text-[#006948] transition-colors w-16"
-          href="/feed"
-        >
-          <span className="material-symbols-outlined">rss_feed</span>
-          <span className="font-['JetBrains_Mono'] text-[10px] font-semibold mt-0.5">Feed</span>
-        </Link>
-        <Link
-          className="flex flex-col items-center justify-center text-[#3d4a42] hover:text-[#006948] transition-colors w-16"
-          href="/"
-        >
-          <span className="material-symbols-outlined text-2xl">add_circle</span>
-          <span className="font-['JetBrains_Mono'] text-[10px] font-semibold mt-0.5">Report</span>
-        </Link>
-        <Link
-          className="flex flex-col items-center justify-center bg-[#00855d] text-white rounded-xl px-3 py-1.5 w-16 shadow-xs"
-          href="/reward"
-        >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-            military_tech
-          </span>
-          <span className="font-['JetBrains_Mono'] text-[10px] font-bold mt-0.5">Rewards</span>
-        </Link>
-        <Link
-          className="flex flex-col items-center justify-center text-[#3d4a42] hover:text-[#006948] transition-colors w-16"
-          href="/profile"
-        >
-          <span className="material-symbols-outlined">person</span>
-          <span className="font-['JetBrains_Mono'] text-[10px] font-semibold mt-0.5">Profile</span>
-        </Link>
-      </nav>
+      <BottomNav />
     </div>
   );
 }

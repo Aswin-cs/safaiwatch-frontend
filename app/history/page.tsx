@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { profileApi, authApi } from "@/lib/api";
+import BottomNav from "@/components/BottomNav";
 
 interface HistoryItem {
   id: string;
@@ -739,6 +740,9 @@ export default function HistoryPage() {
           </div>
         </div>
       )}
+
+      {/* MOBILE BOTTOM NAVIGATION BAR */}
+      <BottomNav userRole={userRole} />
     </div>
   );
 }

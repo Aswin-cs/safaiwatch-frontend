@@ -10,6 +10,7 @@ import SplashLoader from "@/components/SplashLoader";
 import SafaiWatchLogo from "@/components/SafaiWatchLogo";
 import UnauthenticatedIntro from "@/components/landing/UnauthenticatedIntro";
 import NotificationPopup from "@/components/NotificationPopup";
+import BottomNav from "@/components/BottomNav";
 import { profileApi, authApi, spotsApi } from "@/lib/api";
 import { socket } from "@/lib/socket";
 import {
@@ -45,7 +46,6 @@ import {
   AlertTriangle,
   Clock,
   Activity,
-  Radio,
   SlidersHorizontal,
   ChevronDown,
   LocateFixed,
@@ -738,6 +738,19 @@ export default function HomePage() {
     }
   };
 
+  // Auto-launch spot reporting modal if navigated to /?action=report
+  useEffect(() => {
+    if (typeof window !== "undefined" && isAuthenticated) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("action") === "report") {
+        setTimeout(() => {
+          handleStartReportSpotAtCurrentLocation();
+          window.history.replaceState({}, "", window.location.pathname);
+        }, 400);
+      }
+    }
+  }, [isAuthenticated]);
+
   // Handle map coordinate click event (Location Lock: prevents arbitrary coordinate selection silently without popup)
   const handleSelectCoordinates = (_coords: [number, number]) => {
     const isCoordinator = (userProfile?.role || "").trim().toLowerCase() === "coordinator";
@@ -1205,17 +1218,13 @@ export default function HomePage() {
 
       {/* Ultra-Stylish Floating Command Bar (Uber/Apple Style) */}
       <header className="fixed top-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-xl flex items-center justify-between px-4 py-2.5 bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-full shadow-[0_12px_40px_rgba(15,23,42,0.1)] transition-all hover:shadow-[0_16px_45px_rgba(15,23,42,0.14)]">
-        {/* Left Brand & Live Status */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        {/* Left Brand */}
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
           <Link href="/" className="cursor-pointer shrink-0 flex items-center" title="SafaiWatch Home">
             <SafaiWatchLogo variant="icon" size="xs" animated={true} />
           </Link>
-          <span className="font-['Hanken_Grotesk'] font-extrabold text-xs sm:text-sm text-[#131b2e] tracking-wider uppercase">
+          <span className="font-['Hanken_Grotesk'] font-extrabold text-xs sm:text-sm text-[#131b2e] tracking-wider uppercase truncate">
             SafaiWatch Dispatch
-          </span>
-          <span className="bg-emerald-500 text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs tracking-wider">
-            <Radio className="w-2.5 h-2.5 animate-pulse text-white" />
-            LIVE
           </span>
         </div>
 
@@ -1942,76 +1951,63 @@ export default function HomePage() {
 
 
 
-      {/* Floating Google Maps-Style Auto Navigate / Recenter Current Location FAB Button */}
-      <button
-        type="button"
-        onClick={handleNavigateToCurrentLocation}
-        disabled={isLocating}
-        className="fixed bottom-20 right-4 z-30 w-12 h-12 bg-white hover:bg-slate-50 active:scale-95 text-slate-800 rounded-full shadow-[0_10px_25px_rgba(15,23,42,0.18)] flex items-center justify-center transition-all cursor-pointer border border-slate-200/90 group"
-        title="Auto Navigate to Current Location (GPS)"
-        aria-label="Auto navigate to current location"
-      >
-        <LocateFixed
-          className={`w-6 h-6 text-[#006948] transition-all ${
-            isLocating ? "animate-spin text-emerald-600" : "group-hover:scale-110"
-          }`}
-        />
-        <div
-          className={`absolute top-0 right-0 w-3 h-3 rounded-full border-2 border-white transition-colors ${
-            isLocating ? "bg-emerald-400 animate-ping" : "bg-emerald-500"
-          }`}
-        ></div>
-      </button>
+      {/* Ultra-Premium Apple Maps / Uber Style Floating GPS Recenter FAB */}
+      <div className="fixed bottom-20 right-4 z-30 flex items-center group">
+        {/* Sleek Hover Tooltip */}
+        <span className="pointer-events-none mr-2.5 hidden sm:inline-block whitespace-nowrap rounded-full bg-[#131b2e]/90 px-3 py-1 font-['Hanken_Grotesk'] text-[11px] font-bold text-white opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 group-hover:opacity-100 group-hover:-translate-x-1">
+          {isLocating ? "Calibrating GPS..." : "Recenter GPS"}
+        </span>
+
+        <button
+          type="button"
+          onClick={handleNavigateToCurrentLocation}
+          disabled={isLocating}
+          className="relative w-12 h-12 rounded-2xl bg-white/95 backdrop-blur-xl border border-slate-200/90 shadow-[0_12px_30px_rgba(15,23,42,0.12)] hover:shadow-[0_16px_36px_rgba(0,105,72,0.22)] hover:border-[#006948]/40 hover:ring-4 hover:ring-[#006948]/10 active:scale-90 transition-all duration-300 flex items-center justify-center cursor-pointer"
+          title="Auto Navigate to Current Location (GPS)"
+          aria-label="Auto navigate to current location"
+        >
+          {/* Sonar Radar Wave on Active Locating */}
+          {isLocating && (
+            <div className="absolute inset-0 rounded-2xl bg-emerald-400/30 animate-ping pointer-events-none" />
+          )}
+
+          {/* Navigation Compass Arrow (Apple Maps / Tesla Navigation Style) */}
+          <div className="relative flex items-center justify-center">
+            <Navigation
+              className={`w-5 h-5 text-[#006948] transition-all duration-300 ${
+                isLocating
+                  ? "animate-spin text-emerald-600 scale-90"
+                  : "rotate-[-45deg] group-hover:scale-110 group-hover:text-emerald-700 group-hover:rotate-0"
+              }`}
+              style={{ fill: isLocating ? "none" : "#006948" }}
+            />
+          </div>
+
+          {/* Precision Live GPS Status Beacon */}
+          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center">
+            <span
+              className={`absolute inline-flex h-full w-full rounded-full transition-opacity ${
+                isLocating
+                  ? "bg-emerald-400 animate-ping opacity-90"
+                  : "bg-emerald-400/50 opacity-0 group-hover:opacity-75 group-hover:animate-ping"
+              }`}
+            ></span>
+            <span
+              className={`relative inline-flex h-2.5 w-2.5 rounded-full ring-2 ring-white transition-colors ${
+                isLocating ? "bg-emerald-400" : "bg-[#006948]"
+              }`}
+            ></span>
+          </span>
+        </button>
+      </div>
 
       {/* Floating Uber Style Bottom Dock Navigation Bar (White Theme) */}
-      <nav className="fixed bottom-2 left-1/2 -translate-x-1/2 w-[94%] max-w-md z-40 flex justify-around items-center px-4 py-2 bg-white/95 backdrop-blur-xl rounded-full border border-slate-200/90 shadow-[0_12px_35px_rgba(15,23,42,0.12)] transition-all">
-        {/* Map Tab */}
-        <button
-          onClick={() => setActiveTab("map")}
-          className={`flex flex-col items-center justify-center transition-all cursor-pointer ${activeTab === "map" ? "text-[#006948] scale-110 font-extrabold" : "text-slate-500 hover:text-[#006948]"
-            }`}
-        >
-          <MapIcon className="w-5 h-5" />
-          <span className="text-[10px] mt-0.5">Map</span>
-        </button>
-
-        {/* Explore Tab */}
-        <Link
-          href="/feed"
-          className="flex flex-col items-center justify-center text-slate-500 hover:text-[#006948] transition-all cursor-pointer"
-        >
-          <Compass className="w-5 h-5" />
-          <span className="text-[10px] mt-0.5">Explore</span>
-        </Link>
-
-        {/* Plus Action Dispatch Button (Hidden for Coordinators) */}
-        {(userProfile?.role || "").trim().toLowerCase() !== "coordinator" && (
-          <button
-            onClick={handleStartReportSpotAtCurrentLocation}
-            className="relative -top-3 w-12 h-12 rounded-full bg-[#006948] hover:bg-[#00855d] text-white flex items-center justify-center shadow-[0_4px_20px_rgba(0,105,72,0.35)] transition-transform hover:scale-105 cursor-pointer border-2 border-white"
-            title="Report Spot at Current Location (Location Locked)"
-          >
-            <PlusCircle className="w-7 h-7 text-[#85f8c4]" />
-          </button>
-        )}
-
-        {/* Ranks Tab */}
-        <Link
-          href="/rewards"
-          className="flex flex-col items-center justify-center text-slate-500 hover:text-[#006948] transition-all cursor-pointer"
-        >
-          <Trophy className="w-5 h-5" />
-          <span className="text-[10px] mt-0.5">Ranks</span>
-        </Link>
-
-        {/* Profile Tab */}
-        <Link
-          href="/profile"
-          className="flex flex-col items-center justify-center text-slate-500 hover:text-[#006948] transition-all cursor-pointer"
-        >
-          <User className="w-5 h-5" />
-        </Link>
-      </nav>
+      <BottomNav
+        activeTab={activeTab === "map" ? "map" : "explore"}
+        onReportClick={handleStartReportSpotAtCurrentLocation}
+        onMapClick={() => setActiveTab("map")}
+        userRole={userProfile?.role}
+      />
 
       {/* New Waste Site Reporting Modal */}
       <ReportWasteSpotModal

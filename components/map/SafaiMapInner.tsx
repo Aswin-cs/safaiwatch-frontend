@@ -9,6 +9,7 @@ import {
   useMapEvents,
   useMap,
 } from "react-leaflet";
+import { Plus, Minus } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-routing-machine";
@@ -179,6 +180,42 @@ function MapController({ center }: { center?: [number, number] }) {
     }
   }, [center, map]);
   return null;
+}
+
+// Custom Apple/Uber styled Zoom Controller matching the Locate Button
+function CustomZoomControl() {
+  const map = useMap();
+
+  return (
+    <div className="leaflet-bottom leaflet-left !pointer-events-auto !z-[800] !bottom-[84px] !left-4">
+      <div className="flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-[0_10px_25px_rgba(15,23,42,0.14)] overflow-hidden">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            map.zoomIn();
+          }}
+          aria-label="Zoom In"
+          title="Zoom In"
+          className="w-11 h-11 flex items-center justify-center text-[#006948] hover:bg-emerald-50/80 active:scale-95 transition-all cursor-pointer border-b border-slate-100 group"
+        >
+          <Plus className="w-5 h-5 group-hover:scale-110 transition-transform stroke-[2.5]" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            map.zoomOut();
+          }}
+          aria-label="Zoom Out"
+          title="Zoom Out"
+          className="w-11 h-11 flex items-center justify-center text-[#006948] hover:bg-emerald-50/80 active:scale-95 transition-all cursor-pointer group"
+        >
+          <Minus className="w-5 h-5 group-hover:scale-110 transition-transform stroke-[2.5]" />
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // Component to handle turn-by-turn routing using leaflet-routing-machine
@@ -542,16 +579,18 @@ export default function SafaiMapInner({
   }, []);
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative w-full h-full ${className || ""}`}>
       {/* Map Container */}
       <MapContainer
         center={mapCenter}
         zoom={zoom}
+        zoomControl={false}
         scrollWheelZoom={true}
         className="w-full h-full z-0"
         style={{ width: "100%", height: "100%", minHeight: "350px" }}
       >
         <MapController center={mapCenter} />
+        <CustomZoomControl />
 
         {/* TileLayer using OpenStreetMap */}
         <TileLayer
