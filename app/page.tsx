@@ -61,6 +61,7 @@ export default function HomePage() {
 
   // Authenticated User Profile State
   const [userProfile, setUserProfile] = useState<{
+    id?: string;
     _id?: string;
     name?: string;
     username?: string;
@@ -456,7 +457,7 @@ export default function HomePage() {
                 : meRes.user.avatar?.url || meRes.user.avatarUrl?.url || "";
 
           setUserProfile({
-            _id: meRes.user._id || meRes.user.id,
+            id: meRes.user.username || meRes.user.id,
             name: meRes.user.username || meRes.user.name,
             username: meRes.user.username,
             avatarUrl: meAvatar,
@@ -575,8 +576,9 @@ export default function HomePage() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    if (userProfile?._id) {
-      socket.emit("joinUserRoom", { userId: String(userProfile._id) });
+    const userIdent = userProfile?.username || userProfile?.id;
+    if (userIdent) {
+      socket.emit("joinUserRoom", { username: String(userIdent), userId: String(userIdent) });
     }
 
     const onSpotCreated = (data: { spot: any }) => {
@@ -606,7 +608,9 @@ export default function HomePage() {
     };
 
     const onSpotAiVerified = (data: any) => {
-      if (userProfile?._id && data?.userId && String(data.userId) === String(userProfile._id)) {
+      const userIdent = userProfile?.username || userProfile?.id;
+      const targetUser = data?.username || data?.userId;
+      if (userIdent && targetUser && String(targetUser).toLowerCase() === String(userIdent).toLowerCase()) {
         const isVerified = Boolean(data.isVerified);
         const defaultSuccessMsg =
           data.action === "completed"
@@ -660,7 +664,9 @@ export default function HomePage() {
     };
 
     const onSpotAiVerifying = (data: any) => {
-      if (userProfile?._id && data?.userId && String(data.userId) === String(userProfile._id)) {
+      const userIdent = userProfile?.username || userProfile?.id;
+      const targetUser = data?.username || data?.userId;
+      if (userIdent && targetUser && String(targetUser).toLowerCase() === String(userIdent).toLowerCase()) {
         setAiNotice({
           type: "success",
           message: data.message || "Cleanup photo uploaded! AI verification in progress...",
@@ -947,12 +953,12 @@ export default function HomePage() {
   if (!isAuthenticated) {
     return <UnauthenticatedIntro />;
   }
-  // Helper to extract markedBy user ID string
-  const getMarkedByUserId = (markedBy: any): string | null => {
+  // Helper to extract markedBy username string
+  const getMarkedByUsername = (markedBy: any): string | null => {
     if (!markedBy) return null;
     if (typeof markedBy === "string") return markedBy;
     if (typeof markedBy === "object") {
-      return markedBy._id || markedBy.id || null;
+      return markedBy.username || markedBy.id || null;
     }
     return null;
   };
@@ -961,18 +967,18 @@ export default function HomePage() {
   const getMarkedByDetails = (markedBy: any) => {
     if (!markedBy) {
       return {
-        _id: userProfile?._id || "",
+        id: userProfile?.username || userProfile?.id || "",
         username: userProfile?.username || userProfile?.name || "Civic User",
         avatarUrl: userProfile?.avatarUrl || "",
         role: userProfile?.role || "Civilian",
       };
     }
     if (typeof markedBy === "string") {
-      const isMe = userProfile && (userProfile._id === markedBy || userProfile.username === markedBy);
+      const isMe = userProfile && (userProfile.username === markedBy || userProfile.id === markedBy);
       return {
-        _id: markedBy,
-        username: isMe ? (userProfile?.username || userProfile?.name || "Civic User") : (userProfile?.username || "Civic User"),
-        avatarUrl: isMe ? (userProfile?.avatarUrl || "") : (userProfile?.avatarUrl || ""),
+        id: markedBy,
+        username: isMe ? (userProfile?.username || userProfile?.name || "Civic User") : markedBy,
+        avatarUrl: isMe ? (userProfile?.avatarUrl || "") : "",
         role: isMe ? (userProfile?.role || "Civilian") : "Civilian",
       };
     }
@@ -984,12 +990,12 @@ export default function HomePage() {
     const userDisplayName =
       markedBy.username ||
       markedBy.name ||
-      (userProfile && userProfile._id === (markedBy._id || markedBy.id) ? (userProfile.username || userProfile.name) : "Civic User");
+      (userProfile && (userProfile.username === markedBy.username || userProfile.id === markedBy.id) ? (userProfile.username || userProfile.name) : "Civic User");
 
     return {
-      _id: markedBy._id || markedBy.id || "",
+      id: markedBy.username || markedBy.id || "",
       username: userDisplayName,
-      avatarUrl: avatarUrl || (userProfile && userProfile._id === (markedBy._id || markedBy.id) ? userProfile.avatarUrl : ""),
+      avatarUrl: avatarUrl || (userProfile && (userProfile.username === markedBy.username || userProfile.id === markedBy.id) ? userProfile.avatarUrl : ""),
       role: markedBy.role || "Civilian",
       email: markedBy.email || "",
     };
@@ -1024,7 +1030,7 @@ export default function HomePage() {
         : userObj.avatar?.url || userObj.avatarUrl || userObj.avatarUrl?.url || "";
 
     return {
-      _id: userObj._id || userObj.id || "",
+      id: userObj.username || userObj.id || "",
       username: userObj.username || userObj.name || "Civic Hero",
       avatarUrl,
       role: userObj.role || "Coordinator",
@@ -1054,14 +1060,14 @@ export default function HomePage() {
       const assignedAt = entry.assignedAt || null;
       if (!userObj) return null;
       if (typeof userObj === "string") {
-        return { _id: userObj, username: "Civic Ranger", avatarUrl: "", role: "Coordinator", assignedAt };
+        return { id: userObj, username: "Civic Ranger", avatarUrl: "", role: "Coordinator", assignedAt };
       }
       const avatarUrl =
         typeof userObj.avatar === "string"
           ? userObj.avatar
           : userObj.avatar?.url || userObj.avatarUrl || "";
       return {
-        _id: userObj._id || userObj.id || "",
+        id: userObj.username || userObj.id || "",
         username: userObj.username || userObj.name || "Civic Ranger",
         avatarUrl,
         role: userObj.role || "Coordinator",
@@ -1162,17 +1168,17 @@ export default function HomePage() {
     };
   };
 
-  const currentUserId = userProfile?._id;
-  const markedByUserId = selectedReport ? getMarkedByUserId(selectedReport.markedBy) : null;
+  const currentUsername = userProfile?.username || userProfile?.id;
+  const markedByUsername = selectedReport ? getMarkedByUsername(selectedReport.markedBy) : null;
   const isReportedByCurrentUser = Boolean(
-    currentUserId && markedByUserId && String(currentUserId) === String(markedByUserId)
+    currentUsername && markedByUsername && String(currentUsername).toLowerCase() === String(markedByUsername).toLowerCase()
   );
   const isClaimableRole = ["Coordinator", "Hybrid"].includes(userProfile?.role || "");
   const markedByDetails = selectedReport ? getMarkedByDetails(selectedReport.markedBy) : null;
   const completedByDetails = selectedReport ? getCompletedByDetails(selectedReport.isCompletedBy) : null;
   const assignedByDetailsList = selectedReport ? getAssignedByDetails(selectedReport.isAssignedBy) : null;
   const isCurrentUserAssigned = Boolean(
-    currentUserId && assignedByDetailsList && assignedByDetailsList.some((a: any) => String(a._id) === String(currentUserId))
+    currentUsername && assignedByDetailsList && assignedByDetailsList.some((a: any) => String(a.username || a.id).toLowerCase() === String(currentUsername).toLowerCase())
   );
   const maxAssignments = selectedReport ? getMaxAssignmentsByLevel((selectedReport as any).critcal) : 1;
   const currentAssignmentCount = assignedByDetailsList ? assignedByDetailsList.length : 0;
@@ -1731,7 +1737,7 @@ export default function HomePage() {
                     <div className="flex flex-col gap-1.5">
                       {assignedByDetailsList.map((assignedUser: any, idx: number) => (
                         <Link
-                          key={assignedUser._id || idx}
+                          key={assignedUser.username || assignedUser.id || idx}
                           href={`/profile/${encodeURIComponent(assignedUser.username)}`}
                           className="flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50/80 px-2.5 py-1 rounded-xl border border-indigo-200/60 hover:bg-indigo-100/80 transition-colors cursor-pointer"
                           title={`View profile of @${assignedUser.username}`}
@@ -1754,7 +1760,7 @@ export default function HomePage() {
                           <span className="font-semibold text-indigo-900 text-[11px] truncate">
                             Assigned to @{assignedUser.username}
                           </span>
-                          {String(assignedUser._id) === String(currentUserId) && (
+                          {String(assignedUser.username || assignedUser.id).toLowerCase() === String(currentUsername).toLowerCase() && (
                             <span className="ml-auto text-[9px] font-bold text-indigo-800 bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200">
                               You
                             </span>
@@ -2513,8 +2519,8 @@ export default function HomePage() {
                   </div>
                   {assignedByDetailsList.map((assignedUser: any, idx: number) => (
                     <Link
-                      key={assignedUser._id || idx}
-                      href={`/profile/${encodeURIComponent(assignedUser._id || assignedUser.username)}`}
+                      key={assignedUser.username || assignedUser.id || idx}
+                      href={`/profile/${encodeURIComponent(assignedUser.username)}`}
                       className="flex items-center gap-3 hover:bg-indigo-100/60 rounded-xl p-1.5 transition-colors cursor-pointer"
                     >
                       <div className="w-9 h-9 rounded-full bg-indigo-100 border-2 border-indigo-400/40 overflow-hidden flex items-center justify-center shrink-0">
@@ -2540,7 +2546,7 @@ export default function HomePage() {
                           <span className="text-[10px] font-mono font-extrabold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full uppercase border border-indigo-200">
                             {assignedUser.role}
                           </span>
-                          {String(assignedUser._id) === String(currentUserId) && (
+                          {String(assignedUser.username || assignedUser.id).toLowerCase() === String(currentUsername).toLowerCase() && (
                             <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">
                               You
                             </span>

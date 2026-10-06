@@ -90,7 +90,7 @@ export default function SingleFeedPostPage({ params }: PageProps) {
       const profileRes = await profileApi.getBasicInfo();
       if (profileRes && profileRes.success) {
         currentUser = profileRes.user;
-        currentUserId = profileRes.user?._id;
+        currentUserId = profileRes.user?.username || profileRes.user?.id;
         userLikes = profileRes.userStatus?.userLikePosts || [];
         setBasicUser(profileRes.user);
       }
@@ -139,7 +139,7 @@ export default function SingleFeedPostPage({ params }: PageProps) {
 
     if (postData?._id) {
       try {
-        const res = await feedsApi.toggleLike(postData._id, basicUser?._id);
+        const res = await feedsApi.toggleLike(postData._id, basicUser?.username || basicUser?.id);
         if (res && res.success && res.likeCount !== undefined) {
           setCheersCount(res.likeCount);
           if (res.isLiked !== undefined) setIsCheered(res.isLiked);
@@ -187,11 +187,11 @@ export default function SingleFeedPostPage({ params }: PageProps) {
   const cleanerUser = postData?.CleanedUser;
   const reporterUser = postData?.SpotedUser;
   const cleanerName = cleanerUser?.username || cleanerUser?.name || "Rajesh Kumar";
-  const cleanerUserId = cleanerUser?.username || cleanerUser?._id || "Rajesh Kumar";
+  const cleanerUserId = cleanerUser?.username || cleanerUser?.id || "Rajesh Kumar";
   const cleanerAvatar = getAvatarUrl(cleanerUser) || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80";
 
   const reporterName = reporterUser?.username || reporterUser?.name || "Aswin V.";
-  const reporterUserId = reporterUser?.username || reporterUser?._id || "Aswin V.";
+  const reporterUserId = reporterUser?.username || reporterUser?.id || "Aswin V.";
   const reporterAvatar = getAvatarUrl(reporterUser) || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80";
 
   const beforeImg = postData?.imageBefore || DEFAULT_BEFORE_IMG;

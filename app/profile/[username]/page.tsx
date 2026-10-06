@@ -229,15 +229,17 @@ export default function ProfilePage({ params }: PageProps) {
 
   // Real-time AI verification completion toast notification targeted for the user who marked the spot
   useEffect(() => {
-    if (!isAuthenticated || !profileData?.user?._id) return;
+    const myUsername = profileData?.user?.username || profileData?.user?.id;
+    if (!isAuthenticated || !myUsername) return;
 
-    const myUserId = String(profileData.user._id);
+    const myUserIdentifier = String(myUsername);
 
     // Join user socket room for targeted real-time alerts
-    socket.emit("joinUserRoom", { userId: myUserId });
+    socket.emit("joinUserRoom", { username: myUserIdentifier, userId: myUserIdentifier });
 
     const onSpotAiVerified = async (data: any) => {
-      if (data?.userId && String(data.userId) === myUserId) {
+      const target = data?.username || data?.userId;
+      if (target && String(target).toLowerCase() === myUserIdentifier.toLowerCase()) {
         const toastMsg =
           data.message ||
           (data.isVerified
@@ -265,7 +267,7 @@ export default function ProfilePage({ params }: PageProps) {
     return () => {
       socket.off("spot:ai-verified", onSpotAiVerified);
     };
-  }, [isAuthenticated, profileData?.user?._id]);
+  }, [isAuthenticated, profileData?.user?.username, profileData?.user?.id]);
 
   // User status and rewards statistics directly from backend response (getProfileByUsername / getMyProfile)
   const userStatus = profileData?.userStatus;

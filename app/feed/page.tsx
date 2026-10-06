@@ -112,8 +112,8 @@ export default function FeedPage() {
 
     const cleanerUser = post.CleanedUser;
     const reporterUser = post.SpotedUser;
-    const cleanerUserId = cleanerUser?.username || cleanerUser?._id || "Civic Cleaner";
-    const reporterUserId = reporterUser?.username || reporterUser?._id || "Civic Spotter";
+    const cleanerUserId = cleanerUser?.username || cleanerUser?.id || "Civic Cleaner";
+    const reporterUserId = reporterUser?.username || reporterUser?.id || "Civic Spotter";
 
     return {
       id: post._id,
@@ -155,11 +155,11 @@ export default function FeedPage() {
       const infoRes = await profileApi.getBasicInfo();
       if (infoRes && infoRes.success) {
         setBasicInfo(infoRes);
-        currentUserId = infoRes.user?._id;
+        currentUserId = infoRes.user?.username || infoRes.user?.id;
         userLikes = infoRes.userStatus?.userLikePosts || [];
       } else if (meRes && meRes.success) {
         setBasicInfo(meRes);
-        currentUserId = meRes.user?._id;
+        currentUserId = meRes.user?.username || meRes.user?.id;
       }
     } catch (err) {
       console.warn("Could not fetch basic info:", err);
@@ -232,7 +232,7 @@ export default function FeedPage() {
     // Call backend API if it's a backend post ID
     if (targetItem.isBackendPost || itemId.length > 15) {
       try {
-        const res = await feedsApi.toggleLike(itemId, basicUser?._id);
+        const res = await feedsApi.toggleLike(itemId, basicUser?.username || basicUser?.id);
         if (res && res.success && res.likeCount !== undefined) {
           setFeedItems((prev) =>
             prev.map((item) =>

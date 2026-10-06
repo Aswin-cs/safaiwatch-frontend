@@ -26,6 +26,7 @@ import {
 import { authApi } from "@/lib/api";
 import ValidationAlertModal from "@/components/ValidationAlertModal";
 import SafaiWatchLogo from "@/components/SafaiWatchLogo";
+import SplashLoader from "@/components/SplashLoader";
 
 type AuthMode = "sign-in" | "sign-up";
 
@@ -39,6 +40,9 @@ export default function AuthPage() {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Authorization Check Loading State
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Validation Alert Popup Modal State
   const [validationAlert, setValidationAlert] = useState<{
@@ -93,10 +97,11 @@ export default function AuthPage() {
 
   // Check if user is authorized (normal vs incomplete)
   useEffect(() => {
+    let isMounted = true;
     async function checkAuthStatus() {
       try {
         const response = await authApi.getMe();
-        if (response.success) {
+        if (isMounted && response.success) {
           setIsAlreadySignedIn(true);
           setCurrentUser(response.user);
           if (response.isProfileCompleted || response.authorizationType === "normal") {
@@ -107,9 +112,20 @@ export default function AuthPage() {
         }
       } catch (err) {
         // User not authorized, stay on login form
+        if (isMounted) {
+          setIsAlreadySignedIn(false);
+          setCurrentUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsCheckingAuth(false);
+        }
       }
     }
     checkAuthStatus();
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   const handleClearEmail = () => {
@@ -309,6 +325,17 @@ export default function AuthPage() {
     window.location.href = authApi.getGoogleAuthUrl();
   };
 
+  // Loading Screen while checking if user is authorized or unauthorized
+  if (isCheckingAuth) {
+    return (
+      <SplashLoader
+        title="SafaiWatch Hub"
+        subtitle="Verifying your authorization status…"
+        showProgress
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-between py-8 px-4 select-none relative bg-[#FAF8FF] text-[#131b2e] antialiased">
       {/* Top Nav Back to Home */}
@@ -427,10 +454,17 @@ export default function AuthPage() {
               <button
                 type="button"
                 onClick={async () => {
-                  await authApi.signOut();
-                  setIsAlreadySignedIn(false);
-                  setIsIncompleteAuth(false);
-                  setCurrentUser(null);
+                  setIsCheckingAuth(true);
+                  try {
+                    await authApi.signOut();
+                  } catch (e) {
+                    console.error("Sign out error:", e);
+                  } finally {
+                    setIsAlreadySignedIn(false);
+                    setIsIncompleteAuth(false);
+                    setCurrentUser(null);
+                    setIsCheckingAuth(false);
+                  }
                 }}
                 className="w-full h-[40px] text-xs font-bold text-[#ba1a1a] hover:bg-[#ffdad6]/40 rounded-xl transition-all cursor-pointer"
               >

@@ -334,14 +334,16 @@ export interface FeedPost {
   _id: string;
   postName?: string;
   SpotedUser?: {
-    _id: string;
+    id?: string;
+    _id?: string;
     name?: string;
     username?: string;
     avatar?: string | { url?: string; id?: string };
     role?: string;
   };
   CleanedUser?: {
-    _id: string;
+    id?: string;
+    _id?: string;
     name?: string;
     username?: string;
     avatar?: string | { url?: string; id?: string };
