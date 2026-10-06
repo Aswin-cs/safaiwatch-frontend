@@ -521,6 +521,27 @@ export default function CompleteWasteSpotModal({
         formData.append("action", "complete");
       }
 
+      // Capture live GPS coordinates to satisfy backend 5m radius verification
+      if (typeof window !== "undefined" && navigator?.geolocation) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 8000,
+              maximumAge: 0,
+            });
+          });
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          formData.append("latitude", String(lat));
+          formData.append("longitude", String(lng));
+          formData.append("coordinates", JSON.stringify([lng, lat]));
+          formData.append("userLocation", JSON.stringify([lng, lat]));
+        } catch (geoErr) {
+          console.warn("Could not retrieve GPS coordinates for complete spot:", geoErr);
+        }
+      }
+
       const res = await spotsApi.completeSpot(spot._id || spot.id, formData);
 
       if (res && res.success) {

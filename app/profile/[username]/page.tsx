@@ -343,7 +343,7 @@ export default function ProfilePage({ params }: PageProps) {
 
   // Interactive States
   const [karmaBalance, setKarmaBalance] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState<"all" | "marked" | "completed">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "marked" | "assigned" | "completed">("all");
   const [selectedTrophy, setSelectedTrophy] = useState<Trophy | null>(null);
   const [selectedSpotDetails, setSelectedSpotDetails] = useState<CaseItem | null>(null);
   const [isLoadingSpotDetails, setIsLoadingSpotDetails] = useState<boolean>(false);
@@ -655,23 +655,62 @@ export default function ProfilePage({ params }: PageProps) {
 
   const unlockedCount = fetchedBadges.length;
 
-  const markedList: any[] = Array.isArray(userStatus?.markedSpotsList)
-    ? userStatus.markedSpotsList
-    : Array.isArray(userStatus?.MarkedSpots)
-    ? userStatus.MarkedSpots
+  const userRoleStr = String(userObj?.role || "").toLowerCase();
+  const isHybrid = userRoleStr === "hybrid";
+  const isCoordinator = userRoleStr === "coordinator";
+  const isCivilian = userRoleStr === "civilian" || (!isHybrid && !isCoordinator);
+
+  const canViewMarked = isHybrid || isCivilian;
+  const canViewAssigned = isHybrid || isCoordinator;
+  const canViewCompleted = isHybrid || isCoordinator;
+
+  const markedList: any[] = canViewMarked
+    ? (Array.isArray(userStatus?.markedSpotsList)
+        ? userStatus.markedSpotsList
+        : Array.isArray(userStatus?.MarkedSpots)
+        ? userStatus.MarkedSpots
+        : [])
     : [];
 
-  const completedList: any[] = Array.isArray(userStatus?.completedSpotsList)
-    ? userStatus.completedSpotsList
-    : Array.isArray(userStatus?.CompletedSpots)
-    ? userStatus.CompletedSpots
+  const assignedList: any[] = canViewAssigned
+    ? (Array.isArray(userStatus?.assignedSpotsList)
+        ? userStatus.assignedSpotsList
+        : Array.isArray(userStatus?.AssignedSpots)
+        ? userStatus.AssignedSpots
+        : [])
+    : [];
+
+  const completedList: any[] = canViewCompleted
+    ? (Array.isArray(userStatus?.completedSpotsList)
+        ? userStatus.completedSpotsList
+        : Array.isArray(userStatus?.CompletedSpots)
+        ? userStatus.CompletedSpots
+        : [])
     : [];
 
   const rawCases: CaseItem[] = (
     Array.isArray(userStatus?.cases) && userStatus.cases.length > 0
-      ? userStatus.cases
-      : markedList.length > 0 || completedList.length > 0
-      ? [...markedList, ...completedList]
+      ? userStatus.cases.filter((c: any) => {
+          const isComp = Boolean(
+            c.isCompleted ||
+            c.status === "resolved" ||
+            c.caseType === "completed" ||
+            c.completedAt ||
+            (typeof c.id === "string" && c.id.endsWith("-completed"))
+          );
+          const isAss = Boolean(
+            !isComp && (
+              c.caseType === "assigned" ||
+              (typeof c.id === "string" && c.id.endsWith("-assigned")) ||
+              c.assignedAt
+            )
+          );
+          if (isComp) return canViewCompleted;
+          if (isAss) return canViewAssigned;
+          return canViewMarked;
+        })
+      : markedList.length > 0 || assignedList.length > 0 || completedList.length > 0
+      ? [...markedList, ...assignedList, ...completedList]
       : []
   ).map((c: any, idx: number) => {
     if (!c || typeof c !== "object") return c;
@@ -684,9 +723,18 @@ export default function ProfilePage({ params }: PageProps) {
       (typeof c.id === "string" && c.id.endsWith("-completed"))
     );
 
-    const caseType = c.caseType === "completed" || (typeof c.id === "string" && c.id.endsWith("-completed"))
+    const isAssigned = Boolean(
+      canViewAssigned &&
+      !isCompleted && (
+        c.caseType === "assigned" ||
+        (typeof c.id === "string" && c.id.endsWith("-assigned")) ||
+        c.assignedAt
+      )
+    );
+
+    const caseType = isCompleted
       ? "completed"
-      : c.caseType === "assigned" || (typeof c.id === "string" && c.id.endsWith("-assigned"))
+      : isAssigned
       ? "assigned"
       : "marked";
 
@@ -731,13 +779,15 @@ export default function ProfilePage({ params }: PageProps) {
 
   const backendCases: CaseItem[] = rawCases;
 
-  const markedCases = backendCases.filter((c: CaseItem) => c.caseType === "marked" || c.id.endsWith("-marked"));
-  const completedCases = backendCases.filter((c: CaseItem) => c.caseType === "completed" || c.id.endsWith("-completed") || c.status === "resolved");
+  const markedCases = canViewMarked ? backendCases.filter((c: CaseItem) => c.caseType === "marked" || c.id.endsWith("-marked")) : [];
+  const assignedCases = canViewAssigned ? backendCases.filter((c: CaseItem) => c.caseType === "assigned" || c.id.endsWith("-assigned")) : [];
+  const completedCases = canViewCompleted ? backendCases.filter((c: CaseItem) => c.caseType === "completed" || c.id.endsWith("-completed") || c.status === "resolved") : [];
 
   const filteredCases = backendCases.filter((c: CaseItem) => {
     if (activeTab === "all") return true;
-    if (activeTab === "marked") return c.caseType === "marked" || c.id.endsWith("-marked");
-    if (activeTab === "completed") return c.caseType === "completed" || c.id.endsWith("-completed") || c.status === "resolved";
+    if (activeTab === "marked") return canViewMarked && (c.caseType === "marked" || c.id.endsWith("-marked"));
+    if (activeTab === "assigned") return canViewAssigned && (c.caseType === "assigned" || c.id.endsWith("-assigned"));
+    if (activeTab === "completed") return canViewCompleted && (c.caseType === "completed" || c.id.endsWith("-completed") || c.status === "resolved");
     return true;
   });
 
@@ -1371,41 +1421,65 @@ export default function ProfilePage({ params }: PageProps) {
                 </span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab("marked")}
-                className={`font-['Inter'] text-xs font-semibold px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === "marked"
-                    ? "bg-[#006948] text-white border border-[#006948] shadow-xs"
-                    : "bg-white text-[#6d7a72] border border-[#E2E8F0] hover:border-[#6d7a72]"
-                }`}
-              >
-                <span className="material-symbols-outlined text-sm">add_location_alt</span>
-                <span>Marked Spots</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  activeTab === "marked" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
-                }`}>
-                  {markedCases.length}
-                </span>
-              </button>
+              {canViewMarked && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("marked")}
+                  className={`font-['Inter'] text-xs font-semibold px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === "marked"
+                      ? "bg-[#006948] text-white border border-[#006948] shadow-xs"
+                      : "bg-white text-[#6d7a72] border border-[#E2E8F0] hover:border-[#6d7a72]"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-sm">add_location_alt</span>
+                  <span>Marked Spots</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                    activeTab === "marked" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                  }`}>
+                    {markedCases.length}
+                  </span>
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => setActiveTab("completed")}
-                className={`font-['Inter'] text-xs font-semibold px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === "completed"
-                    ? "bg-[#0F172A] text-white border border-[#0F172A] shadow-xs"
-                    : "bg-white text-[#6d7a72] border border-[#E2E8F0] hover:border-[#6d7a72]"
-                }`}
-              >
-                <span className="material-symbols-outlined text-sm">check_circle</span>
-                <span>Completed Spots</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  activeTab === "completed" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
-                }`}>
-                  {completedCases.length}
-                </span>
-              </button>
+              {canViewAssigned && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("assigned")}
+                  className={`font-['Inter'] text-xs font-semibold px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === "assigned"
+                      ? "bg-[#2563EB] text-white border border-[#2563EB] shadow-xs"
+                      : "bg-white text-[#6d7a72] border border-[#E2E8F0] hover:border-[#6d7a72]"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-sm">assignment_ind</span>
+                  <span>Assigned Spots</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                    activeTab === "assigned" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                  }`}>
+                    {assignedCases.length}
+                  </span>
+                </button>
+              )}
+
+              {canViewCompleted && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("completed")}
+                  className={`font-['Inter'] text-xs font-semibold px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === "completed"
+                      ? "bg-[#0F172A] text-white border border-[#0F172A] shadow-xs"
+                      : "bg-white text-[#6d7a72] border border-[#E2E8F0] hover:border-[#6d7a72]"
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-sm">check_circle</span>
+                  <span>Completed Spots</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                    activeTab === "completed" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                  }`}>
+                    {completedCases.length}
+                  </span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -1417,11 +1491,13 @@ export default function ProfilePage({ params }: PageProps) {
               <h4 className="font-['Hanken_Grotesk'] text-base font-bold text-[#131b2e]">
                 {backendCases.length === 0
                   ? "No Civic Spots Recorded"
-                  : `No ${activeTab === "marked" ? "Marked" : activeTab === "completed" ? "Completed" : "Matching"} Spots`}
+                  : `No ${activeTab === "marked" ? "Marked" : activeTab === "assigned" ? "Assigned" : activeTab === "completed" ? "Completed" : "Matching"} Spots`}
               </h4>
               <p className="text-xs text-[#6d7a72] max-w-xs mt-1 leading-relaxed">
                 {activeTab === "marked"
                   ? "No sanitation spots have been marked/reported by this user yet."
+                  : activeTab === "assigned"
+                  ? "No sanitation spots are currently assigned to this user."
                   : activeTab === "completed"
                   ? "No cleanup drives or completed spots have been recorded for this user yet."
                   : "Keep your neighborhood clean by marking your first spot!"}
@@ -1440,6 +1516,7 @@ export default function ProfilePage({ params }: PageProps) {
               {filteredCases.map((item, idx) => {
                 const aiBadge = getAiVerificationBadge(item);
                 const isMarked = item.caseType === "marked" || item.id.endsWith("-marked");
+                const isAssigned = item.caseType === "assigned" || item.id.endsWith("-assigned");
                 const isCompleted = item.caseType === "completed" || item.id.endsWith("-completed") || item.status === "resolved";
 
                 return (
@@ -1492,14 +1569,20 @@ export default function ProfilePage({ params }: PageProps) {
 
                       {/* Badges Row: Action Type, AI Verification, Completion Status */}
                       <div className="flex items-center gap-2 flex-wrap mt-3 pt-2.5 border-t border-slate-100">
-                        {/* Spot Category Tag (Marked vs Cleaned) */}
+                        {/* Spot Category Tag (Marked vs Assigned vs Cleaned) */}
                         {isMarked && (
                           <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-slate-700 bg-slate-100 border border-slate-200">
                             <span className="material-symbols-outlined text-xs text-[#006948]">add_location_alt</span>
                             <span>Marked Spot</span>
                           </div>
                         )}
-                        {isCompleted && !isMarked && (
+                        {isAssigned && (
+                          <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-blue-800 bg-blue-50 border border-blue-200">
+                            <span className="material-symbols-outlined text-xs text-blue-600">assignment_ind</span>
+                            <span>Assigned Spot</span>
+                          </div>
+                        )}
+                        {isCompleted && !isMarked && !isAssigned && (
                           <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-teal-800 bg-teal-50 border border-teal-200">
                             <span className="material-symbols-outlined text-xs text-teal-600">cleaning_services</span>
                             <span>Cleaned Spot</span>
@@ -1517,8 +1600,8 @@ export default function ProfilePage({ params }: PageProps) {
                           <span>{aiBadge.label}</span>
                         </div>
 
-                        {/* In Work Progress Badge: Only for marked spots with isVerified === true, isCompletedVerify === "completed", and isCompleted === false */}
-                        {isMarked && item.isVerified === true && item.isCompletedVerify === "completed" && !isCompleted && (
+                        {/* In Work Progress Badge: Only for marked/assigned spots with isVerified === true, isCompletedVerify === "completed", and isCompleted === false */}
+                        {((isMarked && item.isVerified === true && item.isCompletedVerify === "completed" && !isCompleted) || (isAssigned && !isCompleted)) && (
                           <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-[#D97706] bg-[#FFFBEB] border border-[#FCD34D]">
                             <span className="material-symbols-outlined text-xs text-[#D97706]">engineering</span>
                             <span>In Work Progress</span>
