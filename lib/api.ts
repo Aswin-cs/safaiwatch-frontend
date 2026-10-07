@@ -316,19 +316,28 @@ export const spotsApi = {
   },
 
   getRandomGestureVerification: async (params?: { userId?: string; spotId?: string; markspotid?: string; coordinates?: [number, number]; action?: string; target?: string }) => {
-    return request<{ imageId?: string; imageUrl?: string }>('/api/v1/spots/gesture-verification', {
+    return request<{ imageId?: string; verificationId?: string; imageUrl?: string }>('/api/v1/spots/gesture-verification', {
       method: 'POST',
       body: JSON.stringify(params || {}),
     });
   },
 
   getRandomCodeVerification: async (params?: { userId?: string; spotId?: string; markspotid?: string; coordinates?: [number, number]; action?: string; target?: string }) => {
-    return request<{ verificationId?: string; code?: string }>('/api/v1/spots/code-verification', {
+    return request<{ imageId?: string; verificationId?: string; code?: string }>('/api/v1/spots/code-verification', {
       method: 'POST',
       body: JSON.stringify(params || {}),
     });
   },
+
+  reportSpot: async (spotId: string, data: FormData | Record<string, any>) => {
+    const isFormData = data instanceof FormData;
+    return request<{ success?: boolean; message: string; report?: any }>(`/api/v1/spots/${spotId}/report`, {
+      method: 'POST',
+      body: isFormData ? data : JSON.stringify(data),
+    });
+  },
 };
+
 
 export interface FeedPost {
   _id: string;

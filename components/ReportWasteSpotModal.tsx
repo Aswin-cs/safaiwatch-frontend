@@ -311,6 +311,17 @@ export default function ReportWasteSpotModal({
     setVerificationMode(newMode);
     setCurrentTime(Date.now());
     setErrorMsg(null);
+
+    // Reset verification tokens so switching modes requests a fresh token and updates the document
+    if (newMode === "hand") {
+      setGestureId(null);
+      setGestureImageUrl(null);
+      setGestureExpiresAt(null);
+    } else {
+      setCodeId(null);
+      setCodeText(null);
+      setCodeExpiresAt(null);
+    }
   };
 
   // Helper function to reset all form fields and states

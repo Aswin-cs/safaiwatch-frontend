@@ -3,6 +3,23 @@
 import React, { useState, useEffect, useRef } from "react";
 import { spotsApi } from "@/lib/api";
 
+export interface SharedVerificationState {
+  verificationMode: "hand" | "code";
+  gestureImageUrl: string | null;
+  gestureId: string | null;
+  gestureExpiresAt: number | null;
+  codeText: string | null;
+  codeId: string | null;
+  codeExpiresAt: number | null;
+  switchCount: number;
+  refreshCountBeforeExpiry: number;
+  refreshCountAfterExpiry: number;
+  isLoadingGesture?: boolean;
+  isLoadingCode?: boolean;
+  onSelectMode: (mode: "hand" | "code") => void;
+  onRefreshVerification: () => void;
+}
+
 export interface ContestSpotReportModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -20,6 +37,7 @@ export interface ContestSpotReportModalProps {
     }
   ) => void;
   userRole?: string;
+  sharedVerification?: SharedVerificationState;
 }
 
 export default function ContestSpotReportModal({
@@ -28,7 +46,10 @@ export default function ContestSpotReportModal({
   spot,
   onSubmitReport,
   userRole = "Civilian",
+  sharedVerification,
 }: ContestSpotReportModalProps) {
+  const hasUserReported = Boolean(spot?.hasUserReported || spot?.isReportedByRequestedUser);
+
   // 1. Objection Reason State
   const [selectedReason, setSelectedReason] = useState<string>("fake_or_ai");
 
@@ -36,34 +57,48 @@ export default function ContestSpotReportModal({
   const [explanation, setExplanation] = useState<string>("");
 
   // 3. Verification Mode Tab State ("hand" gesture or "code")
-  const [verificationMode, setVerificationMode] = useState<"hand" | "code">("hand");
+  const [localVerificationMode, setLocalVerificationMode] = useState<"hand" | "code">("hand");
 
   // Gesture Verification State
-  const [gestureImageUrl, setGestureImageUrl] = useState<string | null>(null);
-  const [gestureId, setGestureId] = useState<string | null>(null);
-  const [isLoadingGesture, setIsLoadingGesture] = useState<boolean>(false);
+  const [localGestureImageUrl, setLocalGestureImageUrl] = useState<string | null>(null);
+  const [localGestureId, setLocalGestureId] = useState<string | null>(null);
+  const [localIsLoadingGesture, setLocalIsLoadingGesture] = useState<boolean>(false);
 
   // Code Verification State
-  const [codeText, setCodeText] = useState<string | null>(null);
-  const [codeId, setCodeId] = useState<string | null>(null);
-  const [isLoadingCode, setIsLoadingCode] = useState<boolean>(false);
+  const [localCodeText, setLocalCodeText] = useState<string | null>(null);
+  const [localCodeId, setLocalCodeId] = useState<string | null>(null);
+  const [localIsLoadingCode, setLocalIsLoadingCode] = useState<boolean>(false);
 
   // Verification Countdown Expiry State
-  const [gestureExpiresAt, setGestureExpiresAt] = useState<number | null>(null);
-  const [codeExpiresAt, setCodeExpiresAt] = useState<number | null>(null);
+  const [localGestureExpiresAt, setLocalGestureExpiresAt] = useState<number | null>(null);
+  const [localCodeExpiresAt, setLocalCodeExpiresAt] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState<number>(Date.now());
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+
+  // Mode Switch Lock State (max 4 switches per session)
+  const [localSwitchCount, setLocalSwitchCount] = useState<number>(0);
+
+  // Refresh Quotas
+  const [localRefreshCountBeforeExpiry, setLocalRefreshCountBeforeExpiry] = useState<number>(0);
+  const [localRefreshCountAfterExpiry, setLocalRefreshCountAfterExpiry] = useState<number>(0);
+
+  // Unified / Shared state resolution
+  const verificationMode = sharedVerification ? sharedVerification.verificationMode : localVerificationMode;
+  const gestureImageUrl = sharedVerification ? sharedVerification.gestureImageUrl : localGestureImageUrl;
+  const gestureId = sharedVerification ? sharedVerification.gestureId : localGestureId;
+  const gestureExpiresAt = sharedVerification ? sharedVerification.gestureExpiresAt : localGestureExpiresAt;
+  const codeText = sharedVerification ? sharedVerification.codeText : localCodeText;
+  const codeId = sharedVerification ? sharedVerification.codeId : localCodeId;
+  const codeExpiresAt = sharedVerification ? sharedVerification.codeExpiresAt : localCodeExpiresAt;
+  const switchCount = sharedVerification ? sharedVerification.switchCount : localSwitchCount;
+  const refreshCountBeforeExpiry = sharedVerification ? sharedVerification.refreshCountBeforeExpiry : localRefreshCountBeforeExpiry;
+  const refreshCountAfterExpiry = sharedVerification ? sharedVerification.refreshCountAfterExpiry : localRefreshCountAfterExpiry;
+  const isLoadingGesture = sharedVerification ? (sharedVerification.isLoadingGesture ?? false) : localIsLoadingGesture;
+  const isLoadingCode = sharedVerification ? (sharedVerification.isLoadingCode ?? false) : localIsLoadingCode;
 
   // Active time left in seconds
   const activeExpiresAt = verificationMode === "hand" ? gestureExpiresAt : codeExpiresAt;
   const timeLeft = activeExpiresAt !== null ? Math.max(0, Math.ceil((activeExpiresAt - currentTime) / 1000)) : null;
-
-  // Mode Switch Lock State (max 4 switches per session)
-  const [switchCount, setSwitchCount] = useState<number>(0);
-
-  // Refresh Quotas
-  const [refreshCountBeforeExpiry, setRefreshCountBeforeExpiry] = useState<number>(0);
-  const [refreshCountAfterExpiry, setRefreshCountAfterExpiry] = useState<number>(0);
 
   // 4. Live Camera & Counter-Proof Photo State
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -105,17 +140,17 @@ export default function ContestSpotReportModal({
     setImagePreview(null);
     setErrorMsg(null);
     setSuccessMsg(null);
-    setGestureImageUrl(null);
-    setGestureId(null);
-    setCodeText(null);
-    setCodeId(null);
-    setGestureExpiresAt(null);
-    setCodeExpiresAt(null);
-    setVerificationMode("hand");
+    setLocalGestureImageUrl(null);
+    setLocalGestureId(null);
+    setLocalCodeText(null);
+    setLocalCodeId(null);
+    setLocalGestureExpiresAt(null);
+    setLocalCodeExpiresAt(null);
+    setLocalVerificationMode("hand");
     setRefreshTrigger(0);
-    setSwitchCount(0);
-    setRefreshCountBeforeExpiry(0);
-    setRefreshCountAfterExpiry(0);
+    setLocalSwitchCount(0);
+    setLocalRefreshCountBeforeExpiry(0);
+    setLocalRefreshCountAfterExpiry(0);
     stopCamera();
     setCameraError(null);
     setIsStartingCamera(false);
@@ -324,57 +359,76 @@ export default function ContestSpotReportModal({
 
   // Mode switch handler
   const handleSelectMode = (newMode: "hand" | "code") => {
-    if (newMode === verificationMode) return;
-    if (switchCount >= 4) {
+    if (sharedVerification) {
+      sharedVerification.onSelectMode(newMode);
+      return;
+    }
+    if (newMode === localVerificationMode) return;
+    if (localSwitchCount >= 4) {
       setErrorMsg("Maximum verification mode switches reached (4/4). Mode selection is locked.");
       return;
     }
-    setSwitchCount((prev) => prev + 1);
-    setVerificationMode(newMode);
+    setLocalSwitchCount((prev) => prev + 1);
+    setLocalVerificationMode(newMode);
     setCurrentTime(Date.now());
     setErrorMsg(null);
+
+    // Reset verification tokens so switching modes requests a fresh token and updates the document
+    if (newMode === "hand") {
+      setLocalGestureId(null);
+      setLocalGestureImageUrl(null);
+      setLocalGestureExpiresAt(null);
+    } else {
+      setLocalCodeId(null);
+      setLocalCodeText(null);
+      setLocalCodeExpiresAt(null);
+    }
   };
 
   // Refresh handler
   const handleRefreshVerification = () => {
+    if (sharedVerification) {
+      sharedVerification.onRefreshVerification();
+      return;
+    }
     if (timeLeft === 0) {
-      if (refreshCountAfterExpiry >= 2) {
+      if (localRefreshCountAfterExpiry >= 2) {
         setErrorMsg("Maximum post-expiry refreshes reached (2/2). Please reopen to restart.");
         return;
       }
-      setRefreshCountAfterExpiry((prev) => prev + 1);
+      setLocalRefreshCountAfterExpiry((prev) => prev + 1);
     } else {
-      if (refreshCountBeforeExpiry >= 3) {
+      if (localRefreshCountBeforeExpiry >= 3) {
         setErrorMsg("Maximum pre-expiry refreshes reached (3/3). Please wait for timer to expire.");
         return;
       }
-      setRefreshCountBeforeExpiry((prev) => prev + 1);
+      setLocalRefreshCountBeforeExpiry((prev) => prev + 1);
     }
 
-    setGestureExpiresAt(null);
-    setCodeExpiresAt(null);
-    setGestureId(null);
-    setGestureImageUrl(null);
-    setCodeId(null);
-    setCodeText(null);
+    setLocalGestureExpiresAt(null);
+    setLocalCodeExpiresAt(null);
+    setLocalGestureId(null);
+    setLocalGestureImageUrl(null);
+    setLocalCodeId(null);
+    setLocalCodeText(null);
     setErrorMsg(null);
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  // Fetch Gesture Verification when mode is "hand"
+  // Fetch Gesture Verification when mode is "hand" (only if NOT using sharedVerification)
   const targetSpotId = spot?._id || spot?.id;
   const spotCoordinates: [number, number] = spot?.coordinates?.length === 2
     ? [spot.coordinates[1], spot.coordinates[0]]
     : [11.7284, 76.2841];
 
   useEffect(() => {
-    if (!isOpen || verificationMode !== "hand") return;
+    if (sharedVerification || !isOpen || verificationMode !== "hand") return;
     if (gestureId || isFetchingGestureRef.current) return;
 
     isFetchingGestureRef.current = true;
     let isMounted = true;
     const fetchGesture = async () => {
-      setIsLoadingGesture(true);
+      setLocalIsLoadingGesture(true);
       try {
         const res = await spotsApi.getRandomGestureVerification({
           spotId: targetSpotId,
@@ -385,14 +439,14 @@ export default function ContestSpotReportModal({
         if (isMounted && res && res.success) {
           const imgUrl = (res as any).imageUrl || (res as any).data?.imageUrl;
           const imgId = (res as any).imageId || (res as any).data?.imageId;
-          if (imgUrl) setGestureImageUrl(imgUrl);
-          if (imgId) setGestureId(imgId);
-          setGestureExpiresAt(Date.now() + 180 * 1000);
+          if (imgUrl) setLocalGestureImageUrl(imgUrl);
+          if (imgId) setLocalGestureId(imgId);
+          setLocalGestureExpiresAt(Date.now() + 180 * 1000);
         }
       } catch (err) {
         console.error("Failed to fetch contest gesture verification:", err);
       } finally {
-        if (isMounted) setIsLoadingGesture(false);
+        if (isMounted) setLocalIsLoadingGesture(false);
         isFetchingGestureRef.current = false;
       }
     };
@@ -401,17 +455,17 @@ export default function ContestSpotReportModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, verificationMode, gestureId, refreshTrigger, targetSpotId]);
+  }, [sharedVerification, isOpen, verificationMode, gestureId, refreshTrigger, targetSpotId]);
 
-  // Fetch Code Verification when mode is "code"
+  // Fetch Code Verification when mode is "code" (only if NOT using sharedVerification)
   useEffect(() => {
-    if (!isOpen || verificationMode !== "code") return;
+    if (sharedVerification || !isOpen || verificationMode !== "code") return;
     if (codeId || isFetchingCodeRef.current) return;
 
     isFetchingCodeRef.current = true;
     let isMounted = true;
     const fetchCode = async () => {
-      setIsLoadingCode(true);
+      setLocalIsLoadingCode(true);
       try {
         const res = await spotsApi.getRandomCodeVerification({
           spotId: targetSpotId,
@@ -422,14 +476,14 @@ export default function ContestSpotReportModal({
         if (isMounted && res && res.success) {
           const cVal = (res as any).code || (res as any).data?.code;
           const cId = (res as any).verificationId || (res as any).data?.verificationId;
-          if (cVal) setCodeText(cVal);
-          if (cId) setCodeId(cId);
-          setCodeExpiresAt(Date.now() + 300 * 1000);
+          if (cVal) setLocalCodeText(cVal);
+          if (cId) setLocalCodeId(cId);
+          setLocalCodeExpiresAt(Date.now() + 300 * 1000);
         }
       } catch (err) {
         console.error("Failed to fetch contest code verification:", err);
       } finally {
-        if (isMounted) setIsLoadingCode(false);
+        if (isMounted) setLocalIsLoadingCode(false);
         isFetchingCodeRef.current = false;
       }
     };
@@ -438,7 +492,7 @@ export default function ContestSpotReportModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, verificationMode, codeId, refreshTrigger, targetSpotId]);
+  }, [sharedVerification, isOpen, verificationMode, codeId, refreshTrigger, targetSpotId]);
 
   if (!isOpen || !spot) return null;
 
@@ -523,6 +577,33 @@ export default function ContestSpotReportModal({
       setErrorMsg(null);
 
       const matchedReason = objectionReasons.find((r) => r.id === selectedReason);
+      const targetSpotId = spot?._id || spot?.id || "";
+
+      const formData = new FormData();
+      formData.append("spotId", targetSpotId);
+      formData.append("forWhat", "reportSpot");
+      formData.append("reason", selectedReason);
+      formData.append("reasonForSpot", selectedReason);
+      formData.append("reasonTitle", matchedReason?.title || selectedReason);
+      formData.append("details", explanation.trim());
+      formData.append("description", explanation.trim());
+      formData.append("verificationMode", verificationMode);
+
+      const vId = verificationMode === "hand" ? gestureId : codeId;
+      if (vId) {
+        formData.append("verificationId", vId);
+      }
+      if (imageFile) {
+        formData.append("image", imageFile);
+        formData.append("counterPhoto", imageFile);
+      }
+
+      const res = await spotsApi.reportSpot(targetSpotId, formData);
+      if (res && res.success === false && !(res as any)?.report) {
+        setErrorMsg(res.message || "Failed to submit contest report.");
+        setIsSubmitting(false);
+        return;
+      }
 
       if (onSubmitReport) {
         onSubmitReport(spot, {
@@ -532,7 +613,7 @@ export default function ContestSpotReportModal({
           counterPhoto: imageFile,
           counterPhotoPreview: imagePreview,
           verificationMode: verificationMode,
-          verificationId: verificationMode === "hand" ? gestureId : codeId,
+          verificationId: vId,
         });
       }
 
@@ -547,6 +628,7 @@ export default function ContestSpotReportModal({
       setIsSubmitting(false);
     }
   };
+
 
   return (
     <div className="fixed inset-0 z-60 bg-[#131b2e]/75 backdrop-blur-md flex flex-col justify-end sm:justify-center items-center p-0 sm:p-4 overflow-y-auto animate-enter">
@@ -578,6 +660,13 @@ export default function ContestSpotReportModal({
             <div className="bg-[#ffdad6] text-[#93000a] p-3 rounded-xl border border-[#ffb4ab] text-xs flex items-center gap-2 font-medium">
               <span className="material-symbols-outlined text-[16px]">error</span>
               <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {hasUserReported && (
+            <div className="bg-amber-50 text-amber-900 p-3 rounded-xl border border-amber-200 text-xs flex items-center gap-2 font-medium shadow-2xs">
+              <span className="material-symbols-outlined text-[18px] text-amber-600 shrink-0">info</span>
+              <span>You have already registered an objection against this spot. Duplicate reports cannot be filed.</span>
             </div>
           )}
 
@@ -1183,13 +1272,22 @@ export default function ContestSpotReportModal({
           <div className="pt-2 pb-2">
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3.5 px-4 rounded-xl bg-[#ba1a1a] hover:bg-[#93000a] text-white font-['Hanken_Grotesk'] font-bold text-sm tracking-wide flex items-center justify-center gap-2 shadow-md active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
+              disabled={isSubmitting || hasUserReported}
+              className={`w-full py-3.5 px-4 rounded-xl font-['Hanken_Grotesk'] font-bold text-sm tracking-wide flex items-center justify-center gap-2 shadow-md transition-all ${
+                hasUserReported
+                  ? "bg-slate-400 text-white cursor-not-allowed opacity-60"
+                  : "bg-[#ba1a1a] hover:bg-[#93000a] text-white active:scale-[0.99] cursor-pointer disabled:opacity-50"
+              }`}
             >
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   <span>Registering Dispute...</span>
+                </>
+              ) : hasUserReported ? (
+                <>
+                  <span className="material-symbols-outlined text-lg">check</span>
+                  <span>Already Reported by You</span>
                 </>
               ) : (
                 <>

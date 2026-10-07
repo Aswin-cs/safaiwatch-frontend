@@ -11,6 +11,7 @@ export interface CompleteWasteSpotModalProps {
   onSuccess?: (updatedSpot: any) => void;
   onReportSpot?: (spot: any, reportData: { reason: string; details?: string }) => void;
   userRole?: string;
+  userLocation?: [number, number] | null;
 }
 
 export default function CompleteWasteSpotModal({
@@ -20,6 +21,7 @@ export default function CompleteWasteSpotModal({
   onSuccess,
   onReportSpot,
   userRole = "Civilian",
+  userLocation,
 }: CompleteWasteSpotModalProps) {
   // Report Spot / Issue Modal State
   const [isReportIssueOpen, setIsReportIssueOpen] = useState<boolean>(false);
@@ -58,6 +60,97 @@ export default function CompleteWasteSpotModal({
   // Refresh Quota State
   const [refreshCountBeforeExpiry, setRefreshCountBeforeExpiry] = useState<number>(0);
   const [refreshCountAfterExpiry, setRefreshCountAfterExpiry] = useState<number>(0);
+
+  // GPS Coordinates Resolution State
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(
+    userLocation && userLocation.length >= 2 ? { lat: userLocation[0], lng: userLocation[1] } : null
+  );
+  const [gpsStatus, setGpsStatus] = useState<"idle" | "acquiring" | "ready" | "failed">("idle");
+
+  // Keep GPS coordinates synced or acquired whenever modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (userLocation && userLocation.length >= 2 && !isNaN(userLocation[0]) && !isNaN(userLocation[1])) {
+      setGpsCoords({ lat: userLocation[0], lng: userLocation[1] });
+      setGpsStatus("ready");
+    }
+
+    if (typeof window !== "undefined" && navigator?.geolocation) {
+      setGpsStatus((prev) => (prev === "ready" ? "ready" : "acquiring"));
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setGpsStatus("ready");
+        },
+        (err) => {
+          console.warn("CompleteWasteSpotModal GPS auto-fetch error:", err);
+          if (!userLocation || userLocation.length < 2) {
+            setGpsStatus("failed");
+          }
+        },
+        { enableHighAccuracy: false, timeout: 6000, maximumAge: 30000 }
+      );
+    }
+  }, [isOpen, userLocation]);
+
+  // Haversine distance calculator between two GPS points
+  const calculateDistanceInMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3; // Earth's radius in meters
+    const toRad = (value: number) => (value * Math.PI) / 180;
+    const phi1 = toRad(lat1);
+    const phi2 = toRad(lat2);
+    const deltaPhi = toRad(lat2 - lat1);
+    const deltaLambda = toRad(lon2 - lon1);
+
+    const a =
+      Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+      Math.cos(phi1) * Math.cos(phi2) *
+      Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Helper to extract coordinates from spot object
+  const getSpotCoordinates = (spotObj: any): { lat: number; lng: number } | null => {
+    if (!spotObj) return null;
+    const loc = spotObj.location || spotObj.geolocation;
+    if (loc && Array.isArray(loc.coordinates) && loc.coordinates.length >= 2) {
+      return { lat: Number(loc.coordinates[1]), lng: Number(loc.coordinates[0]) };
+    }
+    if (Array.isArray(spotObj.coordinates) && spotObj.coordinates.length >= 2) {
+      return { lat: Number(spotObj.coordinates[1]), lng: Number(spotObj.coordinates[0]) };
+    }
+    if (spotObj.latitude !== undefined && spotObj.longitude !== undefined) {
+      const lat = Number(spotObj.latitude);
+      const lng = Number(spotObj.longitude);
+      if (!isNaN(lat) && !isNaN(lng)) return { lat, lng };
+    }
+    if (spotObj.lat !== undefined && spotObj.lng !== undefined) {
+      const lat = Number(spotObj.lat);
+      const lng = Number(spotObj.lng);
+      if (!isNaN(lat) && !isNaN(lng)) return { lat, lng };
+    }
+    return null;
+  };
+
+  // Real-time distance and boundary status to the marked spot
+  const spotCoords = getSpotCoordinates(spot);
+  const distanceToSpot =
+    gpsCoords && spotCoords
+      ? calculateDistanceInMeters(gpsCoords.lat, gpsCoords.lng, spotCoords.lat, spotCoords.lng)
+      : null;
+
+  const distanceDisplay =
+    distanceToSpot !== null
+      ? distanceToSpot >= 1000
+        ? `${(distanceToSpot / 1000).toFixed(2)} km`
+        : `${distanceToSpot.toFixed(1)} m`
+      : null;
+
+  const isWithinBoundary = distanceToSpot !== null && distanceToSpot <= 5;
+  const hasUserReported = Boolean(spot?.hasUserReported || spot?.isReportedByRequestedUser);
 
   // Cleanup Description
   const [description, setDescription] = useState<string>("");
@@ -278,6 +371,7 @@ export default function CompleteWasteSpotModal({
 
   // Form State
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isDeletingVerification, setIsDeletingVerification] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -317,6 +411,23 @@ export default function CompleteWasteSpotModal({
     isFetchingCodeRef.current = false;
   };
 
+  // Handle back button / cancellation - calls deleteOneTimeVerification endpoint
+  const handleBack = async () => {
+    const idToDelete = gestureId || codeId || targetSpotId;
+    if (idToDelete) {
+      try {
+        setIsDeletingVerification(true);
+        await spotsApi.deleteOneTimeVerification(idToDelete);
+      } catch (err) {
+        console.warn("Could not delete one-time verification on modal exit:", err);
+      } finally {
+        setIsDeletingVerification(false);
+      }
+    }
+    resetFormState();
+    onClose();
+  };
+
   // Mode Switch Handler
   const handleSelectMode = (newMode: "hand" | "code") => {
     if (newMode === verificationMode) return;
@@ -330,6 +441,17 @@ export default function CompleteWasteSpotModal({
     setVerificationMode(newMode);
     setCurrentTime(Date.now());
     setErrorMsg(null);
+
+    // Reset verification tokens so switching modes requests a fresh token and updates the document
+    if (newMode === "hand") {
+      setGestureId(null);
+      setGestureImageUrl(null);
+      setGestureExpiresAt(null);
+    } else {
+      setCodeId(null);
+      setCodeText(null);
+      setCodeExpiresAt(null);
+    }
   };
 
   // Refresh Verification handler
@@ -522,25 +644,69 @@ export default function CompleteWasteSpotModal({
       }
 
       // Capture live GPS coordinates to satisfy backend 5m radius verification
+      let resolvedLat: number | null = null;
+      let resolvedLng: number | null = null;
+
       if (typeof window !== "undefined" && navigator?.geolocation) {
+        // Attempt 1: High accuracy GPS
         try {
           const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
             navigator.geolocation.getCurrentPosition(resolve, reject, {
               enableHighAccuracy: true,
-              timeout: 8000,
-              maximumAge: 0,
+              timeout: 6000,
+              maximumAge: 15000,
             });
           });
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          formData.append("latitude", String(lat));
-          formData.append("longitude", String(lng));
-          formData.append("coordinates", JSON.stringify([lng, lat]));
-          formData.append("userLocation", JSON.stringify([lng, lat]));
-        } catch (geoErr) {
-          console.warn("Could not retrieve GPS coordinates for complete spot:", geoErr);
+          resolvedLat = pos.coords.latitude;
+          resolvedLng = pos.coords.longitude;
+        } catch (err1) {
+          console.warn("High accuracy GPS failed, trying standard accuracy fallback:", err1);
+        }
+
+        // Attempt 2: Standard accuracy network geolocation fallback
+        if (resolvedLat === null) {
+          try {
+            const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: false,
+                timeout: 5000,
+                maximumAge: 60000,
+              });
+            });
+            resolvedLat = pos.coords.latitude;
+            resolvedLng = pos.coords.longitude;
+          } catch (err2) {
+            console.warn("Standard accuracy geolocation failed:", err2);
+          }
         }
       }
+
+      // Attempt 3: Cached state or parent userLocation prop fallback
+      if (resolvedLat === null && gpsCoords) {
+        resolvedLat = gpsCoords.lat;
+        resolvedLng = gpsCoords.lng;
+      } else if (resolvedLat === null && userLocation && userLocation.length >= 2) {
+        resolvedLat = userLocation[0];
+        resolvedLng = userLocation[1];
+      }
+
+      // If coordinates still could not be determined, HALT and inform user
+      if (resolvedLat === null || resolvedLng === null) {
+        setGpsStatus("failed");
+        setErrorMsg(
+          "Current GPS location is required to verify physical proximity to the spot. Please enable location permissions in your browser and try again."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Update state and append to FormData
+      setGpsCoords({ lat: resolvedLat, lng: resolvedLng });
+      setGpsStatus("ready");
+      formData.append("latitude", String(resolvedLat));
+      formData.append("longitude", String(resolvedLng));
+      formData.append("coordinates", JSON.stringify([resolvedLng, resolvedLat]));
+      formData.append("userLocation", JSON.stringify([resolvedLng, resolvedLat]));
 
       const res = await spotsApi.completeSpot(spot._id || spot.id, formData);
 
@@ -555,12 +721,24 @@ export default function CompleteWasteSpotModal({
           onClose();
         }, 1400);
       } else {
-        setErrorMsg(res?.message || "Failed to complete spot cleanup. Please check your inputs.");
+        const rawMsg = res?.message || "";
+        if (rawMsg.includes("Location verification failed") || rawMsg.includes("away from the marked spot")) {
+          setErrorMsg(`Out of Boundary: ${rawMsg}`);
+        } else if (rawMsg.includes("location") || rawMsg.includes("proximity")) {
+          setErrorMsg(`Location Error: ${rawMsg}`);
+        } else {
+          setErrorMsg(rawMsg || "Failed to complete spot cleanup. Please check your inputs.");
+        }
         setIsSubmitting(false);
       }
     } catch (err: any) {
       console.error("Error submitting spot completion:", err);
-      setErrorMsg(err?.message || "Network error while completing spot.");
+      const rawMsg = err?.message || "";
+      if (rawMsg.includes("Location verification failed") || rawMsg.includes("away from the marked spot")) {
+        setErrorMsg(`Out of Boundary: ${rawMsg}`);
+      } else {
+        setErrorMsg(rawMsg || "Network error while completing spot.");
+      }
       setIsSubmitting(false);
     }
   };
@@ -617,11 +795,17 @@ export default function CompleteWasteSpotModal({
         <header className="sticky top-0 z-30 bg-[#faf8ff]/90 backdrop-blur-md border-b border-[#dae2fd] px-4 py-3 flex items-center justify-between gap-3 shrink-0">
           <button
             type="button"
-            aria-label="Close modal"
-            onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center rounded-xl text-[#3d4a42] hover:text-[#131b2e] hover:bg-[#e2e7ff] transition-colors cursor-pointer"
+            aria-label="Back and cancel verification"
+            onClick={handleBack}
+            disabled={isDeletingVerification || isSubmitting}
+            className="w-10 h-10 flex items-center justify-center rounded-xl text-[#3d4a42] hover:text-[#131b2e] hover:bg-[#e2e7ff] transition-colors cursor-pointer disabled:opacity-50"
+            title="Cancel and discard verification"
           >
-            <span className="material-symbols-outlined text-[20px]">arrow_back_ios_new</span>
+            {isDeletingVerification ? (
+              <div className="w-5 h-5 border-2 border-[#006948] border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <span className="material-symbols-outlined text-[20px]">arrow_back_ios_new</span>
+            )}
           </button>
 
           <div className="flex-1 flex flex-col items-center justify-center min-w-0">
@@ -647,10 +831,36 @@ export default function CompleteWasteSpotModal({
             </div>
           )}
 
+          {/* Out of Boundary Live Warning Banner */}
+          {distanceToSpot !== null && !isWithinBoundary && !errorMsg && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-2xl text-xs flex items-start gap-2.5 shadow-2xs">
+              <span className="material-symbols-outlined text-[18px] text-amber-600 shrink-0 mt-0.5">near_me</span>
+              <div>
+                <p className="font-bold text-amber-950">You are outside the marked spot boundary ({distanceDisplay} away)</p>
+                <p className="text-[11px] text-amber-800 mt-0.5">
+                  You must be physically within <strong>5 meters</strong> of the spot coordinates to submit completion proof.
+                </p>
+              </div>
+            </div>
+          )}
+
           {successMsg && (
             <div className="bg-[#85f8c4]/40 text-[#005137] p-3 rounded-2xl border border-[#006948]/30 text-xs flex items-center gap-2 font-bold">
               <span className="material-symbols-outlined text-[18px]">check_circle</span>
               <span>{successMsg}</span>
+            </div>
+          )}
+
+          {/* User has already reported this spot notice */}
+          {hasUserReported && (
+            <div className="bg-rose-50 border border-rose-200 text-rose-900 p-3 rounded-2xl text-xs flex items-center gap-2.5 font-medium shadow-2xs">
+              <span className="material-symbols-outlined text-[20px] text-rose-600 shrink-0">report</span>
+              <div>
+                <p className="font-bold text-rose-950">Dispute Filed By You</p>
+                <p className="text-[11px] text-rose-800 mt-0.5">
+                  You have already submitted a report/contest on this spot. You cannot complete or re-report it.
+                </p>
+              </div>
             </div>
           )}
 
@@ -677,9 +887,42 @@ export default function CompleteWasteSpotModal({
                       ID: {(spot._id || spot.id || "").slice(-6)}
                     </span>
                   </div>
-                  <h4 className="text-xs font-['Hanken_Grotesk'] font-bold text-[#131b2e] truncate mt-1">
-                    {spot.title || spot.address || "Reported Location"}
-                  </h4>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <h4 className="text-xs font-['Hanken_Grotesk'] font-bold text-[#131b2e] truncate">
+                      {spot.title || spot.address || "Reported Location"}
+                    </h4>
+                    {/* Boundary & Proximity Status Chip */}
+                    {isWithinBoundary && (
+                      <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span className="material-symbols-outlined text-[11px]">verified</span>
+                        <span>In Boundary ({distanceDisplay})</span>
+                      </span>
+                    )}
+                    {distanceToSpot !== null && !isWithinBoundary && (
+                      <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-300" title={`You are ${distanceDisplay} away. Must be within 5m.`}>
+                        <span className="material-symbols-outlined text-[11px]">near_me</span>
+                        <span>Outside Boundary ({distanceDisplay} away)</span>
+                      </span>
+                    )}
+                    {distanceToSpot === null && gpsStatus === "ready" && (
+                      <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span className="material-symbols-outlined text-[11px]">my_location</span>
+                        <span>GPS Ready</span>
+                      </span>
+                    )}
+                    {distanceToSpot === null && gpsStatus === "acquiring" && (
+                      <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 animate-pulse">
+                        <span className="material-symbols-outlined text-[11px] animate-spin">sync</span>
+                        <span>Acquiring GPS...</span>
+                      </span>
+                    )}
+                    {distanceToSpot === null && gpsStatus === "failed" && (
+                      <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200" title="Click to grant location permission in your browser">
+                        <span className="material-symbols-outlined text-[11px]">location_disabled</span>
+                        <span>GPS Needed</span>
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-[#3d4a42] line-clamp-1 mt-0.5">
                     {spot.description || "Reported waste area awaiting cleanup resolution"}
                   </p>
@@ -690,11 +933,16 @@ export default function CompleteWasteSpotModal({
               <button
                 type="button"
                 onClick={() => setIsReportIssueOpen(true)}
-                className="self-start sm:self-center shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-[#ba1a1a] border border-rose-200/90 text-[11px] font-['Hanken_Grotesk'] font-bold transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
-                title="Report this spot as fake, inaccessible, or already clean"
+                disabled={hasUserReported}
+                className={`self-start sm:self-center shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-['Hanken_Grotesk'] font-bold transition-all shadow-2xs hover:shadow-xs active:scale-95 ${
+                  hasUserReported
+                    ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60"
+                    : "bg-rose-50 hover:bg-rose-100 text-[#ba1a1a] border-rose-200/90 cursor-pointer"
+                }`}
+                title={hasUserReported ? "You have already reported this spot" : "Report this spot as fake, inaccessible, or already clean"}
               >
                 <span className="material-symbols-outlined text-[14px]">flag</span>
-                <span>Report Issue</span>
+                <span>{hasUserReported ? "Already Reported" : "Report Issue"}</span>
               </button>
             </div>
           )}
@@ -1152,34 +1400,55 @@ export default function CompleteWasteSpotModal({
         <footer className="sticky bottom-0 z-30 bg-[#faf8ff]/95 backdrop-blur-md border-t border-[#dae2fd] p-4 flex gap-2.5 shrink-0">
           <button
             type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="py-3 px-4 rounded-xl border border-[#bccac0] text-[#131b2e] font-['Hanken_Grotesk'] font-bold text-xs hover:bg-[#e2e7ff] transition-colors cursor-pointer disabled:opacity-50"
+            onClick={handleBack}
+            disabled={isSubmitting || isDeletingVerification}
+            className="py-3 px-4 rounded-xl border border-[#bccac0] text-[#131b2e] font-['Hanken_Grotesk'] font-bold text-xs hover:bg-[#e2e7ff] transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 min-w-[75px]"
           >
-            Cancel
+            {isDeletingVerification ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-[#131b2e] border-t-transparent rounded-full animate-spin" />
+                <span>Cancelling...</span>
+              </>
+            ) : (
+              "Cancel"
+            )}
           </button>
 
           <button
             type="button"
             onClick={() => setIsReportIssueOpen(true)}
-            disabled={isSubmitting}
-            className="py-3 px-3.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-[#ba1a1a] font-['Hanken_Grotesk'] font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 active:scale-95"
-            title="Report this spot as fake, inaccessible, or already clean"
+            disabled={isSubmitting || hasUserReported}
+            className={`py-3 px-3.5 rounded-xl border font-['Hanken_Grotesk'] font-bold text-xs flex items-center justify-center gap-1.5 transition-colors active:scale-95 ${
+              hasUserReported
+                ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-60"
+                : "border-rose-200 bg-rose-50 hover:bg-rose-100 text-[#ba1a1a] cursor-pointer disabled:opacity-50"
+            }`}
+            title={hasUserReported ? "You have already reported this spot" : "Report this spot as fake, inaccessible, or already clean"}
           >
             <span className="material-symbols-outlined text-[16px]">flag</span>
-            <span>Report Spot</span>
+            <span>{hasUserReported ? "Already Reported" : "Report Spot"}</span>
           </button>
 
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isSubmitting || !imageFile || (timeLeft !== null && timeLeft <= 0)}
-            className="flex-1 py-3 px-4 rounded-xl bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] font-bold text-xs shadow-md disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+            disabled={isSubmitting || !imageFile || (timeLeft !== null && timeLeft <= 0) || hasUserReported}
+            className={`flex-1 py-3 px-4 rounded-xl text-white font-['Hanken_Grotesk'] font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 ${
+              hasUserReported
+                ? "bg-slate-400 cursor-not-allowed opacity-60"
+                : "bg-[#006948] hover:bg-[#00855d] cursor-pointer active:scale-98 disabled:opacity-50"
+            }`}
+            title={hasUserReported ? "You reported this spot and cannot mark it as completed" : "Mark as Completed"}
           >
             {isSubmitting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 <span>Verifying Cleanup...</span>
+              </>
+            ) : hasUserReported ? (
+              <>
+                <span className="material-symbols-outlined text-[16px]">block</span>
+                <span>Cannot Complete (Reported)</span>
               </>
             ) : (
               <>
@@ -1197,6 +1466,22 @@ export default function CompleteWasteSpotModal({
         onClose={() => setIsReportIssueOpen(false)}
         spot={spot}
         userRole={userRole}
+        sharedVerification={{
+          verificationMode,
+          gestureImageUrl,
+          gestureId,
+          gestureExpiresAt,
+          codeText,
+          codeId,
+          codeExpiresAt,
+          switchCount,
+          refreshCountBeforeExpiry,
+          refreshCountAfterExpiry,
+          isLoadingGesture,
+          isLoadingCode,
+          onSelectMode: handleSelectMode,
+          onRefreshVerification: handleRefreshVerification,
+        }}
         onSubmitReport={(reportedSpot, reportData) => {
           setIsReportIssueOpen(false);
           if (onReportSpot) {

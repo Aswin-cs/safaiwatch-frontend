@@ -80,6 +80,10 @@ export interface Report {
   isVerified?: boolean;
   isCompletedVerify?: "pending" | "completed" | "uncompleted" | string;
   isCompletedVerifyAt?: string;
+  hasUserReported?: boolean;
+  isReportedByRequestedUser?: boolean;
+  isReported?: boolean;
+  isReportedBy?: any[];
 }
 
 export interface SafaiMapInnerProps {

@@ -317,6 +317,11 @@ export default function ProfilePage({ params }: PageProps) {
         monday.setHours(0, 0, 0, 0);
 
         const todayStr = getYYYYMMDD(now);
+        const activeDates = new Set(
+          Array.isArray(userRewards?.activeDays)
+            ? userRewards.activeDays.map((d: any) => getYYYYMMDD(d)).filter(Boolean)
+            : []
+        );
 
         return dayNames.map((day, idx) => {
           const dayDate = new Date(monday);
@@ -324,7 +329,7 @@ export default function ProfilePage({ params }: PageProps) {
           const dateStr = getYYYYMMDD(dayDate);
           const isToday = dateStr === todayStr;
           const isPast = dateStr < todayStr;
-          const isActive = isPast || (isToday && streaksCount > 0);
+          const isActive = activeDates.has(dateStr);
 
           return { day, date: dateStr, isToday, isPast, isActive };
         });
@@ -1195,7 +1200,9 @@ export default function ProfilePage({ params }: PageProps) {
           const currentStreakLevel = getStreakLevel(streaksCount);
           const todayWeekDay = (weekDays || []).find((d: any) => d.isToday);
           const isActiveToday = Boolean(todayWeekDay?.isActive);
-          const totalActiveDaysCount = Array.isArray(userRewards?.activeDays) ? userRewards.activeDays.length : (streaksCount > 0 ? streaksCount : 0);
+          const totalActiveDaysCount = Array.isArray(userRewards?.activeDays) && userRewards.activeDays.length > 0
+            ? userRewards.activeDays.length
+            : (weekDays || []).filter((d: any) => d.isActive).length;
           const streakProgressPercent = Math.min(100, Math.round((streaksCount / currentStreakLevel.target) * 100));
 
           return (

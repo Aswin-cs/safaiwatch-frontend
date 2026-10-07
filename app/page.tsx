@@ -1203,6 +1203,9 @@ export default function HomePage() {
   const currentAssignmentCount = assignedByDetailsList ? assignedByDetailsList.length : 0;
   const isSlotsAvailable = currentAssignmentCount < maxAssignments;
   const parsedAudit = parseSpotAiAudit(selectedReport);
+  const hasCurrentUserDisputed = Boolean(
+    selectedReport?.hasUserReported || selectedReport?.isReportedByRequestedUser
+  );
 
   // Filter reports according to activeFilter chip selection
   const filteredReports = reports.filter((r) => {
@@ -2670,6 +2673,14 @@ export default function HomePage() {
                       </button>
                     );
                   }
+                  if (hasCurrentUserDisputed) {
+                    return (
+                      <div className="flex-1 py-2.5 px-4 rounded-xl bg-rose-50 text-rose-800 font-bold text-xs border border-rose-200 flex items-center justify-center gap-1.5 shadow-xs">
+                        <span className="material-symbols-outlined text-[16px] text-rose-600">report</span>
+                        <span>Contested by you &bull; Cannot complete</span>
+                      </div>
+                    );
+                  }
                   return (
                     <button
                       type="button"
@@ -2717,6 +2728,14 @@ export default function HomePage() {
                 }
 
                 if (!isReportedByCurrentUser && isClaimableRole) {
+                  if (hasCurrentUserDisputed) {
+                    return (
+                      <div className="flex-1 py-2.5 px-4 rounded-xl bg-rose-50 text-rose-800 font-bold text-xs border border-rose-200 flex items-center justify-center gap-1.5 shadow-xs">
+                        <span className="material-symbols-outlined text-[16px] text-rose-600">report</span>
+                        <span>Reported by you &bull; Cannot complete</span>
+                      </div>
+                    );
+                  }
                   return (
                     <button
                       type="button"
@@ -2822,6 +2841,7 @@ export default function HomePage() {
         }}
         spot={selectedReport}
         userRole={userProfile?.role || "Civilian"}
+        userLocation={userLocation}
         onReportSpot={(reportedSpot, reportData) => {
           setIsCompleteModalOpen(false);
           setAiNotice({
