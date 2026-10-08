@@ -12,6 +12,7 @@ export interface CompleteWasteSpotModalProps {
   onReportSpot?: (spot: any, reportData: { reason: string; details?: string }) => void;
   userRole?: string;
   userLocation?: [number, number] | null;
+  currentUserId?: string;
 }
 
 export default function CompleteWasteSpotModal({
@@ -22,6 +23,7 @@ export default function CompleteWasteSpotModal({
   onReportSpot,
   userRole = "Civilian",
   userLocation,
+  currentUserId,
 }: CompleteWasteSpotModalProps) {
   // Report Spot / Issue Modal State
   const [isReportIssueOpen, setIsReportIssueOpen] = useState<boolean>(false);
@@ -150,7 +152,14 @@ export default function CompleteWasteSpotModal({
       : null;
 
   const isWithinBoundary = distanceToSpot !== null && distanceToSpot <= 5;
-  const hasUserReported = Boolean(spot?.hasUserReported || spot?.isReportedByRequestedUser);
+  const hasUserReported = Boolean(
+    spot?.hasUserReported ||
+    spot?.isReportedByRequestedUser ||
+    (currentUserId && Array.isArray(spot?.isReportedBy) && spot.isReportedBy.some((entry: any) => {
+      const rId = entry?.reportedBy?._id ? entry.reportedBy._id.toString() : (entry?.reportedBy ? entry.reportedBy.toString() : (typeof entry === "string" ? entry : ""));
+      return rId && String(rId) === String(currentUserId);
+    }))
+  );
 
   // Cleanup Description
   const [description, setDescription] = useState<string>("");
@@ -1465,6 +1474,7 @@ export default function CompleteWasteSpotModal({
         isOpen={isReportIssueOpen}
         onClose={() => setIsReportIssueOpen(false)}
         spot={spot}
+        currentUserId={currentUserId}
         userRole={userRole}
         sharedVerification={{
           verificationMode,

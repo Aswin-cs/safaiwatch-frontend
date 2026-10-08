@@ -38,6 +38,7 @@ export interface ContestSpotReportModalProps {
   ) => void;
   userRole?: string;
   sharedVerification?: SharedVerificationState;
+  currentUserId?: string;
 }
 
 export default function ContestSpotReportModal({
@@ -47,8 +48,16 @@ export default function ContestSpotReportModal({
   onSubmitReport,
   userRole = "Civilian",
   sharedVerification,
+  currentUserId,
 }: ContestSpotReportModalProps) {
-  const hasUserReported = Boolean(spot?.hasUserReported || spot?.isReportedByRequestedUser);
+  const hasUserReported = Boolean(
+    spot?.hasUserReported ||
+    spot?.isReportedByRequestedUser ||
+    (currentUserId && Array.isArray(spot?.isReportedBy) && spot.isReportedBy.some((entry: any) => {
+      const rId = entry?.reportedBy?._id ? entry.reportedBy._id.toString() : (entry?.reportedBy ? entry.reportedBy.toString() : (typeof entry === "string" ? entry : ""));
+      return rId && String(rId) === String(currentUserId);
+    }))
+  );
 
   // 1. Objection Reason State
   const [selectedReason, setSelectedReason] = useState<string>("fake_or_ai");

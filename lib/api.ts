@@ -220,6 +220,24 @@ export const profileApi = {
     });
   },
 
+  getNotifications: async () => {
+    return request<any>('/api/v1/profile/notifications', {
+      method: 'GET',
+    });
+  },
+
+  submitReportExplanation: async (payload: {
+    reportId: string;
+    reason?: string;
+    explanation: string;
+    image?: string;
+  }) => {
+    return request<any>('/api/v1/profile/report-explanation', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   clearCache: clearSessionProfileCache,
 };
 
@@ -257,13 +275,14 @@ export const rewardsApi = {
 };
 
 export const spotsApi = {
-  getAllSpots: async (params?: { lat?: number; lng?: number; radius?: number }) => {
+  getAllSpots: async (params?: { lat?: number; lng?: number; radius?: number; userId?: string }) => {
     let queryString = '';
     if (params) {
       const searchParams = new URLSearchParams();
       if (params.lat !== undefined) searchParams.append('lat', String(params.lat));
       if (params.lng !== undefined) searchParams.append('lng', String(params.lng));
       if (params.radius !== undefined) searchParams.append('radius', String(params.radius));
+      if (params.userId !== undefined) searchParams.append('userId', String(params.userId));
       queryString = `?${searchParams.toString()}`;
     }
     return request(`/api/v1/spots${queryString}`, {
@@ -271,8 +290,9 @@ export const spotsApi = {
     });
   },
 
-  getSpotById: async (id: string) => {
-    return request(`/api/v1/spots/${id}`, {
+  getSpotById: async (id: string, userId?: string) => {
+    const url = userId ? `/api/v1/spots/${id}?userId=${encodeURIComponent(userId)}` : `/api/v1/spots/${id}`;
+    return request(url, {
       method: 'GET',
     });
   },

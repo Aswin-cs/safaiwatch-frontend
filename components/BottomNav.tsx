@@ -8,13 +8,15 @@ import {
   Compass,
   PlusCircle,
   Trophy,
-  User,
+  Bell,
 } from "lucide-react";
 
 interface BottomNavProps {
-  activeTab?: "map" | "explore" | "rewards" | "profile";
+  activeTab?: "map" | "explore" | "rewards" | "notifications" | "profile";
   onReportClick?: () => void;
   onMapClick?: () => void;
+  onNotificationClick?: () => void;
+  hasUnreadNotifications?: boolean;
   userRole?: string;
 }
 
@@ -22,6 +24,8 @@ export default function BottomNav({
   activeTab: explicitActiveTab,
   onReportClick,
   onMapClick,
+  onNotificationClick,
+  hasUnreadNotifications,
   userRole,
 }: BottomNavProps) {
   const pathname = usePathname();
@@ -36,8 +40,8 @@ export default function BottomNav({
       ? "explore"
       : pathname.startsWith("/reward") || pathname.startsWith("/rewards")
       ? "rewards"
-      : pathname.startsWith("/profile")
-      ? "profile"
+      : pathname.startsWith("/notifications")
+      ? "notifications"
       : "map");
 
   const isCoordinator = (userRole || "").trim().toLowerCase() === "coordinator";
@@ -55,6 +59,13 @@ export default function BottomNav({
     if (onMapClick && pathname === "/") {
       e.preventDefault();
       onMapClick();
+    }
+  };
+
+  const handleNotificationClick = (e: React.MouseEvent) => {
+    if (onNotificationClick) {
+      e.preventDefault();
+      onNotificationClick();
     }
   };
 
@@ -111,17 +122,23 @@ export default function BottomNav({
         <span className="text-[10px] mt-0.5">Rewards</span>
       </Link>
 
-      {/* Profile Tab */}
+      {/* Notifications Tab */}
       <Link
-        href="/profile"
-        className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
-          currentTab === "profile"
+        href="/notifications"
+        onClick={handleNotificationClick}
+        className={`flex flex-col items-center justify-center transition-all cursor-pointer relative ${
+          currentTab === "notifications"
             ? "text-[#006948] scale-110 font-extrabold"
             : "text-slate-500 hover:text-[#006948]"
         }`}
       >
-        <User className="w-5 h-5" />
-        <span className="text-[10px] mt-0.5">Profile</span>
+        <div className="relative">
+          <Bell className="w-5 h-5" />
+          {hasUnreadNotifications && (
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#006948] rounded-full ring-2 ring-white" />
+          )}
+        </div>
+        <span className="text-[10px] mt-0.5">Alerts</span>
       </Link>
     </nav>
   );

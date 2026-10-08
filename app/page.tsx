@@ -318,6 +318,19 @@ export default function HomePage() {
   // Handle Claim Spot (assign API)
   const handleClaimSpot = async (report: Report) => {
     if (isClaimingSpot) return;
+    const currentUserId = userProfile?._id || userProfile?.id;
+    const isUserDisputed = Boolean(
+      report.hasUserReported ||
+      report.isReportedByRequestedUser ||
+      (currentUserId && Array.isArray(report.isReportedBy) && report.isReportedBy.some((entry: any) => {
+        const rId = entry?.reportedBy?._id ? entry.reportedBy._id.toString() : (entry?.reportedBy ? entry.reportedBy.toString() : (typeof entry === "string" ? entry : ""));
+        return rId && String(rId) === String(currentUserId);
+      }))
+    );
+    if (isUserDisputed) {
+      alert("You have reported/contested this spot and cannot claim or complete it.");
+      return;
+    }
     setIsClaimingSpot(true);
     try {
       const res = await spotsApi.assignSpot(report.id);
@@ -353,7 +366,12 @@ export default function HomePage() {
 
   // Handle Complete Spot (complete API)
   const handleCompleteSpot = async () => {
-    if (!selectedReport || isCompletingSpot) return;
+    if (!selectedReport || isCompletingSpot || hasCurrentUserDisputed) {
+      if (hasCurrentUserDisputed) {
+        alert("You have already reported/contested this spot and cannot mark it as completed.");
+      }
+      return;
+    }
     setIsCompletingSpot(true);
     try {
       const formData = new FormData();
@@ -476,7 +494,8 @@ export default function HomePage() {
                 : meRes.user.avatar?.url || meRes.user.avatarUrl?.url || "";
 
           setUserProfile({
-            id: meRes.user.username || meRes.user.id,
+            _id: meRes.user._id || meRes.user.id,
+            id: meRes.user._id || meRes.user.id || meRes.user.username,
             name: meRes.user.username || meRes.user.name,
             username: meRes.user.username,
             avatarUrl: meAvatar,
@@ -569,16 +588,19 @@ export default function HomePage() {
       isVerified: spot.isVerified,
       isCompletedVerify: spot.isCompletedVerify,
       isCompletedVerifyAt: spot.isCompletedVerifyAt,
+      hasUserReported: Boolean(spot.hasUserReported || spot.isReportedByRequestedUser),
+      isReportedByRequestedUser: Boolean(spot.hasUserReported || spot.isReportedByRequestedUser),
+      isReported: Boolean(spot.isReported),
+      isReportedBy: Array.isArray(spot.isReportedBy) ? spot.isReportedBy : [],
     };
   };
 
-  // Fetch real spots from backend API on mount when authenticated
+  // Fetch real spots from backend API on mount
   useEffect(() => {
-    if (!isAuthenticated) return;
-
     async function loadBackendSpots() {
       try {
-        const res = await spotsApi.getAllSpots();
+        const currentUid = userProfile?._id || userProfile?.id;
+        const res = await spotsApi.getAllSpots(currentUid ? { userId: currentUid } : undefined);
         if (res && res.success && Array.isArray(res.spots)) {
           const mappedReports: Report[] = res.spots.map((spot: any) => mapSpotToReport(spot));
           setReports(deduplicateReports(mappedReports));
@@ -589,7 +611,7 @@ export default function HomePage() {
     }
 
     loadBackendSpots();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userProfile?._id, userProfile?.id]);
 
   // Socket.IO real-time event listeners for spots update across connected users
   useEffect(() => {
@@ -696,12 +718,33 @@ export default function HomePage() {
       }
     };
 
+    const onSpotReported = (data: any) => {
+      if (!data) return;
+      setAiNotice({
+        type: "error",
+        message: data.message || `Notice: Your marked spot has been reported for review (${data.reason || "under review"}).`,
+      });
+      setTimeout(() => {
+        setAiNotice(null);
+      }, 9000);
+
+      if (data.spotId) {
+        setReports((prev) =>
+          prev.map((r) => (String(r.id) === String(data.spotId) ? { ...r, isReported: true } : r))
+        );
+        setSelectedReport((prev) =>
+          prev && String(prev.id) === String(data.spotId) ? { ...prev, isReported: true } : prev
+        );
+      }
+    };
+
     socket.on("spot:created", onSpotCreated);
     socket.on("spot:assigned", onSpotAssigned);
     socket.on("spot:completed", onSpotCompleted);
     socket.on("spot:deleted", onSpotDeleted);
     socket.on("spot:ai-verified", onSpotAiVerified);
     socket.on("spot:ai-verifying", onSpotAiVerifying);
+    socket.on("spot:reported", onSpotReported);
 
     return () => {
       socket.off("spot:created", onSpotCreated);
@@ -710,6 +753,7 @@ export default function HomePage() {
       socket.off("spot:deleted", onSpotDeleted);
       socket.off("spot:ai-verified", onSpotAiVerified);
       socket.off("spot:ai-verifying", onSpotAiVerifying);
+      socket.off("spot:reported", onSpotReported);
     };
   }, [isAuthenticated, userProfile?._id]);
 
@@ -800,7 +844,7 @@ export default function HomePage() {
 
     if (report.id && !report.id.startsWith("rep-") && !report.id.startsWith("spot-0.")) {
       try {
-        const res = await spotsApi.getSpotById(report.id);
+        const res = await spotsApi.getSpotById(report.id, userProfile?._id || userProfile?.id);
         if (res && res.success && res.spot) {
           const fullSpot = res.spot;
           const hasAssignments = Array.isArray(fullSpot.isAssignedBy) && fullSpot.isAssignedBy.length > 0;
@@ -1203,8 +1247,23 @@ export default function HomePage() {
   const currentAssignmentCount = assignedByDetailsList ? assignedByDetailsList.length : 0;
   const isSlotsAvailable = currentAssignmentCount < maxAssignments;
   const parsedAudit = parseSpotAiAudit(selectedReport);
+  const currentUserId = userProfile?._id || userProfile?.id;
   const hasCurrentUserDisputed = Boolean(
-    selectedReport?.hasUserReported || selectedReport?.isReportedByRequestedUser
+    selectedReport?.hasUserReported ||
+    selectedReport?.isReportedByRequestedUser ||
+    (Array.isArray(selectedReport?.isReportedBy) && selectedReport.isReportedBy.some((entry: any) => {
+      const rId = entry?.reportedBy?._id
+        ? entry.reportedBy._id.toString()
+        : (entry?.reportedBy?.id
+          ? entry.reportedBy.id.toString()
+          : (typeof entry?.reportedBy === "string"
+            ? entry.reportedBy
+            : (entry?._id ? entry._id.toString() : "")));
+      const rUsername = entry?.reportedBy?.username || (typeof entry?.reportedBy === "string" ? entry.reportedBy : null);
+      const matchId = currentUserId && rId && String(rId).toLowerCase() === String(currentUserId).toLowerCase();
+      const matchUsername = currentUsername && rUsername && String(rUsername).toLowerCase() === String(currentUsername).toLowerCase();
+      return Boolean(matchId || matchUsername);
+    }))
   );
 
   // Filter reports according to activeFilter chip selection
@@ -1872,6 +1931,21 @@ export default function HomePage() {
 
             {!selectedReport.isCompleted && (() => {
               const hasAssignments = selectedReport.isAssignedBy && selectedReport.isAssignedBy.length > 0;
+
+              // LOCK: If the user previously reported/contested this spot, lock completion and reporting!
+              if (hasCurrentUserDisputed) {
+                return (
+                  <button
+                    type="button"
+                    disabled
+                    className="flex-1 bg-rose-50 text-rose-700 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-3 rounded-xl border border-rose-200/90 shadow-2xs flex items-center justify-center gap-1.5 cursor-not-allowed opacity-90 transition-all select-none"
+                    title="You reported this spot. You cannot complete it or report it again."
+                  >
+                    <Lock className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span className="truncate">Reported by you &bull; Locked</span>
+                  </button>
+                );
+              }
 
               if (isCurrentUserAssigned) {
                 if (selectedReport.isPendingVerification) {
@@ -2651,6 +2725,21 @@ export default function HomePage() {
               {!selectedReport.isCompleted && (() => {
                 const hasAssignments = selectedReport.isAssignedBy && selectedReport.isAssignedBy.length > 0;
 
+                // LOCK: If the user previously reported/contested this spot, lock completion and reporting!
+                if (hasCurrentUserDisputed) {
+                  return (
+                    <button
+                      type="button"
+                      disabled
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-rose-50 text-rose-800 font-bold text-xs sm:text-sm border border-rose-200 flex items-center justify-center gap-1.5 shadow-xs cursor-not-allowed opacity-90 select-none"
+                      title="You reported this spot. You cannot complete it."
+                    >
+                      <Lock className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>Reported by you &bull; Locked</span>
+                    </button>
+                  );
+                }
+
                 if (isCurrentUserAssigned) {
                   if (selectedReport.isPendingVerification) {
                     return (
@@ -2697,6 +2786,14 @@ export default function HomePage() {
                 }
 
                 if (hasAssignments && !isCurrentUserAssigned) {
+                  if (hasCurrentUserDisputed) {
+                    return (
+                      <div className="flex-1 py-2.5 px-4 rounded-xl bg-rose-50 text-rose-800 font-bold text-xs border border-rose-200 flex items-center justify-center gap-1.5 shadow-xs">
+                        <span className="material-symbols-outlined text-[16px] text-rose-600">report</span>
+                        <span>Reported by you &bull; Cannot complete</span>
+                      </div>
+                    );
+                  }
                   if (isSlotsAvailable && isClaimableRole && !isReportedByCurrentUser) {
                     return (
                       <button
@@ -2840,6 +2937,7 @@ export default function HomePage() {
           setCompleteImagePreview(null);
         }}
         spot={selectedReport}
+        currentUserId={userProfile?._id || userProfile?.id}
         userRole={userProfile?.role || "Civilian"}
         userLocation={userLocation}
         onReportSpot={(reportedSpot, reportData) => {
@@ -2848,6 +2946,23 @@ export default function HomePage() {
             type: "success",
             message: `🚩 Spot reported (${reportData.reason}). Municipal moderators & AI auditors will review.`,
           });
+          if (selectedReport) {
+            const updated: Report = {
+              ...selectedReport,
+              hasUserReported: true,
+              isReportedByRequestedUser: true,
+              isReported: true,
+              isReportedBy: [
+                ...(selectedReport.isReportedBy || []),
+                {
+                  reportedBy: userProfile?._id || userProfile?.id,
+                  reportedAt: new Date().toISOString(),
+                },
+              ],
+            };
+            setSelectedReport(updated);
+            setReports((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+          }
           setTimeout(() => {
             setAiNotice(null);
           }, 8000);

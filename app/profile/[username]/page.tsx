@@ -262,10 +262,18 @@ export default function ProfilePage({ params }: PageProps) {
       }
     };
 
+    const onSpotReported = (data: any) => {
+      if (data?.message) {
+        triggerToast(data.message);
+      }
+    };
+
     socket.on("spot:ai-verified", onSpotAiVerified);
+    socket.on("spot:reported", onSpotReported);
 
     return () => {
       socket.off("spot:ai-verified", onSpotAiVerified);
+      socket.off("spot:reported", onSpotReported);
     };
   }, [isAuthenticated, profileData?.user?.username, profileData?.user?.id]);
 
