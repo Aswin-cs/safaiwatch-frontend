@@ -215,6 +215,15 @@ export default function HomePage() {
   // Handle Delete Spot (delete API)
   const handleDeleteSpot = async () => {
     if (!selectedReport || isDeletingSpot) return;
+    if (selectedReport.isReported) {
+      setAiNotice({
+        type: "error",
+        message: "Reported spots cannot be deleted.",
+      });
+      setTimeout(() => setAiNotice(null), 6000);
+      setIsDeleteConfirmModalOpen(false);
+      return;
+    }
     setIsDeletingSpot(true);
     try {
       const res = await spotsApi.deleteSpot(selectedReport.id, "markedSpot");
@@ -1266,17 +1275,69 @@ export default function HomePage() {
     }))
   );
 
-  // Filter reports according to activeFilter chip selection
-  const filteredReports = reports.filter((r) => {
+  // Visibility rule for reported spots:
+  // Visibility rules for spots:
+  // 1. Don't show spots with isVerified === false to other users (only marked user can see it).
+  // 2. If the spot is reported (isReported === true), ONLY the marked user (spot.markedBy)
+  //    and the reporting user (spot.isReportedBy) can see it.
+  // 3. Otherwise, show as usual spot to all users.
+  const isSpotVisibleToUser = (r: Report | null | undefined): boolean => {
+    if (!r) return false;
+
+    const markedByObj = typeof r.markedBy === "object" && r.markedBy !== null ? (r.markedBy as any) : null;
+    const markerId = markedByObj?._id || markedByObj?.id || (typeof r.markedBy === "string" ? r.markedBy : "");
+    const markerUsername = markedByObj?.username || (typeof r.markedBy === "string" ? r.markedBy : "");
+
+    const isMarker = Boolean(
+      (currentUserId && markerId && String(markerId).toLowerCase() === String(currentUserId).toLowerCase()) ||
+      (currentUsername && markerUsername && String(markerUsername).toLowerCase() === String(currentUsername).toLowerCase())
+    );
+
+    // Rule 1: If isVerified === false, ONLY the user who marked it can see it
+    if (r.isVerified === false && !isMarker) {
+      return false;
+    }
+
+    // Rule 2: If the spot is reported (isReported === true), ONLY the marked user and reporting user can see it
+    if (r.isReported === true) {
+      const isReporter = Boolean(
+        r.hasUserReported ||
+        r.isReportedByRequestedUser ||
+        (Array.isArray(r.isReportedBy) && r.isReportedBy.some((entry: any) => {
+          const rId = entry?.reportedBy?._id
+            ? entry.reportedBy._id.toString()
+            : (entry?.reportedBy?.id
+              ? entry.reportedBy.id.toString()
+              : (typeof entry?.reportedBy === "string"
+                ? entry.reportedBy
+                : (entry?._id ? entry._id.toString() : "")));
+          const rUsername = entry?.reportedBy?.username || (typeof entry?.reportedBy === "string" ? entry.reportedBy : null);
+          const matchId = currentUserId && rId && String(rId).toLowerCase() === String(currentUserId).toLowerCase();
+          const matchUsername = currentUsername && rUsername && String(rUsername).toLowerCase() === String(currentUsername).toLowerCase();
+          return Boolean(matchId || matchUsername);
+        }))
+      );
+
+      return isMarker || isReporter;
+    }
+
+    return true;
+  };
+
+  // Base list of spots visible to this user
+  const visibleReports = reports.filter(isSpotVisibleToUser);
+
+  // Filter reports according to activeFilter chip selection and reported spot visibility
+  const filteredReports = visibleReports.filter((r) => {
     if (activeFilter === "critical") return r.status === "critical" || r.severity === "High" || r.critcal === "Very High" || r.critcal === "High";
     if (activeFilter === "assigned") return r.status === "claimed" || (r.isAssignedBy && r.isAssignedBy.length > 0);
     if (activeFilter === "resolved") return r.status === "resolved" || r.isCompleted;
     return true;
   });
 
-  const criticalCount = reports.filter((r) => r.status === "critical" || r.severity === "High" || r.critcal === "Very High" || r.critcal === "High").length;
-  const assignedCount = reports.filter((r) => r.status === "claimed" || (r.isAssignedBy && r.isAssignedBy.length > 0)).length;
-  const resolvedCount = reports.filter((r) => r.status === "resolved" || r.isCompleted).length;
+  const criticalCount = visibleReports.filter((r) => r.status === "critical" || r.severity === "High" || r.critcal === "Very High" || r.critcal === "High").length;
+  const assignedCount = visibleReports.filter((r) => r.status === "claimed" || (r.isAssignedBy && r.isAssignedBy.length > 0)).length;
+  const resolvedCount = visibleReports.filter((r) => r.status === "resolved" || r.isCompleted).length;
 
   // 3. AUTHENTICATED STATE: SHOW STITCH MAP DASHBOARD FOR AUTHENTICATED USERS
   return (
@@ -1685,7 +1746,7 @@ export default function HomePage() {
           )}
 
           {/* Selected Spot Card */}
-          {selectedReport && (
+          {selectedReport && isSpotVisibleToUser(selectedReport) && (
             <div className="w-full bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[28px] shadow-[0_20px_50px_rgba(15,23,42,0.12)] p-4 sm:p-5 flex flex-col gap-3.5 animate-enter">
               {/* Drag Handle Indicator */}
               <div className="w-12 h-1 bg-slate-300 rounded-full mx-auto -mt-1 mb-1"></div>
@@ -2035,7 +2096,7 @@ export default function HomePage() {
               return null;
             })()}
 
-            {isReportedByCurrentUser && !selectedReport.isCompleted && (
+            {isReportedByCurrentUser && !selectedReport.isCompleted && !selectedReport.isReported && (
               <button
                 onClick={() => setIsDeleteConfirmModalOpen(true)}
                 className="bg-red-50 hover:bg-red-100 text-red-600 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-3 rounded-xl border border-red-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
@@ -2173,7 +2234,7 @@ export default function HomePage() {
       )}
 
       {/* Spot Details & Inspection Modal */}
-      {isSpotDetailModalOpen && selectedReport && (
+      {isSpotDetailModalOpen && selectedReport && isSpotVisibleToUser(selectedReport) && (
         <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-enter">
           <div className="bg-[#faf8ff] rounded-3xl max-w-lg w-full max-h-[88vh] flex flex-col p-4 sm:p-6 border border-slate-200 shadow-2xl relative">
             <button
@@ -2858,7 +2919,7 @@ export default function HomePage() {
                 return null;
               })()}
 
-              {isReportedByCurrentUser && !selectedReport.isCompleted && (
+              {isReportedByCurrentUser && !selectedReport.isCompleted && !selectedReport.isReported && (
                 <button
                   type="button"
                   onClick={() => setIsDeleteConfirmModalOpen(true)}

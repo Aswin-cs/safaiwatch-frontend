@@ -30,6 +30,11 @@ import {
 import { authApi, profileApi } from "@/lib/api";
 import { socket } from "@/lib/socket";
 import BottomNav from "@/components/BottomNav";
+import {
+  getCitizenClaimDefinition,
+  getCustomOptionsForClaim,
+  getQuickChipsForClaim,
+} from "@/lib/citizenClaims";
 
 interface CounterExplanation {
   reason?: string;
@@ -57,6 +62,14 @@ interface CivicNotification {
   imageUrl?: string;
   spotAddress?: string;
   spotCategory?: string;
+  isSpotIsFake?: boolean;
+  spot?: {
+    id?: string | null;
+    address?: string;
+    category?: string;
+    image?: string | null;
+    isSpotIsFake?: boolean;
+  } | null;
   counterExplanation?: CounterExplanation | null;
 }
 
@@ -86,113 +99,12 @@ const formatRelativeTime = (dateInput?: string | Date | null) => {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
-const REASON_FOR_SPOT_MAP: Record<string, { label: string; defense: string }> = {
-  fake_or_ai: {
-    label: "AI Generated or Fake Photo",
-    defense: "Photo is 100% genuine and taken live on-site (not AI or fake)",
-  },
-  already_cleaned: {
-    label: "Already Cleaned Beforehand",
-    defense: "Spot was not cleaned beforehand; accumulated waste was present when reported",
-  },
-  inaccessible: {
-    label: "Inaccessible or Private Location",
-    defense: "Spot is publicly accessible along the civic path, not private property",
-  },
-  wrong_location: {
-    label: "Inaccurate Coordinates / Wrong Location",
-    defense: "Coordinates match the exact physical location where waste was spotted",
-  },
-  other_spam: {
-    label: "Spam or Invalid Content",
-    defense: "Legitimate civic issue reported in good faith, not spam",
-  },
+const getPresetsForReport = (reasonKey?: string | null, forWhat?: string) => {
+  return getCustomOptionsForClaim(reasonKey, forWhat);
 };
 
-const REASON_FOR_CLEANUP_MAP: Record<string, { label: string; defense: string }> = {
-  fake_or_ai: {
-    label: "AI Generated or Fake Photo",
-    defense: "Cleanup photo was taken live on-site right after work was finished",
-  },
-  not_completed: {
-    label: "Cleanup Incomplete or Not Cleaned",
-    defense: "Waste was thoroughly cleared and removed from the site as required",
-  },
-  wrong_cleaned_location: {
-    label: "Wrong Cleanup Location",
-    defense: "Cleanup took place at the exact coordinates of the assigned spot",
-  },
-  other_spam: {
-    label: "Spam or Invalid Content",
-    defense: "Authentic cleanup executed in good faith per civic standards",
-  },
-};
-
-const getPresetsForReport = (forWhat?: string) => {
-  if (forWhat === "reportCompleteSpot") {
-    return [
-      { key: "not_completed", text: "Waste was thoroughly cleared and removed from the site" },
-      { key: "fake_or_ai", text: "Cleanup photo was taken live on-site (not AI or fake)" },
-      { key: "wrong_cleaned_location", text: "Cleaned at the exact coordinates of the assigned spot" },
-      { key: "other_spam", text: "Authentic cleanup executed in good faith" },
-      { key: "other", text: "Other custom explanation" },
-    ];
-  }
-  return [
-    { key: "inaccessible", text: "Spot is publicly accessible along the civic path, not private property" },
-    { key: "fake_or_ai", text: "Photo is 100% genuine and taken live on-site (not AI or fake)" },
-    { key: "already_cleaned", text: "Waste was present on-site; was not cleaned beforehand" },
-    { key: "wrong_location", text: "GPS pin and coordinates accurately mark the spot" },
-    { key: "other_spam", text: "Authentic civic report, not spam or fake contest" },
-    { key: "other", text: "Other custom explanation" },
-  ];
-};
-
-const getQuickChips = (reasonKey?: string) => {
-  switch (reasonKey) {
-    case "inaccessible":
-      return [
-        "Public path is open",
-        "No private gates",
-        "Clear road access",
-        "Sanitation staff can reach",
-      ];
-    case "fake_or_ai":
-      return [
-        "Photo taken live on-site",
-        "Unedited camera capture",
-        "Surrounding landmarks visible",
-      ];
-    case "already_cleaned":
-      return [
-        "Waste was visible on arrival",
-        "Garbage pile present",
-        "Condition matches photo",
-      ];
-    case "wrong_location":
-      return [
-        "GPS pin matches waste pile",
-        "Exact coordinates verified",
-        "Street landmarks align",
-      ];
-    case "not_completed":
-      return [
-        "Waste was 100% bagged and removed",
-        "Area swept clean",
-        "Disposed at dump facility",
-      ];
-    case "wrong_cleaned_location":
-      return [
-        "Cleaned exact assigned spot",
-        "Coordinates match assignment",
-      ];
-    default:
-      return [
-        "Inspected spot in person",
-        "Legitimate report in good faith",
-        "Photo reflects site condition",
-      ];
-  }
+const getQuickChips = (reasonKey?: string | null, forWhat?: string) => {
+  return getQuickChipsForClaim(reasonKey, forWhat);
 };
 
 export default function NotificationsPage() {
@@ -213,7 +125,6 @@ export default function NotificationsPage() {
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [explanationError, setExplanationError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -244,7 +155,9 @@ export default function NotificationsPage() {
       const notifRes: any = await profileApi.getNotifications().catch(() => null);
       const rawReports: any[] = notifRes?.success && Array.isArray(notifRes.reports) ? notifRes.reports : [];
 
-      const reportItems: CivicNotification[] = rawReports.map((r: any, idx: number) => {
+      const reportItems: CivicNotification[] = rawReports
+        .filter((r: any) => !r.isSpotIsFake && !r.spot?.isSpotIsFake)
+        .map((r: any, idx: number) => {
         const rawReason = r.reasonForSpot || r.reasonForSpotComplete || r.reason || "other_spam";
         const readableReason = formatReportReason(rawReason);
         const isCompleteReport = r.forWhat === "reportCompleteSpot";
@@ -274,6 +187,8 @@ export default function NotificationsPage() {
           imageUrl: r.imageUrl,
           spotAddress: r.spot?.address,
           spotCategory: r.spot?.category,
+          isSpotIsFake: Boolean(r.isSpotIsFake || r.spot?.isSpotIsFake),
+          spot: r.spot || null,
           counterExplanation: r.counterExplanation || null,
         };
       });
@@ -323,8 +238,18 @@ export default function NotificationsPage() {
     };
 
     socket.on("spot:reported", onSpotReported);
+
+    const onReportCountered = (data: any) => {
+      if (!data?.reportId) return;
+      setNotifications((prev) =>
+        prev.filter((n) => n.id !== data.reportId && n.reportId !== data.reportId)
+      );
+    };
+    socket.on("report:countered", onReportCountered);
+
     return () => {
       socket.off("spot:reported", onSpotReported);
+      socket.off("report:countered", onReportCountered);
     };
   }, [loadNotifications]);
 
@@ -337,21 +262,10 @@ export default function NotificationsPage() {
   const handleOpenExplanation = (item: CivicNotification) => {
     setIsClosing(false);
     setSelectedReport(item);
-    const isComplete = item.forWhat === "reportCompleteSpot";
     const rawReason = item.reasonForSpot || item.reasonForSpotComplete;
-    const presets = getPresetsForReport(item.forWhat);
+    const claimDef = getCitizenClaimDefinition(rawReason, item.forWhat);
 
-    let defaultReason = item.counterExplanation?.reason;
-    if (!defaultReason && rawReason) {
-      if (isComplete && REASON_FOR_CLEANUP_MAP[rawReason]) {
-        defaultReason = REASON_FOR_CLEANUP_MAP[rawReason].defense;
-      } else if (REASON_FOR_SPOT_MAP[rawReason]) {
-        defaultReason = REASON_FOR_SPOT_MAP[rawReason].defense;
-      }
-    }
-    if (!defaultReason) {
-      defaultReason = presets[0]?.text || "Other custom explanation";
-    }
+    const defaultReason = item.counterExplanation?.reason || claimDef.recommendedRebuttal;
 
     setExplanationReason(defaultReason);
     setExplanationText(item.counterExplanation?.explanation || "");
@@ -381,20 +295,6 @@ export default function NotificationsPage() {
     });
   };
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setExplanationError("Image size must be under 5MB");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setExplanationImage(reader.result as string);
-      setExplanationError(null);
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handleSubmitExplanation = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -421,28 +321,12 @@ export default function NotificationsPage() {
       });
 
       if (res && (res.success || res.status === 200 || res.data)) {
-        const updatedCounter: CounterExplanation = res.data?.counterExplanation || {
-          reason: explanationReason,
-          explanation: explanationText.trim(),
-          imageUrl: explanationImage,
-          submittedAt: new Date().toISOString(),
-        };
-
-        // Update local state immediately
+        // Since isSpotIsFake is now true, remove this report notification from the notifications page
         setNotifications((prev) =>
-          prev.map((n) => {
-            const isMatch = n.id === selectedReport.id || n.reportId === reportId;
-            if (isMatch) {
-              return {
-                ...n,
-                counterExplanation: updatedCounter,
-              };
-            }
-            return n;
-          })
+          prev.filter((n) => n.id !== selectedReport.id && n.reportId !== reportId)
         );
 
-        showToast("Your explanation was submitted successfully!");
+        showToast("Counter evidence submitted successfully!");
         handleCloseExplanation();
       } else {
         setExplanationError(res?.message || "Failed to submit explanation");
@@ -456,6 +340,7 @@ export default function NotificationsPage() {
   };
 
   const filteredNotifications = notifications.filter((item) => {
+    if (item.isSpotIsFake || item.spot?.isSpotIsFake) return false;
     if (filter === "all") return true;
     if (filter === "spot") return item.forWhat === "reportSpot" || !item.forWhat;
     if (filter === "cleanup") return item.forWhat === "reportCompleteSpot";
@@ -479,11 +364,13 @@ export default function NotificationsPage() {
     return "bg-rose-50 text-rose-800 border-rose-200/80";
   };
 
-  // Preset defense stance computation for modal
-  const modalPresets = selectedReport ? getPresetsForReport(selectedReport.forWhat) : [];
-  const modalMatchedKey = selectedReport ? (selectedReport.reasonForSpot || selectedReport.reasonForSpotComplete) : null;
-  const primaryPreset = modalPresets.find((p) => p.key === modalMatchedKey) || modalPresets[0];
-  const otherPresets = modalPresets.filter((p) => p.key !== primaryPreset?.key);
+  // Preset defense stance computation for modal:
+  // Dynamically constructed based on the citizen claim from the report!
+  const modalClaimKey = selectedReport ? (selectedReport.reasonForSpot || selectedReport.reasonForSpotComplete) : null;
+  const currentClaimDef = selectedReport ? getCitizenClaimDefinition(modalClaimKey, selectedReport.forWhat) : null;
+  const modalPresets = currentClaimDef ? currentClaimDef.options : [];
+  const primaryPreset = modalPresets.find((p) => p.isRecommended) || modalPresets[0];
+  const otherPresets = modalPresets.filter((p) => p.id !== primaryPreset?.id);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 pb-28 font-['Inter']">
@@ -831,7 +718,7 @@ export default function NotificationsPage() {
                       Citizen Claim
                     </span>
                     <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs">
-                      {selectedReport.reason}
+                      {currentClaimDef?.claimLabel || currentClaimDef?.title || selectedReport.reason}
                     </span>
                   </div>
 
@@ -923,7 +810,7 @@ export default function NotificationsPage() {
                           const isSelected = explanationReason === preset.text;
                           return (
                             <button
-                              key={preset.key}
+                              key={preset.id}
                               type="button"
                               onClick={() => setExplanationReason(preset.text)}
                               className={`w-full p-2.5 rounded-xl text-left transition-all border flex items-center justify-between gap-2.5 cursor-pointer ${
@@ -966,7 +853,7 @@ export default function NotificationsPage() {
                     <span className="text-[10px] font-bold text-slate-400 shrink-0 uppercase tracking-wider">
                       Tap to add:
                     </span>
-                    {getQuickChips(selectedReport.reasonForSpot || selectedReport.reasonForSpotComplete).map((chip, idx) => (
+                    {getQuickChips(modalClaimKey, selectedReport.forWhat).map((chip, idx) => (
                       <button
                         key={idx}
                         type="button"
@@ -990,65 +877,6 @@ export default function NotificationsPage() {
                   />
                 </div>
 
-                {/* Counter Evidence Photo Upload (Compact) */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1.5">
-                    Counter Evidence Photo (Optional)
-                  </label>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageFileChange}
-                    className="hidden"
-                  />
-
-                  {explanationImage ? (
-                    <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 group">
-                      <img
-                        src={explanationImage}
-                        alt="Counter Evidence Preview"
-                        className="w-full max-h-40 object-contain"
-                      />
-                      <div className="absolute top-2 right-2 flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="px-2.5 py-1 rounded-lg bg-black/60 hover:bg-black/80 text-white text-[11px] font-medium backdrop-blur-xs transition-colors cursor-pointer"
-                        >
-                          Change Photo
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setExplanationImage(null)}
-                          className="p-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-md transition-colors cursor-pointer"
-                          title="Remove photo"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full py-2.5 px-3.5 border-2 border-dashed border-slate-200 hover:border-[#006948] rounded-2xl flex items-center justify-between gap-3 text-xs font-medium text-slate-700 hover:bg-emerald-50/20 transition-all cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-slate-100 group-hover:bg-emerald-100 text-slate-500 group-hover:text-emerald-700 flex items-center justify-center transition-colors shrink-0">
-                          <Camera className="w-4 h-4" />
-                        </div>
-                        <div className="text-left">
-                          <span className="font-bold text-slate-800 block text-xs">Attach Photo Proof</span>
-                          <span className="text-[10px] text-slate-400">Take or upload live camera proof (max 5MB)</span>
-                        </div>
-                      </div>
-                      <span className="text-xs font-bold text-[#006948] px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 shrink-0">
-                        Upload
-                      </span>
-                    </button>
-                  )}
-                </div>
               </div>
 
               {/* STICKY FOOTER (Always visible and accessible) */}

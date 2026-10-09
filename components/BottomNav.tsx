@@ -138,7 +138,7 @@ export default function BottomNav({
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#006948] rounded-full ring-2 ring-white" />
           )}
         </div>
-        <span className="text-[10px] mt-0.5">Alerts</span>
+        <span className="text-[10px] mt-0.5">Notifications</span>
       </Link>
     </nav>
   );
