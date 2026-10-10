@@ -46,7 +46,20 @@ export default function BottomNav({
 
   const isCoordinator = (userRole || "").trim().toLowerCase() === "coordinator";
 
+  const triggerHaptic = () => {
+    if (typeof window !== "undefined" && "navigator" in window && "vibrate" in navigator) {
+      try {
+        navigator.vibrate([30, 20, 40]);
+      } catch (_) {
+        try {
+          navigator.vibrate(40);
+        } catch (__) {}
+      }
+    }
+  };
+
   const handlePlusClick = (e: React.MouseEvent) => {
+    triggerHaptic();
     if (onReportClick) {
       e.preventDefault();
       onReportClick();
@@ -102,6 +115,7 @@ export default function BottomNav({
       {!isCoordinator && (
         <button
           onClick={handlePlusClick}
+          onPointerDown={triggerHaptic}
           className="relative -top-3 w-12 h-12 rounded-full bg-[#006948] hover:bg-[#00855d] text-white flex items-center justify-center shadow-[0_4px_20px_rgba(0,105,72,0.35)] transition-transform hover:scale-105 active:scale-95 cursor-pointer border-2 border-white"
           title="Report Spot at Current Location"
         >
@@ -122,7 +136,7 @@ export default function BottomNav({
         <span className="text-[10px] mt-0.5">Rewards</span>
       </Link>
 
-      {/* Notifications Tab */}
+      {/* Alert Tab */}
       <Link
         href="/notifications"
         onClick={handleNotificationClick}
@@ -138,7 +152,7 @@ export default function BottomNav({
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#006948] rounded-full ring-2 ring-white" />
           )}
         </div>
-        <span className="text-[10px] mt-0.5">Notifications</span>
+        <span className="text-[10px] mt-0.5">Alert</span>
       </Link>
     </nav>
   );

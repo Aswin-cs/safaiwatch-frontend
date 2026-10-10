@@ -197,6 +197,11 @@ function CustomZoomControl() {
           type="button"
           onClick={(e) => {
             e.stopPropagation();
+            if (typeof window !== "undefined" && "navigator" in window && "vibrate" in navigator) {
+              try {
+                navigator.vibrate(25);
+              } catch (_) {}
+            }
             map.zoomIn();
           }}
           aria-label="Zoom In"
@@ -209,6 +214,11 @@ function CustomZoomControl() {
           type="button"
           onClick={(e) => {
             e.stopPropagation();
+            if (typeof window !== "undefined" && "navigator" in window && "vibrate" in navigator) {
+              try {
+                navigator.vibrate(25);
+              } catch (_) {}
+            }
             map.zoomOut();
           }}
           aria-label="Zoom Out"

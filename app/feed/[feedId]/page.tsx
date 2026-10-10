@@ -134,9 +134,6 @@ export default function SingleFeedPostPage({ params }: PageProps) {
     setIsCheered(nextCheered);
     setCheersCount(nextCount);
 
-    if (nextCheered) triggerToast("Cheered for this cleanup! 🎉");
-    else triggerToast("Cheer removed.");
-
     if (postData?._id) {
       try {
         const res = await feedsApi.toggleLike(postData._id, basicUser?.username || basicUser?.id);

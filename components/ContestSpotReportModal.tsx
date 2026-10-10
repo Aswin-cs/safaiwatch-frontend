@@ -50,10 +50,12 @@ export default function ContestSpotReportModal({
   sharedVerification,
   currentUserId,
 }: ContestSpotReportModalProps) {
+  const isCompleteReport = Boolean(spot?.isCompleted);
+  const targetReportList = isCompleteReport ? (spot?.isReportedOnComplete || spot?.isReportedBy) : spot?.isReportedBy;
   const hasUserReported = Boolean(
     spot?.hasUserReported ||
     spot?.isReportedByRequestedUser ||
-    (currentUserId && Array.isArray(spot?.isReportedBy) && spot.isReportedBy.some((entry: any) => {
+    (currentUserId && Array.isArray(targetReportList) && targetReportList.some((entry: any) => {
       const rId = entry?.reportedBy?._id ? entry.reportedBy._id.toString() : (entry?.reportedBy ? entry.reportedBy.toString() : (typeof entry === "string" ? entry : ""));
       return rId && String(rId) === String(currentUserId);
     }))
@@ -143,7 +145,7 @@ export default function ContestSpotReportModal({
 
   // Reset form helper
   const resetFormState = () => {
-    setSelectedReason("fake_or_ai");
+    setSelectedReason(spot?.isCompleted ? "fake_photo" : "fake_or_ai");
     setExplanation("");
     setImageFile(null);
     setImagePreview(null);
@@ -503,6 +505,12 @@ export default function ContestSpotReportModal({
     };
   }, [sharedVerification, isOpen, verificationMode, codeId, refreshTrigger, targetSpotId]);
 
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedReason(spot?.isCompleted ? "fake_photo" : "fake_or_ai");
+    }
+  }, [isOpen, spot?.isCompleted]);
+
   if (!isOpen || !spot) return null;
 
   const spotIdShort = (spot._id || spot.id || "SW-7741").slice(-6).toUpperCase();
@@ -530,49 +538,105 @@ export default function ContestSpotReportModal({
     extractUsername(spot.SpotedUser) ||
     "Citizen Reporter";
 
-  // Exact 5 non-duplicated reasons matching user specification
-  const objectionReasons = [
-    {
-      id: "fake_or_ai",
-      title: "Fake or AI-Generated Spot",
-      desc: "Photo is fabricated, AI generated, or stock image from internet",
-      icon: "sentiment_dissatisfied",
-      iconColor: "text-[#ba1a1a]",
-      dotColor: "bg-[#ba1a1a]",
-    },
-    {
-      id: "already_cleaned",
-      title: "Already Clean / No Waste Found",
-      desc: "Area is clean; no waste or debris exists at this location",
-      icon: "cleaning_services",
-      iconColor: "text-[#006948]",
-      dotColor: "bg-[#006948]",
-    },
-    {
-      id: "inaccessible",
-      title: "Inaccessible or Hazardous Area",
-      desc: "Private property, gated zone, or physically dangerous site",
-      icon: "block",
-      iconColor: "text-[#ba1a1a]",
-      dotColor: "bg-[#ba1a1a]",
-    },
-    {
-      id: "wrong_location",
-      title: "Incorrect Location / Coordinates",
-      desc: "GPS coordinates or pin do not match the real spot location",
-      icon: "wrong_location",
-      iconColor: "text-[#a33900]",
-      dotColor: "bg-[#a33900]",
-    },
-    {
-      id: "other_spam",
-      title: "Other Policy Violation / Spam",
-      desc: "Duplicate report, spam, or inappropriate content",
-      icon: "report",
-      iconColor: "text-[#ba1a1a]",
-      dotColor: "bg-[#ba1a1a]",
-    },
-  ];
+  const cleanerName =
+    extractUsername(spot.completedBy) ||
+    (Array.isArray(spot.isAssignedBy) && spot.isAssignedBy[0]
+      ? extractUsername(spot.isAssignedBy[0]?.username || spot.isAssignedBy[0]?.id || spot.isAssignedBy[0])
+      : null) ||
+    extractUsername(spot.assignedTo) ||
+    "Assigned Volunteer";
+
+  const displayImage = isCompleteReport
+    ? (spot.completedImage || spot.completedProofPhoto || spot.proofPhoto || spot.image)
+    : spot.image;
+
+  // Exact 5 non-duplicated reasons matching user specification:
+  // Fake photo, It doesn't cleanup, Wrong location, Incomplete cleanup, Other fraud
+  const objectionReasons = isCompleteReport
+    ? [
+        {
+          id: "fake_photo",
+          title: "Fake or Staged Photo",
+          desc: "Cleanup user posted a fake photo, downloaded from the internet, or reused an old photo",
+          icon: "no_photography",
+          iconColor: "text-[#ba1a1a]",
+          dotColor: "bg-[#ba1a1a]",
+        },
+        {
+          id: "not_cleaned",
+          title: "Spot Not Cleaned / Waste Still Present",
+          desc: "The spot was not cleaned; trash, garbage or debris remains lying at the site",
+          icon: "delete_forever",
+          iconColor: "text-[#ba1a1a]",
+          dotColor: "bg-[#ba1a1a]",
+        },
+        {
+          id: "wrong_location",
+          title: "Wrong Location / Different Spot",
+          desc: "Proof photo was taken at a different location and does not match this spot",
+          icon: "wrong_location",
+          iconColor: "text-[#a33900]",
+          dotColor: "bg-[#a33900]",
+        },
+        {
+          id: "incomplete_cleanup",
+          title: "Incomplete Cleanup / Improper Disposal",
+          desc: "Cleanup was only partially done, or waste was dumped into nearby drains or bushes",
+          icon: "delete_sweep",
+          iconColor: "text-[#ba1a1a]",
+          dotColor: "bg-[#ba1a1a]",
+        },
+        {
+          id: "other_fraud",
+          title: "Other Policy Violation / Fraud",
+          desc: "False completion claim, duplicate submission, or other cleanup violation",
+          icon: "report",
+          iconColor: "text-[#ba1a1a]",
+          dotColor: "bg-[#ba1a1a]",
+        },
+      ]
+    : [
+        {
+          id: "fake_or_ai",
+          title: "Fake or AI-Generated Spot",
+          desc: "Photo is fabricated, AI generated, or stock image from internet",
+          icon: "sentiment_dissatisfied",
+          iconColor: "text-[#ba1a1a]",
+          dotColor: "bg-[#ba1a1a]",
+        },
+        {
+          id: "already_cleaned",
+          title: "Already Clean / No Waste Found",
+          desc: "Area is clean; no waste or debris exists at this location",
+          icon: "cleaning_services",
+          iconColor: "text-[#006948]",
+          dotColor: "bg-[#006948]",
+        },
+        {
+          id: "inaccessible",
+          title: "Inaccessible or Hazardous Area",
+          desc: "Private property, gated zone, or physically dangerous site",
+          icon: "block",
+          iconColor: "text-[#ba1a1a]",
+          dotColor: "bg-[#ba1a1a]",
+        },
+        {
+          id: "wrong_location",
+          title: "Incorrect Location / Coordinates",
+          desc: "GPS coordinates or pin do not match the real spot location",
+          icon: "wrong_location",
+          iconColor: "text-[#a33900]",
+          dotColor: "bg-[#a33900]",
+        },
+        {
+          id: "other_spam",
+          title: "Other Policy Violation / Spam",
+          desc: "Duplicate report, spam, or inappropriate content",
+          icon: "report",
+          iconColor: "text-[#ba1a1a]",
+          dotColor: "bg-[#ba1a1a]",
+        },
+      ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -588,11 +652,13 @@ export default function ContestSpotReportModal({
       const matchedReason = objectionReasons.find((r) => r.id === selectedReason);
       const targetSpotId = spot?._id || spot?.id || "";
 
+      const targetForWhat = isCompleteReport ? "reportCompleteSpot" : "reportSpot";
       const formData = new FormData();
       formData.append("spotId", targetSpotId);
-      formData.append("forWhat", "reportSpot");
+      formData.append("forWhat", targetForWhat);
       formData.append("reason", selectedReason);
       formData.append("reasonForSpot", selectedReason);
+      formData.append("reasonForSpotComplete", selectedReason);
       formData.append("reasonTitle", matchedReason?.title || selectedReason);
       formData.append("details", explanation.trim());
       formData.append("description", explanation.trim());
@@ -626,14 +692,18 @@ export default function ContestSpotReportModal({
         });
       }
 
-      setSuccessMsg("Dispute registered! Dossier dispatched to Tier-2 Arbitrators & AI Vision Auditor.");
+      setSuccessMsg(
+        isCompleteReport
+          ? "Cleanup report registered! Dossier dispatched to Municipal Auditors & AI Vision Verifier."
+          : "Dispute registered! Dossier dispatched to Tier-2 Arbitrators & AI Vision Auditor."
+      );
       setTimeout(() => {
         setIsSubmitting(false);
         onClose();
       }, 1500);
     } catch (err: any) {
       console.error("Error submitting contest report:", err);
-      setErrorMsg(err?.message || "Failed to submit contest report. Please try again.");
+      setErrorMsg(err?.message || "Failed to submit report. Please try again.");
       setIsSubmitting(false);
     }
   };
@@ -656,7 +726,7 @@ export default function ContestSpotReportModal({
 
           <div className="flex-1 px-2 text-center min-w-0">
             <h1 className="text-base font-['Hanken_Grotesk'] font-bold tracking-tight text-[#131b2e] truncate">
-              Contest Spot Report
+              {isCompleteReport ? "Report Cleanup Submission" : "Contest Spot Report"}
             </h1>
           </div>
 
@@ -675,7 +745,11 @@ export default function ContestSpotReportModal({
           {hasUserReported && (
             <div className="bg-amber-50 text-amber-900 p-3 rounded-xl border border-amber-200 text-xs flex items-center gap-2 font-medium shadow-2xs">
               <span className="material-symbols-outlined text-[18px] text-amber-600 shrink-0">info</span>
-              <span>You have already registered an objection against this spot. Duplicate reports cannot be filed.</span>
+              <span>
+                {isCompleteReport
+                  ? "You have already registered an objection against this cleanup submission."
+                  : "You have already registered an objection against this spot. Duplicate reports cannot be filed."}
+              </span>
             </div>
           )}
 
@@ -689,14 +763,16 @@ export default function ContestSpotReportModal({
           {/* Status Context Ribbon */}
           <div className="flex items-center justify-between bg-[#e2e7ff] rounded-xl px-3 py-2 text-[#3d4a42]">
             <div className="flex items-center space-x-2">
-              <span className="material-symbols-outlined text-[#a33900] text-sm">gavel</span>
+              <span className="material-symbols-outlined text-[#a33900] text-sm">
+                {isCompleteReport ? "verified" : "gavel"}
+              </span>
               <span className="font-['JetBrains_Mono'] text-xs font-semibold tracking-wider text-[#a33900] uppercase">
-                Dispute Arbitration Protocol
+                {isCompleteReport ? "Cleanup Verification Audit" : "Dispute Arbitration Protocol"}
               </span>
             </div>
             <span className="inline-flex items-center text-xs font-['JetBrains_Mono'] text-[#131b2e] bg-[#faf8ff] px-2 py-0.5 rounded-full shadow-2xs">
               <span className="w-1.5 h-1.5 rounded-full bg-[#a33900] mr-1.5 animate-pulse"></span>
-              T1-LOCK
+              {isCompleteReport ? "AUDIT-MODE" : "T1-LOCK"}
             </span>
           </div>
 
@@ -705,8 +781,10 @@ export default function ContestSpotReportModal({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="inline-flex items-center gap-1.5 bg-[#85f8c4] text-[#002114] px-2 py-0.5 rounded-full font-['JetBrains_Mono'] text-[11px] font-bold mb-1">
-                  <span className="material-symbols-outlined text-[13px]">verified_user</span>
-                  Assigned Target Spot
+                  <span className="material-symbols-outlined text-[13px]">
+                    {isCompleteReport ? "task_alt" : "verified_user"}
+                  </span>
+                  {isCompleteReport ? "Completed Cleanup Under Review" : "Assigned Target Spot"}
                 </div>
                 <h2 className="text-sm sm:text-base font-['Hanken_Grotesk'] font-bold text-[#131b2e] truncate">
                   Spot #{spotIdShort} • {spot.title || spot.address || "Reported Location"}
@@ -724,14 +802,14 @@ export default function ContestSpotReportModal({
               <span className="text-[#006948] font-bold shrink-0">±2.8m (RTK GNSS)</span>
             </div>
 
-            {/* Civilian Submission Preview */}
+            {/* Submission Preview Card */}
             <div className="flex gap-3 items-center bg-[#f2f3ff] rounded-xl p-2.5 border border-[#dae2fd]/50">
               <div className="relative w-18 h-18 sm:w-20 sm:h-20 rounded-xl overflow-hidden shrink-0 shadow-2xs border border-[#bccac0]/40 bg-[#283044]">
-                {spot.image ? (
+                {displayImage ? (
                   <img
-                    alt="Civilian reported garbage spot preview"
+                    alt={isCompleteReport ? "Cleanup proof photo preview" : "Civilian reported garbage spot preview"}
                     className="w-full h-full object-cover"
-                    src={spot.image}
+                    src={displayImage}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-400">
@@ -739,20 +817,24 @@ export default function ContestSpotReportModal({
                   </div>
                 )}
                 <span className="absolute bottom-0 inset-x-0 bg-[#283044]/85 backdrop-blur-xs text-[8px] font-['JetBrains_Mono'] text-[#eef0ff] font-bold text-center py-0.5 uppercase tracking-tight">
-                  Citizen Evid.
+                  {isCompleteReport ? "Cleanup Proof" : "Citizen Evid."}
                 </span>
               </div>
               <div className="flex-1 min-w-0 space-y-1">
                 <div className="inline-block bg-[#ffdbce] text-[#370e00] text-[10px] font-['JetBrains_Mono'] font-bold px-2 py-0.5 rounded">
-                  CIVILIAN REPORTED PHOTO
+                  {isCompleteReport ? "SUBMITTED CLEANUP PROOF" : "CIVILIAN REPORTED PHOTO"}
                 </div>
                 <p className="text-xs font-['Inter'] text-[#131b2e] truncate font-medium">
-                  {spot.description || "Flagged site photo under contestation"}
+                  {spot.description || (isCompleteReport ? "Submitted cleanup proof photo under review" : "Flagged site photo under contestation")}
                 </p>
                 <div className="flex items-center text-[11px] text-[#3d4a42] font-['JetBrains_Mono'] gap-1">
                   <span className="material-symbols-outlined text-xs text-[#6d7a72]">schedule</span>
                   <span className="truncate">
-                    Reported by <strong className="text-[#131b2e] font-semibold">{reporterName}</strong>
+                    {isCompleteReport ? (
+                      <>Cleaned by <strong className="text-[#131b2e] font-semibold">{cleanerName}</strong></>
+                    ) : (
+                      <>Reported by <strong className="text-[#131b2e] font-semibold">{reporterName}</strong></>
+                    )}
                   </span>
                 </div>
               </div>
@@ -807,10 +889,12 @@ export default function ContestSpotReportModal({
 
                   <div>
                     <h3 className="text-sm font-['Hanken_Grotesk'] font-bold text-[#131b2e]">
-                      Capture Cleanup Photo
+                      {isCompleteReport ? "Capture Site Proof Photo" : "Capture Counter-Proof Photo"}
                     </h3>
                     <p className="text-xs text-[#535f70] font-['Inter'] mt-0.5">
-                      Take a real-time photo of the cleaned area using your camera
+                      {isCompleteReport
+                        ? "Take a real-time photo showing uncleaned trash or incorrect site location"
+                        : "Take a real-time photo of the area using your camera"}
                     </p>
                   </div>
 
@@ -1179,10 +1263,12 @@ export default function ContestSpotReportModal({
           <div className="space-y-2">
             <div className="px-1">
               <h3 className="text-xs font-['JetBrains_Mono'] uppercase tracking-wider font-bold text-[#131b2e]">
-                Select Reason <span className="text-rose-500">*</span>
+                {isCompleteReport ? "Select Cleanup Issue" : "Select Reason"} <span className="text-rose-500">*</span>
               </h3>
               <p className="text-[11px] text-[#3d4a42] font-['Inter']">
-                Required classification for AI-Admin dispute arbitration
+                {isCompleteReport
+                  ? "Select what is wrong with this cleanup submission"
+                  : "Required classification for AI-Admin dispute arbitration"}
               </p>
             </div>
 
@@ -1255,7 +1341,11 @@ export default function ContestSpotReportModal({
                 maxLength={400}
                 value={explanation}
                 onChange={(e) => setExplanation(e.target.value)}
-                placeholder="Describe why this report is invalid (e.g., area is a clean park, old photograph used, wall painted yesterday)..."
+                placeholder={
+                  isCompleteReport
+                    ? "Describe why this cleanup is invalid (e.g., user posted a fake photo, spot is not cleaned, debris still remains, photo from wrong location)..."
+                    : "Describe why this report is invalid (e.g., area is a clean park, old photograph used, wall painted yesterday)..."
+                }
                 className="w-full bg-transparent text-xs sm:text-sm font-['Inter'] text-[#131b2e] placeholder:text-[#6d7a72] focus:outline-none resize-none"
               />
             </div>
@@ -1268,11 +1358,12 @@ export default function ContestSpotReportModal({
             </div>
             <div className="space-y-1">
               <span className="text-xs font-['Hanken_Grotesk'] font-bold text-[#131b2e] uppercase tracking-wide block">
-                Coordinator Accountability Guardrail
+                {isCompleteReport ? "Civic Verification Guardrail" : "Coordinator Accountability Guardrail"}
               </span>
               <p className="text-xs font-['Inter'] text-[#3d4a42] leading-relaxed">
-                Submitting bad-faith objections to avoid cleanup duties will degrade your{" "}
-                <strong className="text-[#131b2e]">Coordinator Trust Rating (-15%)</strong> and trigger a slash penalty on locked civic karma.
+                {isCompleteReport
+                  ? "Reporting a cleanup will trigger review by municipal moderators and AI photo auditors. Fraudulent or bad-faith claims are penalized."
+                  : "Submitting bad-faith objections to avoid cleanup duties will degrade your Coordinator Trust Rating (-15%) and trigger a slash penalty on locked civic karma."}
               </p>
             </div>
           </div>
@@ -1291,17 +1382,17 @@ export default function ContestSpotReportModal({
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Registering Dispute...</span>
+                  <span>{isCompleteReport ? "Submitting Cleanup Report..." : "Registering Dispute..."}</span>
                 </>
               ) : hasUserReported ? (
                 <>
                   <span className="material-symbols-outlined text-lg">check</span>
-                  <span>Already Reported by You</span>
+                  <span>{isCompleteReport ? "Cleanup Already Reported by You" : "Already Reported by You"}</span>
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-lg">gavel</span>
-                  <span>Register Report Against Marked User</span>
+                  <span className="material-symbols-outlined text-lg">{isCompleteReport ? "flag" : "gavel"}</span>
+                  <span>{isCompleteReport ? "Submit Report on Cleanup" : "Register Report Against Marked User"}</span>
                 </>
               )}
             </button>

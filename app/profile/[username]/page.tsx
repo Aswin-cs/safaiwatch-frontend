@@ -10,6 +10,7 @@ import SplashLoader from "@/components/SplashLoader";
 import SafaiWatchLogo from "@/components/SafaiWatchLogo";
 import NotificationPopup from "@/components/NotificationPopup";
 import BottomNav from "@/components/BottomNav";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface PageProps {
   params: Promise<{ username?: string; id?: string }>;
@@ -890,7 +891,9 @@ export default function ProfilePage({ params }: PageProps) {
           </Link>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
+          <ThemeToggle variant="pill" size="sm" />
+
           <div className="font-['Inter'] text-xs font-semibold text-[#3d4a42] bg-[#f2f3ff] px-3.5 py-1.5 rounded-full border border-[#dae2fd]">
             <span className="text-[#006948] font-bold">{karmaBalance} XP</span>
           </div>
@@ -928,33 +931,36 @@ export default function ProfilePage({ params }: PageProps) {
         <h1 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e]">
           {isMyProfile ? "My Profile" : "Civic Profile"}
         </h1>
-        {isMyProfile ? (
-          <HoldButton
-            doneLabel="Signed Out"
-            backgroundColor="#FEF2F2"
-            fillColor="#DC2626"
-            textColor="#DC2626"
-            fillTextColor="#ffffff"
-            size="sm"
-            radius={9999}
-            holdTime={1500}
-            disabled={isSigningOut}
-            onHold={handleSignOut}
-            icon={<span className="material-symbols-outlined text-sm">logout</span>}
-            doneIcon={<span className="material-symbols-outlined text-sm">check_circle</span>}
-            className="border border-[#FCA5A5]/40"
-          >
-            Sign Out
-          </HoldButton>
-        ) : (
-          <Link
-            href="/history"
-            title="View Activity History"
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] active:scale-95 transition-transform text-[#0F172A]"
-          >
-            <span className="material-symbols-outlined">settings</span>
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          <ThemeToggle variant="icon" size="sm" />
+          {isMyProfile ? (
+            <HoldButton
+              doneLabel="Signed Out"
+              backgroundColor="#FEF2F2"
+              fillColor="#DC2626"
+              textColor="#DC2626"
+              fillTextColor="#ffffff"
+              size="sm"
+              radius={9999}
+              holdTime={1500}
+              disabled={isSigningOut}
+              onHold={handleSignOut}
+              icon={<span className="material-symbols-outlined text-sm">logout</span>}
+              doneIcon={<span className="material-symbols-outlined text-sm">check_circle</span>}
+              className="border border-[#FCA5A5]/40"
+            >
+              Sign Out
+            </HoldButton>
+          ) : (
+            <Link
+              href="/history"
+              title="View Activity History"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] active:scale-95 transition-transform text-[#0F172A]"
+            >
+              <span className="material-symbols-outlined">settings</span>
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* MAIN CONTENT CONTAINER */}

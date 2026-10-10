@@ -223,12 +223,6 @@ export default function FeedPage() {
       prev.map((item) => (item.id === itemId ? { ...item, isCheered: nextCheered, cheersCount: nextCount } : item))
     );
 
-    if (nextCheered) {
-      triggerToast(`Cheered for ${targetItem.cleanerName}'s cleanup! 🎉`);
-    } else {
-      triggerToast("Cheer removed.");
-    }
-
     // Call backend API if it's a backend post ID
     if (targetItem.isBackendPost || itemId.length > 15) {
       try {

@@ -356,6 +356,14 @@ export const spotsApi = {
       body: isFormData ? data : JSON.stringify(data),
     });
   },
+
+  reportCleanup: async (spotId: string, data: FormData | Record<string, any>) => {
+    const isFormData = data instanceof FormData;
+    return request<{ success?: boolean; message: string; report?: any }>(`/api/v1/spots/${spotId}/report-cleanup`, {
+      method: 'POST',
+      body: isFormData ? data : JSON.stringify(data),
+    });
+  },
 };
 
 

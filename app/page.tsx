@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import SafaiMap, { Report } from "@/components/map/SafaiMap";
 import ReportWasteSpotModal from "@/components/ReportWasteSpotModal";
 import CompleteWasteSpotModal from "@/components/CompleteWasteSpotModal";
+import ContestSpotReportModal from "@/components/ContestSpotReportModal";
 import SplashLoader from "@/components/SplashLoader";
 import SafaiWatchLogo from "@/components/SafaiWatchLogo";
 import UnauthenticatedIntro from "@/components/landing/UnauthenticatedIntro";
@@ -92,6 +93,7 @@ export default function HomePage() {
 
   // New Waste Report Modal state
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+  const [isContestModalOpen, setIsContestModalOpen] = useState<boolean>(false);
   const [newReportTitle, setNewReportTitle] = useState<string>("");
   const [newReportAddress, setNewReportAddress] = useState<string>("");
   const [newReportCategory, setNewReportCategory] = useState<string>("Plastic Debris");
@@ -768,6 +770,17 @@ export default function HomePage() {
 
   // Start spot reporting locked strictly to user's verified current GPS location (Civilians & Hybrid roles)
   const handleStartReportSpotAtCurrentLocation = () => {
+    // Tactile haptic feedback / vibration setup on button press
+    if (typeof window !== "undefined" && "navigator" in window && "vibrate" in navigator) {
+      try {
+        navigator.vibrate([30, 20, 40]);
+      } catch (_) {
+        try {
+          navigator.vibrate(40);
+        } catch (__) {}
+      }
+    }
+
     const isCoordinator = (userProfile?.role || "").trim().toLowerCase() === "coordinator";
     if (isCoordinator) {
       setRoleNotice(
@@ -1960,10 +1973,10 @@ export default function HomePage() {
               <div className="flex gap-2 sm:gap-3 pt-1">
                 <button
                   onClick={() => setIsSpotDetailModalOpen(true)}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 min-w-0 bg-slate-100 hover:bg-slate-200 text-slate-800 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <Eye className="w-4 h-4 text-slate-700" />
-                  <span>Details</span>
+                  <Eye className="w-4 h-4 text-slate-700 shrink-0" />
+                  <span className="truncate">Details</span>
                 </button>
 
                 {routingTarget &&
@@ -1975,20 +1988,45 @@ export default function HomePage() {
                       setIsDirectionsPopupOpen(false);
                       setRouteSummary(null);
                     }}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-red-500 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95"
+                    className="flex-1 min-w-0 bg-red-600 hover:bg-red-700 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-red-500 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95"
                   >
-                    <X className="w-4 h-4 text-white" />
-                    <span>Close Route</span>
+                    <X className="w-4 h-4 text-white shrink-0" />
+                    <span className="truncate">Close Route</span>
                   </button>
                 ) : (
                   <button
                     onClick={() => handleToggleNavigation(selectedReport)}
-                    className="flex-1 bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md group"
+                    className="flex-1 min-w-0 bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md group"
                   >
-                    <Navigation className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
-                    <span>Navigate</span>
+                    <Navigation className="w-4 h-4 text-white group-hover:scale-110 transition-transform shrink-0" />
+                    <span className="truncate">Navigate</span>
                   </button>
                 )}
+
+            {/* Report Cleanup Button for Resolved Spots (Visible strictly to the user who marked this spot) */}
+            {selectedReport.isCompleted && isReportedByCurrentUser && (
+              hasCurrentUserDisputed ? (
+                <button
+                  type="button"
+                  disabled
+                  className="flex-1 min-w-0 bg-rose-50 text-rose-700 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2.5 rounded-xl border border-rose-200/90 shadow-2xs flex items-center justify-center gap-1.5 cursor-not-allowed opacity-90 transition-all select-none"
+                  title="You have already reported/contested this cleanup submission."
+                >
+                  <Lock className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span className="truncate">Contested</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsContestModalOpen(true)}
+                  className="flex-1 min-w-0 bg-rose-600 hover:bg-rose-700 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 group"
+                  title="Report or contest this cleanup submission"
+                >
+                  <AlertTriangle className="w-4 h-4 text-white group-hover:scale-110 transition-transform shrink-0" />
+                  <span className="truncate">Report Cleanup</span>
+                </button>
+              )
+            )}
 
             {!selectedReport.isCompleted && (() => {
               const hasAssignments = selectedReport.isAssignedBy && selectedReport.isAssignedBy.length > 0;
@@ -1999,11 +2037,11 @@ export default function HomePage() {
                   <button
                     type="button"
                     disabled
-                    className="flex-1 bg-rose-50 text-rose-700 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-3 rounded-xl border border-rose-200/90 shadow-2xs flex items-center justify-center gap-1.5 cursor-not-allowed opacity-90 transition-all select-none"
+                    className="flex-1 min-w-0 bg-rose-50 text-rose-700 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2.5 rounded-xl border border-rose-200/90 shadow-2xs flex items-center justify-center gap-1.5 cursor-not-allowed opacity-90 transition-all select-none"
                     title="You reported this spot. You cannot complete it or report it again."
                   >
                     <Lock className="w-4 h-4 text-rose-600 shrink-0" />
-                    <span className="truncate">Reported by you &bull; Locked</span>
+                    <span className="truncate">Locked</span>
                   </button>
                 );
               }
@@ -2011,8 +2049,8 @@ export default function HomePage() {
               if (isCurrentUserAssigned) {
                 if (selectedReport.isPendingVerification) {
                   return (
-                    <div className="flex-1 bg-amber-50 border border-amber-200 text-amber-800 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2 px-2 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5">
-                      <span className="material-symbols-outlined text-[16px] animate-spin text-amber-600">sync</span>
+                    <div className="flex-1 min-w-0 bg-amber-50 border border-amber-200 text-amber-800 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2 px-2 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5">
+                      <span className="material-symbols-outlined text-[16px] animate-spin text-amber-600 shrink-0">sync</span>
                       <span className="truncate">AI Verifying...</span>
                     </div>
                   );
@@ -2022,21 +2060,21 @@ export default function HomePage() {
                     <button
                       onClick={() => handleDeleteVerification(selectedReport.oneTimeVerificationId || selectedReport.id)}
                       disabled={isDeletingVerification}
-                      className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-60"
+                      className="flex-1 min-w-0 bg-rose-600 hover:bg-rose-700 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-60"
                       title={selectedReport.pendingVerificationMsg || "Verification failed"}
                     >
-                      <span className="material-symbols-outlined text-[16px]">restart_alt</span>
-                      <span>{isDeletingVerification ? "Resetting..." : "Retry Cleanup"}</span>
+                      <span className="material-symbols-outlined text-[16px] shrink-0">restart_alt</span>
+                      <span className="truncate">{isDeletingVerification ? "Resetting..." : "Retry"}</span>
                     </button>
                   );
                 }
                 return (
                   <button
                     onClick={() => setIsCompleteModalOpen(true)}
-                    className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                    className="flex-1 min-w-0 bg-amber-500 hover:bg-amber-600 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
                   >
-                    <CheckCircle2 className="w-4 h-4 text-white" />
-                    <span>Complete Spot</span>
+                    <CheckCircle2 className="w-4 h-4 text-white shrink-0" />
+                    <span className="truncate">Complete</span>
                   </button>
                 );
               }
@@ -2047,26 +2085,26 @@ export default function HomePage() {
                     <button
                       onClick={() => handleClaimSpot(selectedReport)}
                       disabled={isClaimingSpot}
-                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 active:scale-95"
+                      className="flex-1 min-w-0 bg-indigo-600 hover:bg-indigo-700 text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 active:scale-95"
                     >
                       {isClaimingSpot ? (
                         <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          <span>Claiming...</span>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0"></div>
+                          <span className="truncate">Claiming...</span>
                         </>
                       ) : (
                         <>
-                          <CheckCircle className="w-4 h-4 text-indigo-200" />
-                          <span>Join ({currentAssignmentCount}/{maxAssignments})</span>
+                          <CheckCircle className="w-4 h-4 text-indigo-200 shrink-0" />
+                          <span className="truncate">Join ({currentAssignmentCount}/{maxAssignments})</span>
                         </>
                       )}
                     </button>
                   );
                 }
                 return (
-                  <span className="flex-1 bg-indigo-50 text-indigo-700 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-indigo-200 flex items-center justify-center gap-1.5">
-                    <Users className="w-4 h-4 text-indigo-500" />
-                    <span>Assigned ({currentAssignmentCount}/{maxAssignments})</span>
+                  <span className="flex-1 min-w-0 bg-indigo-50 text-indigo-700 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-indigo-200 flex items-center justify-center gap-1.5">
+                    <Users className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <span className="truncate">Assigned ({currentAssignmentCount}/{maxAssignments})</span>
                   </span>
                 );
               }
@@ -2076,17 +2114,17 @@ export default function HomePage() {
                   <button
                     onClick={() => handleClaimSpot(selectedReport)}
                     disabled={isClaimingSpot}
-                    className="flex-1 bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 active:scale-95"
+                    className="flex-1 min-w-0 bg-[#006948] hover:bg-[#00855d] text-white font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 active:scale-95"
                   >
                     {isClaimingSpot ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Claiming...</span>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0"></div>
+                        <span className="truncate">Claiming...</span>
                       </>
                     ) : (
                       <>
-                        <CheckCircle className="w-4 h-4 text-[#85f8c4]" />
-                        <span>Claim Dispatch</span>
+                        <CheckCircle className="w-4 h-4 text-[#85f8c4] shrink-0" />
+                        <span className="truncate">Claim</span>
                       </>
                     )}
                   </button>
@@ -2764,10 +2802,10 @@ export default function HomePage() {
                     setRoutingTarget(null);
                     setIsSpotDetailModalOpen(false);
                   }}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                  className="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                 >
-                  <X className="w-4 h-4 text-white" />
-                  <span>Close Route</span>
+                  <X className="w-4 h-4 text-white shrink-0" />
+                  <span className="truncate">Close Route</span>
                 </button>
               ) : (
                 <button
@@ -2776,11 +2814,39 @@ export default function HomePage() {
                     handleToggleNavigation(selectedReport);
                     setIsSpotDetailModalOpen(false);
                   }}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-[#4b41e1] hover:bg-indigo-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-[#4b41e1] hover:bg-indigo-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Navigation className="w-4 h-4 text-white" />
-                  <span>Navigate</span>
+                  <Navigation className="w-4 h-4 text-white shrink-0" />
+                  <span className="truncate">Navigate</span>
                 </button>
+              )}
+
+              {/* Report Cleanup Button for Resolved Spots in Details Modal (Visible strictly to markedBy user) */}
+              {selectedReport.isCompleted && isReportedByCurrentUser && (
+                hasCurrentUserDisputed ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-800 font-bold text-xs sm:text-sm border border-rose-200 flex items-center justify-center gap-1.5 shadow-xs cursor-not-allowed opacity-90 select-none"
+                    title="You have already reported/contested this cleanup submission."
+                  >
+                    <Lock className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span className="truncate">Contested</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSpotDetailModalOpen(false);
+                      setIsContestModalOpen(true);
+                    }}
+                    className="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                    title="Report improper or incomplete cleanup"
+                  >
+                    <AlertTriangle className="w-4 h-4 text-white shrink-0" />
+                    <span className="truncate">Report Cleanup</span>
+                  </button>
+                )
               )}
 
               {!selectedReport.isCompleted && (() => {
@@ -2792,11 +2858,11 @@ export default function HomePage() {
                     <button
                       type="button"
                       disabled
-                      className="flex-1 py-2.5 px-4 rounded-xl bg-rose-50 text-rose-800 font-bold text-xs sm:text-sm border border-rose-200 flex items-center justify-center gap-1.5 shadow-xs cursor-not-allowed opacity-90 select-none"
-                      title="You reported this spot. You cannot complete it."
+                      className="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-800 font-bold text-xs sm:text-sm border border-rose-200 flex items-center justify-center gap-1.5 shadow-xs cursor-not-allowed opacity-90 select-none"
+                      title="You reported this spot. You cannot complete it or report it again."
                     >
                       <Lock className="w-4 h-4 text-rose-600 shrink-0" />
-                      <span>Reported by you &bull; Locked</span>
+                      <span className="truncate">Locked</span>
                     </button>
                   );
                 }
@@ -2804,9 +2870,9 @@ export default function HomePage() {
                 if (isCurrentUserAssigned) {
                   if (selectedReport.isPendingVerification) {
                     return (
-                      <div className="flex-1 py-2.5 px-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-xs">
-                        <span className="material-symbols-outlined text-[18px] animate-spin text-amber-600">sync</span>
-                        <span>AI Verification Pending</span>
+                      <div className="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-xs">
+                        <span className="material-symbols-outlined text-[18px] animate-spin text-amber-600 shrink-0">sync</span>
+                        <span className="truncate">AI Verification Pending</span>
                       </div>
                     );
                   }
@@ -2816,18 +2882,18 @@ export default function HomePage() {
                         type="button"
                         onClick={() => handleDeleteVerification(selectedReport.oneTimeVerificationId || selectedReport.id)}
                         disabled={isDeletingVerification}
-                        className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-60"
+                        className="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-60"
                       >
-                        <span className="material-symbols-outlined text-[18px]">restart_alt</span>
-                        <span>{isDeletingVerification ? "Resetting..." : "Delete Proof & Re-upload"}</span>
+                        <span className="material-symbols-outlined text-[18px] shrink-0">restart_alt</span>
+                        <span className="truncate">{isDeletingVerification ? "Resetting..." : "Retry Proof"}</span>
                       </button>
                     );
                   }
                   if (hasCurrentUserDisputed) {
                     return (
-                      <div className="flex-1 py-2.5 px-4 rounded-xl bg-rose-50 text-rose-800 font-bold text-xs border border-rose-200 flex items-center justify-center gap-1.5 shadow-xs">
-                        <span className="material-symbols-outlined text-[16px] text-rose-600">report</span>
-                        <span>Contested by you &bull; Cannot complete</span>
+                      <div className="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-800 font-bold text-xs border border-rose-200 flex items-center justify-center gap-1.5 shadow-xs" title="Reported by you • Cannot complete">
+                        <Lock className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span className="truncate">Locked</span>
                       </div>
                     );
                   }
@@ -2838,10 +2904,10 @@ export default function HomePage() {
                         setIsSpotDetailModalOpen(false);
                         setIsCompleteModalOpen(true);
                       }}
-                      className="flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                      className="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                     >
-                      <CheckCircle2 className="w-4 h-4 text-white" />
-                      <span>Complete Spot</span>
+                      <CheckCircle2 className="w-4 h-4 text-white shrink-0" />
+                      <span className="truncate">Complete</span>
                     </button>
                   );
                 }
@@ -2849,9 +2915,9 @@ export default function HomePage() {
                 if (hasAssignments && !isCurrentUserAssigned) {
                   if (hasCurrentUserDisputed) {
                     return (
-                      <div className="flex-1 py-2.5 px-4 rounded-xl bg-rose-50 text-rose-800 font-bold text-xs border border-rose-200 flex items-center justify-center gap-1.5 shadow-xs">
-                        <span className="material-symbols-outlined text-[16px] text-rose-600">report</span>
-                        <span>Reported by you &bull; Cannot complete</span>
+                      <div className="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-800 font-bold text-xs border border-rose-200 flex items-center justify-center gap-1.5 shadow-xs" title="Reported by you • Cannot complete">
+                        <Lock className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span className="truncate">Locked</span>
                       </div>
                     );
                   }
@@ -2861,26 +2927,26 @@ export default function HomePage() {
                         type="button"
                         onClick={() => handleClaimSpot(selectedReport)}
                         disabled={isClaimingSpot}
-                        className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 active:scale-95"
+                        className="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 active:scale-95"
                       >
                         {isClaimingSpot ? (
                           <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            <span>Claiming...</span>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0"></div>
+                            <span className="truncate">Claiming...</span>
                           </>
                         ) : (
                           <>
-                            <CheckCircle className="w-4 h-4 text-indigo-200" />
-                            <span>Join ({currentAssignmentCount}/{maxAssignments})</span>
+                            <CheckCircle className="w-4 h-4 text-indigo-200 shrink-0" />
+                            <span className="truncate">Join ({currentAssignmentCount}/{maxAssignments})</span>
                           </>
                         )}
                       </button>
                     );
                   }
                   return (
-                    <span className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-50 text-indigo-700 font-bold text-sm border border-indigo-200 flex items-center justify-center gap-2">
-                      <Users className="w-4 h-4 text-indigo-500" />
-                      <span>Assigned ({currentAssignmentCount}/{maxAssignments})</span>
+                    <span className="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-indigo-50 text-indigo-700 font-bold text-sm border border-indigo-200 flex items-center justify-center gap-2">
+                      <Users className="w-4 h-4 text-indigo-500 shrink-0" />
+                      <span className="truncate">Assigned ({currentAssignmentCount}/{maxAssignments})</span>
                     </span>
                   );
                 }
@@ -2888,9 +2954,9 @@ export default function HomePage() {
                 if (!isReportedByCurrentUser && isClaimableRole) {
                   if (hasCurrentUserDisputed) {
                     return (
-                      <div className="flex-1 py-2.5 px-4 rounded-xl bg-rose-50 text-rose-800 font-bold text-xs border border-rose-200 flex items-center justify-center gap-1.5 shadow-xs">
-                        <span className="material-symbols-outlined text-[16px] text-rose-600">report</span>
-                        <span>Reported by you &bull; Cannot complete</span>
+                      <div className="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-rose-50 text-rose-800 font-bold text-xs border border-rose-200 flex items-center justify-center gap-1.5 shadow-xs" title="Reported by you • Cannot complete">
+                        <Lock className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span className="truncate">Locked</span>
                       </div>
                     );
                   }
@@ -2899,17 +2965,17 @@ export default function HomePage() {
                       type="button"
                       onClick={() => handleClaimSpot(selectedReport)}
                       disabled={isClaimingSpot}
-                      className="flex-1 py-2.5 px-4 rounded-xl bg-[#006948] hover:bg-[#00855d] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 active:scale-95"
+                      className="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-[#006948] hover:bg-[#00855d] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 active:scale-95"
                     >
                       {isClaimingSpot ? (
                         <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          <span>Claiming...</span>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0"></div>
+                          <span className="truncate">Claiming...</span>
                         </>
                       ) : (
                         <>
-                          <CheckCircle className="w-4 h-4 text-[#85f8c4]" />
-                          <span>Claim Spot</span>
+                          <CheckCircle className="w-4 h-4 text-[#85f8c4] shrink-0" />
+                          <span className="truncate">Claim Spot</span>
                         </>
                       )}
                     </button>
@@ -3035,6 +3101,42 @@ export default function HomePage() {
             type: "success",
             message: "✨ Cleanup proof submitted! AI verification in progress...",
           });
+          setTimeout(() => {
+            setAiNotice(null);
+          }, 8000);
+        }}
+      />
+
+      {/* Contest Spot / Cleanup Dispute Modal */}
+      <ContestSpotReportModal
+        isOpen={isContestModalOpen && !!selectedReport}
+        onClose={() => setIsContestModalOpen(false)}
+        spot={selectedReport}
+        currentUserId={userProfile?._id || userProfile?.id}
+        userRole={userProfile?.role || "Civilian"}
+        onSubmitReport={(reportedSpot, reportData) => {
+          setIsContestModalOpen(false);
+          setAiNotice({
+            type: "success",
+            message: `🚩 Cleanup reported (${reportData.reasonTitle || reportData.reason}). Municipal moderators & AI auditors will review.`,
+          });
+          if (selectedReport) {
+            const updated: Report = {
+              ...selectedReport,
+              hasUserReported: true,
+              isReportedByRequestedUser: true,
+              isReported: true,
+              isReportedBy: [
+                ...(selectedReport.isReportedBy || []),
+                {
+                  reportedBy: userProfile?._id || userProfile?.id,
+                  reportedAt: new Date().toISOString(),
+                },
+              ],
+            };
+            setSelectedReport(updated);
+            setReports((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+          }
           setTimeout(() => {
             setAiNotice(null);
           }, 8000);

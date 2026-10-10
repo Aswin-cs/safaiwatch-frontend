@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *, .dark, .dark *));
+
 :root {
   --surface: #faf8ff;
   --surface-dim: #d2d9f4;
@@ -55,10 +57,100 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
+html.dark,
+.dark,
+[data-theme="dark"] {
+  --surface: #0f172a;
+  --surface-dim: #090d16;
+  --surface-bright: #1e293b;
+  --surface-container-lowest: #020617;
+  --surface-container-low: #0b1120;
+  --surface-container: #1e293b;
+  --surface-container-high: #273549;
+  --surface-container-highest: #334155;
+  --on-surface: #f1f5f9;
+  --on-surface-variant: #cbd5e1;
+  --inverse-surface: #f8fafc;
+  --inverse-on-surface: #0f172a;
+  --outline: #64748b;
+  --outline-variant: #334155;
+  --surface-tint: #68dba9;
+  --primary: #22c55e;
+  --on-primary: #002114;
+  --primary-container: #005137;
+  --on-primary-container: #85f8c4;
+  --inverse-primary: #006948;
+  --secondary: #818cf8;
+  --on-secondary: #0f0069;
+  --secondary-container: #3730a3;
+  --on-secondary-container: #e0e7ff;
+  --background: #090d16;
+  --on-background: #f8fafc;
+  --surface-variant: #1e293b;
+  color-scheme: dark;
+}
+
 body {
   background-color: var(--background);
   color: var(--on-surface);
   font-family: var(--font-inter);
+}
+
+.dark body {
+  background-color: var(--background);
+  color: var(--on-surface);
+}
+
+.dark .glow-card {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+  box-shadow: inset 0 0 40px rgba(34, 197, 94, 0.03), 0 8px 30px rgba(0, 0, 0, 0.45);
+  color: #f1f5f9 !important;
+}
+
+.dark .bg-\[\#F8FAFC\] {
+  background-color: #090d16 !important;
+}
+
+.dark .bg-\[\#faf8ff\]\/80 {
+  background-color: rgba(15, 23, 42, 0.88) !important;
+}
+
+.dark .border-\[\#dae2fd\] {
+  border-color: #1e293b !important;
+}
+
+.dark .border-\[\#E2E8F0\] {
+  border-color: #1e293b !important;
+}
+
+.dark .text-\[\#131b2e\] {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-\[\#0F172A\] {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-\[\#3d4a42\] {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-\[\#6d7a72\] {
+  color: #94a3b8 !important;
+}
+
+.dark .bg-\[\#F1F5F9\] {
+  background-color: #1e293b !important;
+}
+
+.dark .bg-\[\#f2f3ff\] {
+  background-color: #1e293b !important;
+}
+
+.dark .bg-white {
+  background-color: #0f172a !important;
+  color: #f1f5f9;
 }
 
 /* Animations */
