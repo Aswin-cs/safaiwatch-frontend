@@ -116,6 +116,18 @@ body {
   background-color: rgba(9, 13, 22, 0.92) !important;
 }
 
+.dark .bg-\[\#F7F9FC\] {
+  background-color: #070d18 !important;
+}
+
+.dark .bg-white\/95 {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+}
+
+.dark .bg-white\/90 {
+  background-color: rgba(15, 23, 42, 0.90) !important;
+}
+
 .dark .bg-\[\#FAF8FF\],
 .dark .bg-\[\#faf8ff\] {
   background-color: #0b1120 !important;
@@ -231,6 +243,12 @@ body {
 
 .dark .bg-\[\#FFFBEB\] {
   background-color: rgba(120, 53, 15, 0.25) !important;
+}
+
+.dark .bg-slate-50,
+.dark .bg-slate-50\/90,
+.dark .bg-slate-50\/80 {
+  background-color: #0f172a !important;
 }
 
 .dark .bg-white {
@@ -632,6 +650,18 @@ body {
   border-radius: 10px;
 }
 
+.dark .reward-skeleton-bone {
+  background: linear-gradient(
+    90deg,
+    #1e293b 0%,
+    #1e293b 35%,
+    #334155 50%,
+    #1e293b 65%,
+    #1e293b 100%
+  );
+  background-size: 400% 100%;
+}
+
 /* Dark skeleton bone — for the hero vault card on green bg */
 .reward-skeleton-bone-dark {
   background: linear-gradient(
@@ -795,6 +825,11 @@ body {
 .feed-card {
   box-shadow: 0 8px 30px rgba(15, 23, 42, 0.04);
   border: 1px solid #E2E8F0;
+}
+
+.dark .feed-card {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  border-color: #1e293b !important;
 }
 
 /* Custom Leaflet Popup Overrides */
@@ -1573,6 +1608,28 @@ body {
   color: #006948 !important;
 }
 
+/* Dark mode theme for Leaflet Map Controls */
+.dark .leaflet-control-zoom {
+  border: 1px solid #334155 !important;
+  background-color: #0f172a !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.55) !important;
+}
+
+.dark .leaflet-control-zoom a {
+  background-color: #0f172a !important;
+  color: #34d399 !important;
+  border-bottom: 1px solid #1e293b !important;
+}
+
+.dark .leaflet-control-zoom a:hover {
+  background-color: #1e293b !important;
+  color: #85f8c4 !important;
+}
+
+.dark .leaflet-control-zoom a:last-child {
+  border-bottom: none !important;
+}
+
 .leaflet-control-attribution {
   background: rgba(255, 255, 255, 0.7) !important;
   backdrop-filter: blur(4px) !important;
@@ -1582,6 +1639,11 @@ body {
   margin-bottom: 2px !important;
   margin-right: 2px !important;
   color: #64748b !important;
+}
+
+.dark .leaflet-control-attribution {
+  background: rgba(15, 23, 42, 0.8) !important;
+  color: #94a3b8 !important;
 }
 
 

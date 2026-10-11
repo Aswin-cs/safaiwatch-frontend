@@ -133,10 +133,10 @@ function getAiVerificationBadge(item: CaseItem) {
 
   if (isPending) {
     return {
-      label: "In Progress",
+      label: "Pending Verification",
       icon: "sync",
-      className: "text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE]",
-      iconClass: "text-[#2563EB] animate-spin",
+      className: "text-[#D97706] bg-[#FFFBEB] border border-[#FCD34D]",
+      iconClass: "text-[#D97706] animate-spin",
       isPending: true,
     };
   }
@@ -901,23 +901,13 @@ export default function ProfilePage({ params }: PageProps) {
           </div>
 
           {isMyProfile && (
-            <HoldButton
-              doneLabel="Signed Out"
-              backgroundColor={isDark ? "rgba(220, 38, 38, 0.18)" : "#FEF2F2"}
-              fillColor="#DC2626"
-              textColor={isDark ? "#f87171" : "#DC2626"}
-              fillTextColor="#ffffff"
-              size="sm"
-              radius={9999}
-              holdTime={1500}
-              disabled={isSigningOut}
-              onHold={handleSignOut}
-              icon={<span className="material-symbols-outlined text-sm">logout</span>}
-              doneIcon={<span className="material-symbols-outlined text-sm">check_circle</span>}
-              className="border border-[#FCA5A5]/40 dark:border-red-500/30"
+            <Link
+              href="/history"
+              title="Activity History & Settings"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700 hover:border-[#006948]/50 dark:hover:border-emerald-500/50 hover:bg-[#F8FAFC] dark:hover:bg-slate-700/80 active:scale-95 transition-all text-[#0F172A] dark:text-slate-100 shadow-xs"
             >
-              Sign Out
-            </HoldButton>
+              <span className="material-symbols-outlined text-[20px]">settings</span>
+            </Link>
           )}
         </div>
       </div>
@@ -935,29 +925,11 @@ export default function ProfilePage({ params }: PageProps) {
         </h1>
         <div className="flex items-center gap-2">
           <ThemeToggle variant="icon" size="sm" />
-          {isMyProfile ? (
-            <HoldButton
-              doneLabel="Signed Out"
-              backgroundColor={isDark ? "rgba(220, 38, 38, 0.18)" : "#FEF2F2"}
-              fillColor="#DC2626"
-              textColor={isDark ? "#f87171" : "#DC2626"}
-              fillTextColor="#ffffff"
-              size="sm"
-              radius={9999}
-              holdTime={1500}
-              disabled={isSigningOut}
-              onHold={handleSignOut}
-              icon={<span className="material-symbols-outlined text-sm">logout</span>}
-              doneIcon={<span className="material-symbols-outlined text-sm">check_circle</span>}
-              className="border border-[#FCA5A5]/40 dark:border-red-500/30"
-            >
-              Sign Out
-            </HoldButton>
-          ) : (
+          {isMyProfile && (
             <Link
               href="/history"
-              title="View Activity History"
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700 active:scale-95 transition-transform text-[#0F172A] dark:text-slate-100"
+              title="Activity History & Settings"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700 active:scale-95 transition-transform text-[#0F172A] dark:text-slate-100 hover:border-[#006948]/50 dark:hover:border-emerald-500/50"
             >
               <span className="material-symbols-outlined">settings</span>
             </Link>
@@ -1612,7 +1584,7 @@ export default function ProfilePage({ params }: PageProps) {
                           </div>
                         )}
 
-                        {/* AI Verification / In Progress Badge */}
+                        {/* AI Verification Audit Badge */}
                         <div
                           className={`flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${aiBadge.className}`}
                           title={aiBadge.label}
@@ -1623,11 +1595,11 @@ export default function ProfilePage({ params }: PageProps) {
                           <span>{aiBadge.label}</span>
                         </div>
 
-                        {/* In Work Progress Badge: Only for marked/assigned spots with isVerified === true, isCompletedVerify === "completed", and isCompleted === false */}
+                        {/* In Progress Badge: Only for verified spots whose cleanup is actively in progress */}
                         {((isMarked && item.isVerified === true && item.isCompletedVerify === "completed" && !isCompleted) || (isAssigned && !isCompleted)) && (
-                          <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-[#D97706] bg-[#FFFBEB] border border-[#FCD34D]">
-                            <span className="material-symbols-outlined text-xs text-[#D97706]">engineering</span>
-                            <span>In Work Progress</span>
+                          <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE]">
+                            <span className="material-symbols-outlined text-xs text-[#2563EB]">engineering</span>
+                            <span>In Progress</span>
                           </div>
                         )}
 
@@ -1963,8 +1935,8 @@ export default function ProfilePage({ params }: PageProps) {
                       {selectedSpotDetails.status === "resolved" || selectedSpotDetails.isCompleted || selectedSpotDetails.badgeType === "green"
                         ? "Completed"
                         : selectedSpotDetails.isVerified === true && selectedSpotDetails.isCompletedVerify === "completed"
-                        ? "In Work Progress"
-                        : "In Progress"}
+                        ? "In Progress"
+                        : "Pending Verification"}
                     </span>
                   </div>
                 </div>
@@ -2039,7 +2011,7 @@ export default function ProfilePage({ params }: PageProps) {
                     <div>
                       <p className="font-semibold text-[#0F172A]">Completed &amp; Verified By</p>
                       <p className="text-[11px] text-[#6d7a72]">
-                        {selectedSpotDetails.completedBy || (selectedSpotDetails.status === "resolved" ? "AI & Municipal Inspector" : "In Progress")}
+                        {selectedSpotDetails.completedBy || (selectedSpotDetails.status === "resolved" ? "AI & Municipal Inspector" : (selectedSpotDetails.isCompletedVerify === "completed" ? "In Progress" : "Pending Verification"))}
                       </p>
                     </div>
                   </div>
@@ -2060,8 +2032,8 @@ export default function ProfilePage({ params }: PageProps) {
                       AI FORENSIC VERIFICATION AUDIT
                     </p>
                     {selectedSpotDetails.isCompletedVerify === "pending" ? (
-                      <span className="text-[11px] font-bold text-[#2563EB] bg-[#EFF6FF] px-2.5 py-0.5 rounded-full border border-[#BFDBFE] flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs animate-spin">sync</span> In Progress
+                      <span className="text-[11px] font-bold text-[#D97706] bg-[#FFFBEB] px-2.5 py-0.5 rounded-full border border-[#FCD34D] flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs animate-spin">sync</span> Pending Audit
                       </span>
                     ) : selectedSpotDetails.isVerified ? (
                       <span className="text-[11px] font-bold text-[#059669] bg-[#ECFDF5] px-2.5 py-0.5 rounded-full border border-[#A7F3D0] flex items-center gap-1">

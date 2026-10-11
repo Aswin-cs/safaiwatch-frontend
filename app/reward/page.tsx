@@ -81,7 +81,7 @@ function RewardsSkeleton() {
       {/* Marketplace Cards Skeleton */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="bg-white rounded-[24px] border border-[#E2E8F0] p-5 flex flex-col justify-between shadow-xs">
+          <div key={i} className="bg-white dark:bg-[#0f172a] rounded-[24px] border border-[#E2E8F0] dark:border-slate-800 p-5 flex flex-col justify-between shadow-xs">
             <div>
               <div className="flex justify-between items-start mb-4">
                 <div className={`reward-skeleton-bone reward-skel-delay-${i} w-12 h-12 rounded-2xl`} />
@@ -373,25 +373,25 @@ export default function RewardPage() {
       )}
 
       {/* 1. TOP HEADER / APP BAR */}
-      <header className="w-full sticky top-0 bg-[#faf8ff]/90 backdrop-blur-md border-b border-[#dae2fd] z-40">
+      <header className="w-full sticky top-0 bg-[#faf8ff]/90 dark:bg-[#090d16]/90 backdrop-blur-md border-b border-[#dae2fd] dark:border-slate-800 z-40">
         <div className="flex items-center px-4 md:px-6 h-16 w-full max-w-6xl mx-auto justify-between">
           <Link
             href="/"
-            className="flex items-center text-[#006948] hover:bg-[#006948]/10 transition-colors p-2 rounded-full active:scale-95"
+            className="flex items-center text-[#006948] dark:text-emerald-400 hover:bg-[#006948]/10 dark:hover:bg-emerald-950/40 transition-colors p-2 rounded-full active:scale-95"
           >
             <span className="material-symbols-outlined text-2xl">arrow_back</span>
           </Link>
 
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#006948] text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+            <span className="material-symbols-outlined text-[#006948] dark:text-emerald-400 text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
               military_tech
             </span>
-            <h1 className="font-['Hanken_Grotesk'] text-xl font-bold text-[#131b2e]">Rewards &amp; Vault</h1>
+            <h1 className="font-['Hanken_Grotesk'] text-xl font-bold text-[#131b2e] dark:text-slate-100">Rewards &amp; Vault</h1>
           </div>
 
           <button
             onClick={handleOpenHistoryModal}
-            className="flex items-center gap-1.5 text-[#3d4a42] hover:bg-[#006948]/10 hover:text-[#006948] transition-colors px-3 py-1.5 rounded-full border border-[#dae2fd] active:scale-95 cursor-pointer text-xs font-semibold font-['JetBrains_Mono']"
+            className="flex items-center gap-1.5 text-[#3d4a42] dark:text-slate-200 hover:bg-[#006948]/10 dark:hover:bg-slate-800 hover:text-[#006948] dark:hover:text-emerald-400 transition-colors px-3 py-1.5 rounded-full border border-[#dae2fd] dark:border-slate-700 active:scale-95 cursor-pointer text-xs font-semibold font-['JetBrains_Mono']"
             title="Redemption History"
           >
             <span className="material-symbols-outlined text-base">history</span>
@@ -509,8 +509,8 @@ export default function RewardPage() {
         {/* 3. CATEGORY SWITCHER TABS (Based on UserRewards Schema: gift card, free meal, clothing) */}
         <section className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-['Hanken_Grotesk'] text-xl font-bold text-[#131b2e]">Reward Marketplace</h2>
-            <span className="font-['JetBrains_Mono'] text-xs font-bold text-[#6d7a72]">
+            <h2 className="font-['Hanken_Grotesk'] text-xl font-bold text-[#131b2e] dark:text-slate-100">Reward Marketplace</h2>
+            <span className="font-['JetBrains_Mono'] text-xs font-bold text-[#6d7a72] dark:text-slate-400">
               {filteredCatalog.length} AVAILABLE PERKS
             </span>
           </div>
@@ -520,8 +520,8 @@ export default function RewardPage() {
               onClick={() => setActiveCategory("all")}
               className={`font-['Inter'] text-xs font-semibold px-4 py-2.5 rounded-full whitespace-nowrap transition-all cursor-pointer ${
                 activeCategory === "all"
-                  ? "bg-[#0F172A] text-white border border-[#0F172A] shadow-xs"
-                  : "bg-white text-[#6d7a72] border border-[#E2E8F0] hover:border-[#6d7a72]"
+                  ? "bg-[#0F172A] dark:bg-emerald-600 text-white border border-[#0F172A] dark:border-emerald-500 shadow-xs"
+                  : "bg-white dark:bg-slate-900/80 text-[#6d7a72] dark:text-slate-300 border border-[#E2E8F0] dark:border-slate-700/80 hover:border-[#6d7a72] dark:hover:border-slate-500"
               }`}
             >
               All Perks
@@ -530,8 +530,8 @@ export default function RewardPage() {
               onClick={() => setActiveCategory("gift card")}
               className={`font-['Inter'] text-xs font-semibold px-4 py-2.5 rounded-full whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeCategory === "gift card"
-                  ? "bg-[#0F172A] text-white border border-[#0F172A] shadow-xs"
-                  : "bg-white text-[#6d7a72] border border-[#E2E8F0] hover:border-[#6d7a72]"
+                  ? "bg-[#0F172A] dark:bg-emerald-600 text-white border border-[#0F172A] dark:border-emerald-500 shadow-xs"
+                  : "bg-white dark:bg-slate-900/80 text-[#6d7a72] dark:text-slate-300 border border-[#E2E8F0] dark:border-slate-700/80 hover:border-[#6d7a72] dark:hover:border-slate-500"
               }`}
             >
               <span className="material-symbols-outlined text-sm">card_giftcard</span>
@@ -541,8 +541,8 @@ export default function RewardPage() {
               onClick={() => setActiveCategory("free meal")}
               className={`font-['Inter'] text-xs font-semibold px-4 py-2.5 rounded-full whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeCategory === "free meal"
-                  ? "bg-[#0F172A] text-white border border-[#0F172A] shadow-xs"
-                  : "bg-white text-[#6d7a72] border border-[#E2E8F0] hover:border-[#6d7a72]"
+                  ? "bg-[#0F172A] dark:bg-emerald-600 text-white border border-[#0F172A] dark:border-emerald-500 shadow-xs"
+                  : "bg-white dark:bg-slate-900/80 text-[#6d7a72] dark:text-slate-300 border border-[#E2E8F0] dark:border-slate-700/80 hover:border-[#6d7a72] dark:hover:border-slate-500"
               }`}
             >
               <span className="material-symbols-outlined text-sm">restaurant</span>
@@ -552,8 +552,8 @@ export default function RewardPage() {
               onClick={() => setActiveCategory("clothing")}
               className={`font-['Inter'] text-xs font-semibold px-4 py-2.5 rounded-full whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeCategory === "clothing"
-                  ? "bg-[#0F172A] text-white border border-[#0F172A] shadow-xs"
-                  : "bg-white text-[#6d7a72] border border-[#E2E8F0] hover:border-[#6d7a72]"
+                  ? "bg-[#0F172A] dark:bg-emerald-600 text-white border border-[#0F172A] dark:border-emerald-500 shadow-xs"
+                  : "bg-white dark:bg-slate-900/80 text-[#6d7a72] dark:text-slate-300 border border-[#E2E8F0] dark:border-slate-700/80 hover:border-[#6d7a72] dark:hover:border-slate-500"
               }`}
             >
               <span className="material-symbols-outlined text-sm">checkroom</span>
@@ -563,8 +563,8 @@ export default function RewardPage() {
               onClick={() => setActiveCategory("vault")}
               className={`font-['Inter'] text-xs font-semibold px-4 py-2.5 rounded-full whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 relative ${
                 activeCategory === "vault"
-                  ? "bg-[#006948] text-white border border-[#006948] shadow-xs"
-                  : "bg-white text-[#006948] border border-[#006948]/30 hover:bg-[#006948]/10"
+                  ? "bg-[#006948] dark:bg-emerald-600 text-white border border-[#006948] dark:border-emerald-500 shadow-xs"
+                  : "bg-white dark:bg-slate-900/80 text-[#006948] dark:text-emerald-400 border border-[#006948]/30 dark:border-emerald-600/30 hover:bg-[#006948]/10 dark:hover:bg-emerald-950/40"
               }`}
             >
               <span className="material-symbols-outlined text-sm">inventory_2</span>
@@ -584,11 +584,11 @@ export default function RewardPage() {
               return (
                 <div
                   key={item.id}
-                  className="bg-white rounded-[24px] border border-[#E2E8F0] p-5 flex flex-col justify-between hover:border-[#006948]/40 transition-all shadow-xs group"
+                  className="bg-white dark:bg-[#0f172a] rounded-[24px] border border-[#E2E8F0] dark:border-slate-800 p-5 flex flex-col justify-between hover:border-[#006948]/40 dark:hover:border-emerald-500/40 transition-all shadow-xs group"
                 >
                   <div>
                     <div className="flex justify-between items-start mb-3">
-                      <div className="w-12 h-12 rounded-2xl bg-[#006948]/10 text-[#006948] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <div className="w-12 h-12 rounded-2xl bg-[#006948]/10 dark:bg-emerald-950/60 text-[#006948] dark:text-emerald-400 flex items-center justify-center shrink-0 border border-transparent dark:border-emerald-700/40 group-hover:scale-105 transition-transform">
                         <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
                           {item.icon}
                         </span>
@@ -596,27 +596,27 @@ export default function RewardPage() {
 
                       <div className="flex items-center gap-2">
                         {item.badge && (
-                          <span className="font-['JetBrains_Mono'] text-[10px] font-extrabold text-[#D97706] bg-[#FFFBEB] px-2.5 py-0.5 rounded-full border border-[#FCD34D] uppercase">
+                          <span className="font-['JetBrains_Mono'] text-[10px] font-extrabold text-[#D97706] dark:text-amber-300 bg-[#FFFBEB] dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-[#FCD34D] dark:border-amber-500/40 uppercase">
                             {item.badge}
                           </span>
                         )}
-                        <span className="font-['JetBrains_Mono'] text-xs font-extrabold text-[#006948] bg-[#85f8c4]/30 px-3 py-1 rounded-full border border-[#006948]/20">
+                        <span className="font-['JetBrains_Mono'] text-xs font-extrabold text-[#006948] dark:text-emerald-300 bg-[#85f8c4]/30 dark:bg-emerald-950/70 px-3 py-1 rounded-full border border-[#006948]/20 dark:border-emerald-500/40">
                           {item.cost} XP
                         </span>
                       </div>
                     </div>
 
-                    <h3 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e] mb-1">
+                    <h3 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e] dark:text-slate-100 mb-1">
                       {item.name}
                     </h3>
-                    <p className="font-['Inter'] text-xs text-[#6d7a72] leading-relaxed mb-4">
+                    <p className="font-['Inter'] text-xs text-[#6d7a72] dark:text-slate-400 leading-relaxed mb-4">
                       {item.description}
                     </p>
 
                     {/* Clothing Size Selector (UserRewards clothing clothSize schema) */}
                     {hasSizes && (
-                      <div className="mb-4 bg-[#F8FAFC] p-3 rounded-xl border border-[#E2E8F0]">
-                        <p className="font-['JetBrains_Mono'] text-[10px] font-bold text-[#6d7a72] uppercase mb-2">
+                      <div className="mb-4 bg-[#F8FAFC] dark:bg-slate-900/70 p-3 rounded-xl border border-[#E2E8F0] dark:border-slate-800">
+                        <p className="font-['JetBrains_Mono'] text-[10px] font-bold text-[#6d7a72] dark:text-slate-400 uppercase mb-2">
                           SELECT APPAREL SIZE:
                         </p>
                         <div className="flex gap-2">
@@ -626,8 +626,8 @@ export default function RewardPage() {
                               onClick={() => handleSelectSize(item.id, sz)}
                               className={`px-3 py-1.5 rounded-lg text-xs font-bold font-['JetBrains_Mono'] transition-all cursor-pointer ${
                                 currentSize === sz
-                                  ? "bg-[#006948] text-white shadow-xs"
-                                  : "bg-white text-[#0F172A] border border-[#E2E8F0] hover:border-[#006948]"
+                                  ? "bg-[#006948] dark:bg-emerald-600 text-white shadow-xs"
+                                  : "bg-white dark:bg-slate-800 text-[#0F172A] dark:text-slate-200 border border-[#E2E8F0] dark:border-slate-700 hover:border-[#006948] dark:hover:border-emerald-500"
                               }`}
                             >
                               {sz}
@@ -643,8 +643,8 @@ export default function RewardPage() {
                     onClick={() => handleRedeemItem(item)}
                     className={`w-full font-['Inter'] text-xs font-bold py-3 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
                       isAffordable
-                        ? "bg-[#006948] hover:bg-[#00855d] text-white shadow-xs active:scale-[0.98]"
-                        : "bg-[#CBD5E1] text-[#94A3B8] cursor-not-allowed"
+                        ? "bg-[#006948] hover:bg-[#00855d] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white shadow-xs active:scale-[0.98]"
+                        : "bg-[#CBD5E1] dark:bg-slate-800/80 text-[#94A3B8] dark:text-slate-300 dark:border dark:border-slate-700/60 cursor-not-allowed"
                     }`}
                   >
                     <span>{isAffordable ? "Redeem Perk" : `Need ${item.cost - sellingPoints} More XP`}</span>
@@ -658,25 +658,25 @@ export default function RewardPage() {
 
         {/* 5. CLAIMED REWARDS VAULT TAB */}
         {activeCategory === "vault" && (
-          <section className="bg-white rounded-[28px] p-6 border border-[#E2E8F0] shadow-xs">
-            <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#E2E8F0]">
+          <section className="bg-white dark:bg-[#0f172a] rounded-[28px] p-6 border border-[#E2E8F0] dark:border-slate-800 shadow-xs">
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#E2E8F0] dark:border-slate-800">
               <div>
-                <h2 className="font-['Hanken_Grotesk'] text-2xl font-bold text-[#131b2e]">My Claimed Rewards Vault</h2>
-                <p className="font-['Inter'] text-xs text-[#6d7a72] mt-0.5">
+                <h2 className="font-['Hanken_Grotesk'] text-2xl font-bold text-[#131b2e] dark:text-slate-100">My Claimed Rewards Vault</h2>
+                <p className="font-['Inter'] text-xs text-[#6d7a72] dark:text-slate-400 mt-0.5">
                   Synced with your UserRewards profile. Show promo codes at partner stores or online checkouts.
                 </p>
               </div>
-              <span className="font-['JetBrains_Mono'] text-xs font-bold text-[#006948] bg-[#85f8c4]/30 px-3.5 py-1.5 rounded-full border border-[#006948]/20">
+              <span className="font-['JetBrains_Mono'] text-xs font-bold text-[#006948] dark:text-emerald-300 bg-[#85f8c4]/30 dark:bg-emerald-950/70 px-3.5 py-1.5 rounded-full border border-[#006948]/20 dark:border-emerald-500/40">
                 {claimedRewards.length} UNLOCKED
               </span>
             </div>
 
             {claimedRewards.length === 0 ? (
-              <div className="py-12 text-center text-[#6d7a72] flex flex-col items-center">
-                <div className="w-16 h-16 rounded-full bg-[#FAF8FF] flex items-center justify-center text-[#6d7a72] mb-3 border border-[#E2E8F0]">
+              <div className="py-12 text-center text-[#6d7a72] dark:text-slate-400 flex flex-col items-center">
+                <div className="w-16 h-16 rounded-full bg-[#FAF8FF] dark:bg-slate-800 flex items-center justify-center text-[#6d7a72] dark:text-slate-400 mb-3 border border-[#E2E8F0] dark:border-slate-700">
                   <span className="material-symbols-outlined text-3xl">inventory_2</span>
                 </div>
-                <h4 className="font-['Hanken_Grotesk'] text-base font-bold text-[#131b2e]">Vault is Empty</h4>
+                <h4 className="font-['Hanken_Grotesk'] text-base font-bold text-[#131b2e] dark:text-slate-100">Vault is Empty</h4>
                 <p className="text-xs max-w-xs mt-1 leading-relaxed">
                   You haven't claimed any rewards yet. Participate in civic spot cleanups to earn Karma points!
                 </p>
@@ -686,40 +686,40 @@ export default function RewardPage() {
                 {claimedRewards.map((v) => (
                   <div
                     key={v.id}
-                    className="border border-[#E2E8F0] rounded-2xl p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#F8FAFC] hover:border-[#006948]/50 transition-all shadow-xs"
+                    className="border border-[#E2E8F0] dark:border-slate-800 rounded-2xl p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#F8FAFC] dark:bg-slate-900/60 hover:border-[#006948]/50 dark:hover:border-emerald-500/40 transition-all shadow-xs"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-2xl bg-[#006948]/10 text-[#006948] flex items-center justify-center shrink-0">
+                      <div className="w-14 h-14 rounded-2xl bg-[#006948]/10 dark:bg-emerald-950/60 text-[#006948] dark:text-emerald-400 flex items-center justify-center shrink-0 border border-transparent dark:border-emerald-700/40">
                         <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
                           {v.icon}
                         </span>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-['JetBrains_Mono'] text-[10px] font-bold text-[#006948] bg-[#85f8c4]/40 px-2.5 py-0.5 rounded uppercase">
+                          <span className="font-['JetBrains_Mono'] text-[10px] font-bold text-[#006948] dark:text-emerald-300 bg-[#85f8c4]/40 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded uppercase">
                             {v.category}
                           </span>
                           {v.clothSize && (
-                            <span className="font-['JetBrains_Mono'] text-[10px] font-extrabold text-[#D97706] bg-[#FFFBEB] px-2 py-0.5 rounded border border-[#FCD34D]">
+                            <span className="font-['JetBrains_Mono'] text-[10px] font-extrabold text-[#D97706] dark:text-amber-300 bg-[#FFFBEB] dark:bg-amber-950/60 px-2 py-0.5 rounded border border-[#FCD34D] dark:border-amber-500/40">
                               SIZE: {v.clothSize}
                             </span>
                           )}
                         </div>
-                        <h3 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e] mt-1">{v.name}</h3>
-                        <p className="font-['Inter'] text-xs text-[#6d7a72]">Redeemed {v.dateSelected} · Spent {v.pointsSpent} XP</p>
+                        <h3 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e] dark:text-slate-100 mt-1">{v.name}</h3>
+                        <p className="font-['Inter'] text-xs text-[#6d7a72] dark:text-slate-400">Redeemed {v.dateSelected} · Spent {v.pointsSpent} XP</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-[#E2E8F0] self-start md:self-auto shrink-0 shadow-xs">
+                    <div className="flex items-center gap-3 bg-white dark:bg-slate-800 p-3 rounded-xl border border-[#E2E8F0] dark:border-slate-700 self-start md:self-auto shrink-0 shadow-xs">
                       <div className="flex flex-col">
-                        <span className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] font-bold">PROMO CODE</span>
-                        <span className="font-['JetBrains_Mono'] text-sm font-extrabold text-[#006948] tracking-widest select-all">
+                        <span className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] dark:text-slate-400 font-bold">PROMO CODE</span>
+                        <span className="font-['JetBrains_Mono'] text-sm font-extrabold text-[#006948] dark:text-emerald-400 tracking-widest select-all">
                           {v.promoCode}
                         </span>
                       </div>
                       <button
                         onClick={() => handleCopyCode(v.promoCode)}
-                        className="bg-[#006948] hover:bg-[#00855d] text-white px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                        className="bg-[#006948] hover:bg-[#00855d] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95"
                       >
                         <span className="material-symbols-outlined text-sm">content_copy</span>
                         <span>Copy</span>
@@ -737,24 +737,24 @@ export default function RewardPage() {
       {/* 6. REDEMPTION UNLOCKED SUCCESS MODAL */}
       {activeSuccessModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-[28px] max-w-md w-full p-6 border border-[#E2E8F0] shadow-2xl animate-enter text-center">
-            <div className="w-16 h-16 rounded-full bg-[#ECFDF5] text-[#10B981] mx-auto flex items-center justify-center mb-3 border border-[#10B981]/30 shadow-md">
+          <div className="bg-white dark:bg-[#0f172a] rounded-[28px] max-w-md w-full p-6 border border-[#E2E8F0] dark:border-slate-800 shadow-2xl animate-enter text-center">
+            <div className="w-16 h-16 rounded-full bg-[#ECFDF5] dark:bg-emerald-950/60 text-[#10B981] dark:text-emerald-400 mx-auto flex items-center justify-center mb-3 border border-[#10B981]/30 dark:border-emerald-600/40 shadow-md">
               <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>
                 verified
               </span>
             </div>
 
-            <h3 className="font-['Hanken_Grotesk'] text-2xl font-bold text-[#131b2e] mb-1">
+            <h3 className="font-['Hanken_Grotesk'] text-2xl font-bold text-[#131b2e] dark:text-slate-100 mb-1">
               Perk Unlocked!
             </h3>
-            <p className="font-['Inter'] text-xs text-[#6d7a72] mb-4">
+            <p className="font-['Inter'] text-xs text-[#6d7a72] dark:text-slate-400 mb-4">
               You have successfully redeemed <strong>{activeSuccessModal.name}</strong>
               {activeSuccessModal.clothSize && ` (Size ${activeSuccessModal.clothSize})`}
             </p>
 
-            <div className="bg-[#F8FAFC] border-2 border-dashed border-[#006948] p-4 rounded-2xl mb-5 shadow-xs">
-              <span className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] font-bold block mb-1 uppercase">YOUR PROMO CODE</span>
-              <span className="font-['JetBrains_Mono'] text-2xl font-extrabold text-[#006948] tracking-widest block select-all">
+            <div className="bg-[#F8FAFC] dark:bg-slate-900 border-2 border-dashed border-[#006948] dark:border-emerald-500 p-4 rounded-2xl mb-5 shadow-xs">
+              <span className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] dark:text-slate-400 font-bold block mb-1 uppercase">YOUR PROMO CODE</span>
+              <span className="font-['JetBrains_Mono'] text-2xl font-extrabold text-[#006948] dark:text-emerald-400 tracking-widest block select-all">
                 {activeSuccessModal.promoCode}
               </span>
             </div>
@@ -762,14 +762,14 @@ export default function RewardPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => handleCopyCode(activeSuccessModal.promoCode)}
-                className="flex-1 bg-[#006948] hover:bg-[#00855d] text-white font-['Inter'] font-semibold text-xs py-3 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                className="flex-1 bg-[#006948] hover:bg-[#00855d] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-['Inter'] font-semibold text-xs py-3 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
               >
                 <span className="material-symbols-outlined text-sm">content_copy</span>
                 <span>Copy Code</span>
               </button>
               <button
                 onClick={() => setActiveSuccessModal(null)}
-                className="bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#0F172A] font-['Inter'] font-semibold text-xs px-5 py-3 rounded-xl cursor-pointer transition-colors"
+                className="bg-[#F1F5F9] dark:bg-slate-800 hover:bg-[#E2E8F0] dark:hover:bg-slate-700 text-[#0F172A] dark:text-slate-200 border border-transparent dark:border-slate-700 font-['Inter'] font-semibold text-xs px-5 py-3 rounded-xl cursor-pointer transition-colors"
               >
                 Done
               </button>
@@ -781,15 +781,15 @@ export default function RewardPage() {
       {/* 7. REDEMPTION HISTORY MODAL */}
       {isHistoryModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-[28px] max-w-lg w-full p-6 border border-[#E2E8F0] shadow-2xl max-h-[85vh] overflow-y-auto animate-enter">
-            <div className="flex justify-between items-center mb-4 pb-3 border-b border-[#E2E8F0]">
+          <div className="bg-white dark:bg-[#0f172a] rounded-[28px] max-w-lg w-full p-6 border border-[#E2E8F0] dark:border-slate-800 shadow-2xl max-h-[85vh] overflow-y-auto animate-enter">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-[#E2E8F0] dark:border-slate-800">
               <div>
-                <h3 className="font-['Hanken_Grotesk'] text-xl font-bold text-[#131b2e]">UserRewards History</h3>
-                <p className="font-['Inter'] text-xs text-[#6d7a72]">Synced with your UserRewards transaction ledger</p>
+                <h3 className="font-['Hanken_Grotesk'] text-xl font-bold text-[#131b2e] dark:text-slate-100">UserRewards History</h3>
+                <p className="font-['Inter'] text-xs text-[#6d7a72] dark:text-slate-400">Synced with your UserRewards transaction ledger</p>
               </div>
               <button
                 onClick={() => setIsHistoryModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-[#F1F5F9] text-[#6d7a72] hover:text-[#0F172A] flex items-center justify-center cursor-pointer"
+                className="w-8 h-8 rounded-full bg-[#F1F5F9] dark:bg-slate-800 text-[#6d7a72] dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white flex items-center justify-center cursor-pointer transition-colors"
               >
                 <span className="material-symbols-outlined text-base">close</span>
               </button>
@@ -797,42 +797,42 @@ export default function RewardPage() {
 
             <div className="flex flex-col gap-3">
               {isFetchingHistory ? (
-                <div className="py-12 flex flex-col items-center justify-center gap-2 text-[#006948] font-['Inter'] text-xs font-semibold">
+                <div className="py-12 flex flex-col items-center justify-center gap-2 text-[#006948] dark:text-emerald-400 font-['Inter'] text-xs font-semibold">
                   <span className="material-symbols-outlined animate-spin text-2xl">sync</span>
                   <span>Syncing with your UserRewards database ledger...</span>
                 </div>
               ) : claimedRewards.length === 0 ? (
-                <div className="py-12 px-4 flex flex-col items-center justify-center text-center bg-[#F8FAFC] rounded-2xl border border-dashed border-[#CBD5E1]">
-                  <div className="w-14 h-14 rounded-full bg-[#E2E8F0] text-[#64748B] flex items-center justify-center mb-3">
+                <div className="py-12 px-4 flex flex-col items-center justify-center text-center bg-[#F8FAFC] dark:bg-slate-900 rounded-2xl border border-dashed border-[#CBD5E1] dark:border-slate-700">
+                  <div className="w-14 h-14 rounded-full bg-[#E2E8F0] dark:bg-slate-800 text-[#64748B] dark:text-slate-400 flex items-center justify-center mb-3">
                     <span className="material-symbols-outlined text-2xl">receipt_long</span>
                   </div>
-                  <h4 className="font-['Hanken_Grotesk'] text-base font-bold text-[#0F172A] mb-1">
+                  <h4 className="font-['Hanken_Grotesk'] text-base font-bold text-[#0F172A] dark:text-slate-100 mb-1">
                     No Redemption History Yet
                   </h4>
-                  <p className="font-['Inter'] text-xs text-[#64748B] max-w-xs leading-relaxed">
-                    You haven't claimed any rewards yet. Mark & complete cleanup spots to earn Karma Points and redeem perks!
+                  <p className="font-['Inter'] text-xs text-[#64748B] dark:text-slate-400 max-w-xs leading-relaxed">
+                    You haven't claimed any rewards yet. Mark &amp; complete cleanup spots to earn Karma Points and redeem perks!
                   </p>
                 </div>
               ) : (
                 claimedRewards.map((item) => (
                   <div
                     key={item.id}
-                    className="p-3.5 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] flex justify-between items-center hover:bg-[#F1F5F9] transition-colors"
+                    className="p-3.5 rounded-xl border border-[#E2E8F0] dark:border-slate-800 bg-[#F8FAFC] dark:bg-slate-900/70 flex justify-between items-center hover:bg-[#F1F5F9] dark:hover:bg-slate-800/80 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[#006948]/10 text-[#006948] flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-[#006948]/10 dark:bg-emerald-950/60 text-[#006948] dark:text-emerald-400 flex items-center justify-center shrink-0 border border-transparent dark:border-emerald-700/40">
                         <span className="material-symbols-outlined text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
                           {item.icon}
                         </span>
                       </div>
                       <div>
-                        <h4 className="font-['Inter'] text-xs font-bold text-[#0F172A]">{item.name}</h4>
-                        <p className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] mt-0.5">
+                        <h4 className="font-['Inter'] text-xs font-bold text-[#0F172A] dark:text-slate-100">{item.name}</h4>
+                        <p className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] dark:text-slate-400 mt-0.5">
                           {item.dateSelected} · {item.category.toUpperCase()}
                         </p>
                       </div>
                     </div>
-                    <span className="font-['JetBrains_Mono'] text-xs font-extrabold text-[#BA1A1A]">
+                    <span className="font-['JetBrains_Mono'] text-xs font-extrabold text-[#BA1A1A] dark:text-red-400">
                       -{item.pointsSpent} XP
                     </span>
                   </div>
@@ -842,7 +842,7 @@ export default function RewardPage() {
 
             <button
               onClick={() => setIsHistoryModalOpen(false)}
-              className="w-full bg-[#0F172A] hover:bg-[#1E293B] text-white font-['Inter'] text-xs font-semibold py-3 rounded-xl mt-4 cursor-pointer transition-colors"
+              className="w-full bg-[#0F172A] dark:bg-slate-800 hover:bg-[#1E293B] dark:hover:bg-slate-700 text-white border border-transparent dark:border-slate-700 font-['Inter'] text-xs font-semibold py-3 rounded-xl mt-4 cursor-pointer transition-colors"
             >
               Close History
             </button>

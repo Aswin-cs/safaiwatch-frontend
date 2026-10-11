@@ -84,7 +84,7 @@ export default function FeedPage() {
   const [selectedWard, setSelectedWard] = useState<string>("All Wards Territory");
   const [isWardDropdownOpen, setIsWardDropdownOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [activeFilter, setActiveFilter] = useState<"nearby" | "top" | "challenge" | "following">("nearby");
+  const [activeFilter, setActiveFilter] = useState<"all" | "liked" | "not_liked">("all");
 
   // Expanded comments & comment inputs per post
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
@@ -103,9 +103,9 @@ export default function FeedPage() {
     const isLiked = post.isLiked !== undefined
       ? Boolean(post.isLiked)
       : userLikes.some((item: any) => {
-          const pid = item?.postId?._id || item?.postId || item;
-          return pid && pid.toString() === post._id?.toString();
-        });
+        const pid = item?.postId?._id || item?.postId || item;
+        return pid && pid.toString() === post._id?.toString();
+      });
 
     const categoryChoices: Array<"nearby" | "top" | "challenge" | "following"> = ["nearby", "top", "challenge", "following"];
     const category = categoryChoices[idx % categoryChoices.length];
@@ -202,7 +202,8 @@ export default function FeedPage() {
       : (basicStatus?.completedSpots ?? 0) * 100;
 
   const userAvatar = getAvatarUrl(basicUser);
-  const userProfileLink = basicUser?.username ? `/profile/${basicUser.username}` : "/profile";
+  // const userProfileLink = basicUser?.username ? `/profile/${basicUser.username}` : "/profile";
+  const userProfileLink = "/profile";
 
   // Dynamic Ward Choices generated from loaded feed items
   const uniqueWards = Array.from(new Set(feedItems.map((item) => item.ward))).filter(Boolean);
@@ -232,10 +233,10 @@ export default function FeedPage() {
             prev.map((item) =>
               item.id === itemId
                 ? {
-                    ...item,
-                    cheersCount: res.likeCount!,
-                    isCheered: res.isLiked ?? nextCheered,
-                  }
+                  ...item,
+                  cheersCount: res.likeCount!,
+                  isCheered: res.isLiked ?? nextCheered,
+                }
                 : item
             )
           );
@@ -286,7 +287,7 @@ export default function FeedPage() {
           text: item.caption,
           url: postUrl,
         })
-        .catch(() => {});
+        .catch(() => { });
     } else if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(postUrl);
       triggerToast("Direct post link copied to clipboard!");
@@ -319,20 +320,20 @@ export default function FeedPage() {
       selectedWard === "All Wards Territory" ||
       item.ward.toLowerCase().includes(selectedWard.toLowerCase().split(",")[0]);
 
-    const matchesCategory =
-      activeFilter === "nearby"
+    const matchesFilter =
+      activeFilter === "all"
         ? true
-        : activeFilter === "top"
-        ? item.cheersCount > 50 || item.category === "top"
-        : activeFilter === "challenge"
-        ? item.category === "challenge"
-        : true;
+        : activeFilter === "liked"
+          ? item.isCheered === true
+          : activeFilter === "not_liked"
+            ? item.isCheered === false
+            : true;
 
-    return matchesSearch && matchesWard && matchesCategory;
+    return matchesSearch && matchesWard && matchesFilter;
   });
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#131b2e] font-['Inter'] antialiased selection:bg-[#85f8c4] selection:text-[#002114] pb-24 md:pb-12 pt-32 md:pt-28">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#070d18] text-[#131b2e] dark:text-slate-100 font-['Inter'] antialiased selection:bg-[#85f8c4] selection:text-[#002114] pb-24 md:pb-12 pt-32 md:pt-28">
       {/* Toast Notification */}
       {toast && (
         <NotificationPopup
@@ -345,13 +346,13 @@ export default function FeedPage() {
       )}
 
       {/* TOP NAVIGATION & SUB-FILTERS HEADER */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex flex-col border-b border-[#dae2fd]/60 bg-white/95 backdrop-blur-md shadow-xs">
+      <header className="fixed top-0 left-0 right-0 z-50 flex flex-col border-b border-[#dae2fd]/60 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xs">
         <div className="flex items-center justify-between px-3.5 py-2.5 sm:px-6 max-w-6xl mx-auto w-full gap-2">
           {/* Left: Brand Title & Locality Selector */}
           <div className="flex items-center gap-2.5 min-w-0">
             <Link href="/" className="flex items-center gap-2 shrink-0 group" title="Return to Map">
               <SafaiWatchLogo variant="icon" size="sm" animated={true} />
-              <h1 className="font-['Hanken_Grotesk'] text-lg sm:text-xl md:text-2xl font-black text-[#006948] tracking-tight group-hover:text-[#00855d] transition-colors">
+              <h1 className="font-['Hanken_Grotesk'] text-lg sm:text-xl md:text-2xl font-black text-[#006948] dark:text-emerald-400 tracking-tight group-hover:text-[#00855d] dark:group-hover:text-emerald-300 transition-colors">
                 Civic Feed
               </h1>
             </Link>
@@ -360,20 +361,20 @@ export default function FeedPage() {
             <div className="relative shrink min-w-0">
               <button
                 onClick={() => setIsWardDropdownOpen(!isWardDropdownOpen)}
-                className="flex items-center gap-1 bg-[#dae2fd]/40 text-[#131b2e] hover:bg-[#dae2fd]/70 transition-colors px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-[#bccac0]/40 cursor-pointer max-w-[120px] sm:max-w-[200px]"
+                className="flex items-center gap-1 bg-[#dae2fd]/40 dark:bg-slate-800 text-[#131b2e] dark:text-slate-200 hover:bg-[#dae2fd]/70 dark:hover:bg-slate-700/80 transition-colors px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-[#bccac0]/40 dark:border-slate-700 cursor-pointer max-w-[120px] sm:max-w-[200px]"
               >
-                <span className="material-symbols-outlined text-sm sm:text-base text-[#006948] shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
+                <span className="material-symbols-outlined text-sm sm:text-base text-[#006948] dark:text-emerald-400 shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
                   location_on
                 </span>
-                <span className="font-['JetBrains_Mono'] text-[11px] sm:text-xs font-bold text-[#3d4a42] truncate">
+                <span className="font-['JetBrains_Mono'] text-[11px] sm:text-xs font-bold text-[#3d4a42] dark:text-slate-200 truncate">
                   {selectedWard}
                 </span>
-                <span className="material-symbols-outlined text-sm sm:text-base shrink-0">arrow_drop_down</span>
+                <span className="material-symbols-outlined text-sm sm:text-base text-slate-500 dark:text-slate-400 shrink-0">arrow_drop_down</span>
               </button>
 
               {isWardDropdownOpen && (
-                <div className="absolute top-9 left-0 z-50 bg-white rounded-2xl border border-[#E2E8F0] shadow-xl py-2 w-60 sm:w-64 max-h-60 overflow-y-auto animate-enter">
-                  <div className="px-3 py-1 text-[10px] font-['JetBrains_Mono'] text-[#6d7a72] font-bold uppercase">
+                <div className="absolute top-9 left-0 z-50 bg-white dark:bg-slate-900 rounded-2xl border border-[#E2E8F0] dark:border-slate-800 shadow-xl py-2 w-60 sm:w-64 max-h-60 overflow-y-auto animate-enter">
+                  <div className="px-3 py-1 text-[10px] font-['JetBrains_Mono'] text-[#6d7a72] dark:text-slate-400 font-bold uppercase">
                     Select Locality Ward
                   </div>
                   {wardsList.map((w) => (
@@ -384,9 +385,8 @@ export default function FeedPage() {
                         setIsWardDropdownOpen(false);
                         triggerToast(`Filtered feed to ${w}`);
                       }}
-                      className={`w-full text-left px-3.5 py-2 text-xs font-semibold hover:bg-[#F1F5F9] transition-colors truncate ${
-                        selectedWard === w ? "text-[#006948] font-bold bg-[#ECFDF5]" : "text-[#0F172A]"
-                      }`}
+                      className={`w-full text-left px-3.5 py-2 text-xs font-semibold hover:bg-[#F1F5F9] dark:hover:bg-slate-800 transition-colors truncate ${selectedWard === w ? "text-[#006948] dark:text-emerald-300 font-bold bg-[#ECFDF5] dark:bg-emerald-950/70" : "text-[#0F172A] dark:text-slate-200"
+                        }`}
                     >
                       {w}
                     </button>
@@ -402,7 +402,7 @@ export default function FeedPage() {
             <button
               onClick={loadFeedData}
               disabled={isLoadingFeed}
-              className="w-8 h-8 sm:w-9 sm:h-9 text-[#006948] bg-emerald-50 hover:bg-emerald-100/80 rounded-full transition-colors cursor-pointer flex items-center justify-center border border-emerald-200/60 shrink-0"
+              className="w-8 h-8 sm:w-9 sm:h-9 text-[#006948] dark:text-emerald-400 bg-emerald-50 dark:bg-slate-800 hover:bg-emerald-100/80 dark:hover:bg-slate-700 rounded-full transition-colors cursor-pointer flex items-center justify-center border border-emerald-200/60 dark:border-slate-700 shrink-0"
               title="Refresh Feed"
             >
               <span className={`material-symbols-outlined text-lg sm:text-xl ${isLoadingFeed ? "animate-spin" : ""}`}>
@@ -411,12 +411,12 @@ export default function FeedPage() {
             </button>
 
             {/* Search Input (Desktop/Tablet) */}
-            <div className="hidden md:flex items-center bg-white border border-[#bccac0]/60 rounded-full px-3.5 py-1.5 focus-within:border-[#006948] focus-within:ring-2 focus-within:ring-[#006948]/10 transition-all">
-              <span className="material-symbols-outlined text-base text-[#6d7a72]">search</span>
+            <div className="hidden md:flex items-center bg-white dark:bg-slate-800 border border-[#bccac0]/60 dark:border-slate-700 rounded-full px-3.5 py-1.5 focus-within:border-[#006948] dark:focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-[#006948]/10 dark:focus-within:ring-emerald-500/20 transition-all">
+              <span className="material-symbols-outlined text-base text-[#6d7a72] dark:text-slate-400">search</span>
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="border-none bg-transparent focus:outline-none text-xs ml-2 w-44 text-[#131b2e] placeholder:text-[#6d7a72]"
+                className="border-none bg-transparent focus:outline-none text-xs ml-2 w-44 text-[#131b2e] dark:text-slate-100 placeholder:text-[#6d7a72] dark:placeholder:text-slate-400"
                 placeholder="Search cleanups..."
                 type="text"
               />
@@ -425,7 +425,7 @@ export default function FeedPage() {
             {/* Profile Avatar link */}
             <Link
               href={userProfileLink}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#00855d] flex items-center justify-center overflow-hidden border-2 border-[#006948]/30 cursor-pointer hover:scale-105 transition-transform shrink-0"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#00855d] flex items-center justify-center overflow-hidden border-2 border-[#006948]/30 dark:border-emerald-500/40 cursor-pointer hover:scale-105 transition-transform shrink-0"
               title={basicUser?.username ? `@${basicUser.username}` : "My Profile"}
             >
               <img
@@ -441,7 +441,7 @@ export default function FeedPage() {
             {/* Sign Out Button (Desktop/Tablet) */}
             <button
               onClick={handleSignOut}
-              className="hidden sm:flex px-3 py-1.5 text-xs font-bold text-[#ba1a1a] hover:bg-[#ffdad6]/40 border border-[#ba1a1a]/30 rounded-full transition-all cursor-pointer items-center gap-1 shrink-0"
+              className="hidden sm:flex px-3 py-1.5 text-xs font-bold text-[#ba1a1a] dark:text-rose-400 hover:bg-[#ffdad6]/40 dark:hover:bg-rose-950/40 border border-[#ba1a1a]/30 dark:border-rose-500/30 rounded-full transition-all cursor-pointer items-center gap-1 shrink-0"
               title="Sign Out of Session"
             >
               <span className="material-symbols-outlined text-base">logout</span>
@@ -451,46 +451,62 @@ export default function FeedPage() {
         </div>
 
         {/* Sub-filters horizontal bar */}
-        <div className="w-full overflow-x-auto hide-scrollbar px-3.5 py-1.5 flex gap-1.5 sm:gap-2 border-t border-[#dae2fd]/40 max-w-6xl mx-auto sm:px-6">
+        <div className="w-full overflow-x-auto hide-scrollbar px-3.5 py-1.5 flex gap-1.5 sm:gap-2 border-t border-[#dae2fd]/40 dark:border-slate-800 max-w-6xl mx-auto sm:px-6">
           <button
-            onClick={() => setActiveFilter("nearby")}
-            className={`whitespace-nowrap px-3.5 py-1 rounded-full font-['JetBrains_Mono'] text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
-              activeFilter === "nearby"
-                ? "bg-[#006948] text-white shadow-xs"
-                : "bg-white text-[#3d4a42] border border-[#bccac0]/60 hover:bg-[#F1F5F9]"
-            }`}
+            onClick={() => setActiveFilter("all")}
+            className={`whitespace-nowrap px-3.5 py-1 rounded-full font-['JetBrains_Mono'] text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${activeFilter === "all"
+                ? "bg-[#006948] dark:bg-emerald-600 text-white shadow-xs"
+                : "bg-white dark:bg-slate-800 text-[#3d4a42] dark:text-slate-300 border border-[#bccac0]/60 dark:border-slate-700 hover:bg-[#F1F5F9] dark:hover:bg-slate-700"
+              }`}
           >
-            Nearby
+            All Posts
           </button>
           <button
-            onClick={() => setActiveFilter("top")}
-            className={`whitespace-nowrap px-3.5 py-1 rounded-full font-['JetBrains_Mono'] text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
-              activeFilter === "top"
-                ? "bg-[#006948] text-white shadow-xs"
-                : "bg-white text-[#3d4a42] border border-[#bccac0]/60 hover:bg-[#F1F5F9]"
-            }`}
+            onClick={() => setActiveFilter("liked")}
+            className={`whitespace-nowrap px-3.5 py-1 rounded-full font-['JetBrains_Mono'] text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${activeFilter === "liked"
+                ? "bg-[#006948] dark:bg-emerald-600 text-white shadow-xs"
+                : "bg-white dark:bg-slate-800 text-[#3d4a42] dark:text-slate-300 border border-[#bccac0]/60 dark:border-slate-700 hover:bg-[#F1F5F9] dark:hover:bg-slate-700"
+              }`}
           >
-            Top Cleanups
+            <span
+              className="material-symbols-outlined text-[13px] sm:text-sm text-rose-500"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              favorite
+            </span>
+            <span>Liked</span>
+            {feedItems.length > 0 && (
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-full font-sans font-semibold ${activeFilter === "liked"
+                    ? "bg-white/20 text-white"
+                    : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  }`}
+              >
+                {feedItems.filter((i) => i.isCheered).length}
+              </span>
+            )}
           </button>
           <button
-            onClick={() => setActiveFilter("challenge")}
-            className={`whitespace-nowrap px-3.5 py-1 rounded-full font-['JetBrains_Mono'] text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
-              activeFilter === "challenge"
-                ? "bg-[#006948] text-white shadow-xs"
-                : "bg-white text-[#3d4a42] border border-[#bccac0]/60 hover:bg-[#F1F5F9]"
-            }`}
+            onClick={() => setActiveFilter("not_liked")}
+            className={`whitespace-nowrap px-3.5 py-1 rounded-full font-['JetBrains_Mono'] text-[11px] sm:text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${activeFilter === "not_liked"
+                ? "bg-[#006948] dark:bg-emerald-600 text-white shadow-xs"
+                : "bg-white dark:bg-slate-800 text-[#3d4a42] dark:text-slate-300 border border-[#bccac0]/60 dark:border-slate-700 hover:bg-[#F1F5F9] dark:hover:bg-slate-700"
+              }`}
           >
-            Ward Challenges
-          </button>
-          <button
-            onClick={() => setActiveFilter("following")}
-            className={`whitespace-nowrap px-3.5 py-1 rounded-full font-['JetBrains_Mono'] text-[11px] sm:text-xs font-bold transition-all cursor-pointer ${
-              activeFilter === "following"
-                ? "bg-[#006948] text-white shadow-xs"
-                : "bg-white text-[#3d4a42] border border-[#bccac0]/60 hover:bg-[#F1F5F9]"
-            }`}
-          >
-            Following
+            <span className="material-symbols-outlined text-[13px] sm:text-sm text-slate-400">
+              favorite_border
+            </span>
+            <span>Not Liked</span>
+            {feedItems.length > 0 && (
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-full font-sans font-semibold ${activeFilter === "not_liked"
+                    ? "bg-white/20 text-white"
+                    : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  }`}
+              >
+                {feedItems.filter((i) => !i.isCheered).length}
+              </span>
+            )}
           </button>
         </div>
       </header>
@@ -500,17 +516,17 @@ export default function FeedPage() {
         {isLoadingFeed ? (
           <FeedCardSkeleton count={3} />
         ) : filteredFeed.length === 0 ? (
-          <div className="bg-white rounded-[24px] p-8 text-center border border-[#E2E8F0] shadow-xs my-8">
-            <span className="material-symbols-outlined text-4xl text-[#6d7a72] mb-2">search_off</span>
-            <h3 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e]">No Cleanup Posts Found</h3>
-            <p className="text-xs text-[#6d7a72] mt-1">Try switching locality ward or resetting search keywords.</p>
+          <div className="bg-white dark:bg-slate-900/90 rounded-[24px] p-8 text-center border border-[#E2E8F0] dark:border-slate-800 shadow-xs my-8">
+            <span className="material-symbols-outlined text-4xl text-[#6d7a72] dark:text-slate-400 mb-2">search_off</span>
+            <h3 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e] dark:text-slate-100">No Cleanup Posts Found</h3>
+            <p className="text-xs text-[#6d7a72] dark:text-slate-400 mt-1">Try switching locality ward or resetting search keywords.</p>
             <button
               onClick={() => {
                 setSelectedWard("All Wards Territory");
                 setSearchQuery("");
-                setActiveFilter("nearby");
+                setActiveFilter("all");
               }}
-              className="mt-4 bg-[#006948] text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer hover:bg-[#00855d] transition-colors"
+              className="mt-4 bg-[#006948] dark:bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer hover:bg-[#00855d] dark:hover:bg-emerald-500 transition-colors"
             >
               Reset Filters
             </button>
@@ -523,15 +539,15 @@ export default function FeedPage() {
               <article
                 key={item.id}
                 onDoubleClick={() => router.push(`/feed/${item.id}`)}
-                className="feed-card bg-white rounded-[24px] overflow-hidden flex flex-col transition-all duration-300 shadow-sm border border-[#E2E8F0]"
+                className="feed-card bg-white dark:bg-slate-900/90 rounded-[24px] overflow-hidden flex flex-col transition-all duration-300 shadow-sm border border-[#E2E8F0] dark:border-slate-800"
               >
                 {/* Dual Attribution Header */}
-                <div className="px-5 py-4 flex items-center justify-between">
+                <div className="px-5 py-4 flex items-center justify-between border-b border-transparent dark:border-slate-800/60">
                   <div className="flex items-center gap-3">
                     <div className="flex -space-x-2">
                       <Link
                         href={`/profile/${encodeURIComponent(item.cleanerUsername || item.cleanerName)}`}
-                        className="w-10 h-10 rounded-full border-2 border-white overflow-hidden z-10 relative shadow-xs hover:scale-105 transition-transform"
+                        className="w-10 h-10 rounded-full border-2 border-white dark:border-slate-900 overflow-hidden z-10 relative shadow-xs hover:scale-105 transition-transform"
                         title={`View profile of ${item.cleanerName}`}
                       >
                         <img
@@ -542,11 +558,11 @@ export default function FeedPage() {
                             (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
                           }}
                         />
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#006948] rounded-full border-2 border-white"></div>
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#006948] dark:bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900"></div>
                       </Link>
                       <Link
                         href={`/profile/${encodeURIComponent(item.reporterUsername || item.reporterName)}`}
-                        className="w-10 h-10 rounded-full border-2 border-white overflow-hidden z-0 shadow-xs hover:scale-105 transition-transform"
+                        className="w-10 h-10 rounded-full border-2 border-white dark:border-slate-900 overflow-hidden z-0 shadow-xs hover:scale-105 transition-transform"
                         title={`View profile of ${item.reporterName}`}
                       >
                         <img
@@ -564,19 +580,19 @@ export default function FeedPage() {
                       <div className="flex items-baseline gap-1">
                         <Link
                           href={`/profile/${encodeURIComponent(item.cleanerUsername || item.cleanerName)}`}
-                          className="font-['Hanken_Grotesk'] text-sm font-bold text-[#131b2e] hover:text-[#006948] transition-colors"
+                          className="font-['Hanken_Grotesk'] text-sm font-bold text-[#131b2e] dark:text-slate-100 hover:text-[#006948] dark:hover:text-emerald-400 transition-colors"
                         >
                           {item.cleanerName}
                         </Link>
-                        <span className="text-[#6d7a72] text-xs font-semibold">&amp;</span>
+                        <span className="text-[#6d7a72] dark:text-slate-400 text-xs font-semibold">&amp;</span>
                         <Link
                           href={`/profile/${encodeURIComponent(item.reporterUsername || item.reporterName)}`}
-                          className="font-['Hanken_Grotesk'] text-sm font-bold text-[#131b2e] hover:text-[#006948] transition-colors"
+                          className="font-['Hanken_Grotesk'] text-sm font-bold text-[#131b2e] dark:text-slate-100 hover:text-[#006948] dark:hover:text-emerald-400 transition-colors"
                         >
                           {item.reporterName}
                         </Link>
                       </div>
-                      <span className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] font-semibold">
+                      <span className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] dark:text-slate-400 font-semibold">
                         {item.timestamp} • {item.ward}
                       </span>
                     </div>
@@ -584,7 +600,7 @@ export default function FeedPage() {
 
                   <div className="flex items-center gap-1">
                     {item.isBackendPost && (
-                      <span className="bg-[#ECFDF5] text-[#006948] font-['JetBrains_Mono'] text-[10px] font-bold px-2.5 py-1 rounded-full border border-[#006948]/20">
+                      <span className="bg-[#ECFDF5] dark:bg-emerald-950/60 text-[#006948] dark:text-emerald-300 font-['JetBrains_Mono'] text-[10px] font-bold px-2.5 py-1 rounded-full border border-[#006948]/20 dark:border-emerald-600/40">
                         LIVE
                       </span>
                     )}
@@ -593,7 +609,7 @@ export default function FeedPage() {
                         e.stopPropagation();
                         handleShare(item);
                       }}
-                      className="text-[#6d7a72] hover:text-[#131b2e] transition-colors p-1.5 rounded-full hover:bg-[#F1F5F9] cursor-pointer"
+                      className="text-[#6d7a72] dark:text-slate-400 hover:text-[#131b2e] dark:hover:text-slate-200 transition-colors p-1.5 rounded-full hover:bg-[#F1F5F9] dark:hover:bg-slate-800 cursor-pointer"
                       title="Share direct post link"
                     >
                       <span className="material-symbols-outlined text-xl">share</span>
@@ -609,51 +625,18 @@ export default function FeedPage() {
                   onDoubleClick={() => router.push(`/feed/${item.id}`)}
                 />
 
-                {/* Gemini AI Audit Proof Banner */}
-                <div className="bg-[#00855d]/10 px-5 py-3 border-b border-[#00855d]/20 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#006948]/15 flex items-center justify-center text-[#006948]">
-                      <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
-                        verified
-                      </span>
-                    </div>
-                    <div className="flex flex-col justify-center">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-['JetBrains_Mono'] text-[11px] font-extrabold text-[#006948] uppercase tracking-wider">
-                          Gemini Verified
-                        </span>
-                        <span className="text-[#006948]/50 text-[10px]">•</span>
-                        <span className="font-['Inter'] text-xs text-[#3d4a42] font-semibold">
-                          Site Cleared in {item.geminiTime}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#006948] px-3 py-1 rounded-full flex items-center gap-1 shadow-xs">
-                    <span className="material-symbols-outlined text-white text-xs" style={{ fontVariationSettings: "'FILL' 1" }}>
-                      bolt
-                    </span>
-                    <span className="font-['JetBrains_Mono'] text-xs text-white font-extrabold">
-                      +{item.xpBonus} XP
-                    </span>
-                  </div>
-                </div>
-
                 {/* Action Bar */}
-                <div className="px-5 py-3 flex items-center justify-between border-b border-[#E2E8F0]">
+                <div className="px-5 py-3 flex items-center justify-between border-b border-[#E2E8F0] dark:border-slate-800">
                   <div className="flex items-center gap-5">
                     {/* Cheer Button */}
                     <button
                       onClick={() => handleCheerToggle(item.id)}
-                      className={`flex items-center gap-1.5 group cursor-pointer transition-colors ${
-                        item.isCheered ? "text-[#ef4444]" : "text-[#3d4a42] hover:text-[#131b2e]"
-                      }`}
+                      className={`flex items-center gap-1.5 group cursor-pointer transition-colors ${item.isCheered ? "text-[#ef4444] dark:text-rose-400" : "text-[#3d4a42] dark:text-slate-300 hover:text-[#131b2e] dark:hover:text-white"
+                        }`}
                     >
                       <span
-                        className={`material-symbols-outlined text-xl transition-transform group-active:scale-75 ${
-                          item.isCheered ? "text-[#ef4444]" : ""
-                        }`}
+                        className={`material-symbols-outlined text-xl transition-transform group-active:scale-75 ${item.isCheered ? "text-[#ef4444] dark:text-rose-400" : ""
+                          }`}
                         style={{ fontVariationSettings: item.isCheered ? "'FILL' 1" : "'FILL' 0" }}
                       >
                         favorite
@@ -663,24 +646,13 @@ export default function FeedPage() {
                       </span>
                     </button>
                   </div>
-
-                  {/* Share button */}
-                  <button
-                    onClick={() => handleShare(item)}
-                    className="flex items-center justify-center w-9 h-9 rounded-full bg-[#E2E8F0]/60 hover:bg-[#E2E8F0] text-[#131b2e] transition-colors cursor-pointer"
-                    title="Share Post"
-                  >
-                    <svg className="w-5 h-5 text-[#25D366]" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-                    </svg>
-                  </button>
                 </div>
 
                 {/* Caption Content */}
-                <div className="px-5 py-4 bg-white flex items-center justify-between">
+                <div className="px-5 py-4 bg-white dark:bg-slate-900/90 flex items-center justify-between">
                   <Link href={`/feed/${item.id}`} className="block group flex-1 mr-4">
-                    <p className="font-['Inter'] text-sm text-[#131b2e] leading-relaxed group-hover:text-[#006948] transition-colors cursor-pointer">
-                      <span className="font-['Hanken_Grotesk'] font-bold text-sm mr-1.5">
+                    <p className="font-['Inter'] text-sm text-[#131b2e] dark:text-slate-200 leading-relaxed group-hover:text-[#006948] dark:group-hover:text-emerald-400 transition-colors cursor-pointer">
+                      <span className="font-['Hanken_Grotesk'] font-bold text-sm mr-1.5 text-inherit">
                         {item.cleanerName}
                       </span>
                       {item.caption}
@@ -689,7 +661,7 @@ export default function FeedPage() {
 
                   <Link
                     href={`/feed/${item.id}`}
-                    className="font-['JetBrains_Mono'] text-xs font-bold text-[#006948] hover:underline flex items-center gap-1 cursor-pointer shrink-0"
+                    className="font-['JetBrains_Mono'] text-xs font-bold text-[#006948] dark:text-emerald-400 hover:underline hover:text-[#00855d] dark:hover:text-emerald-300 flex items-center gap-1 cursor-pointer shrink-0"
                   >
                     <span>View Full Case</span>
                     <span className="material-symbols-outlined text-sm">arrow_forward</span>

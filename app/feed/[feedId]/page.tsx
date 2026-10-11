@@ -106,10 +106,14 @@ export default function SingleFeedPostPage({ params }: PageProps) {
         setPostData(post);
         setCheersCount(post.likeCount ?? 0);
 
-        const liked = userLikes.some((item: any) => {
-          const pid = item?.postId?._id || item?.postId || item;
-          return pid && pid.toString() === post._id?.toString();
-        });
+        const liked = res.isLiked !== undefined
+          ? Boolean(res.isLiked)
+          : (post.isLiked !== undefined
+            ? Boolean(post.isLiked)
+            : userLikes.some((item: any) => {
+                const pid = item?.postId?._id || item?.postId || item;
+                return pid && pid.toString() === post._id?.toString();
+              }));
         setIsCheered(liked);
       } else {
         // Fallback mock post
@@ -199,7 +203,7 @@ export default function SingleFeedPostPage({ params }: PageProps) {
   const coordsText = postData?.geolocation?.coordinates ? `${postData.geolocation.coordinates[1]}° N, ${postData.geolocation.coordinates[0]}° E` : "10.7749° N, 76.3812° E";
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#131b2e] font-['Inter'] antialiased selection:bg-[#85f8c4] selection:text-[#002114] pb-24 md:pb-12 pt-20">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#070d18] text-[#131b2e] dark:text-slate-100 font-['Inter'] antialiased selection:bg-[#85f8c4] selection:text-[#002114] pb-24 md:pb-12 pt-20">
       {/* Toast Banner */}
       {toast && (
         <NotificationPopup
@@ -212,23 +216,23 @@ export default function SingleFeedPostPage({ params }: PageProps) {
       )}
 
       {/* STICKY TOP HEADER */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-[#faf8ff]/90 backdrop-blur-md border-b border-[#dae2fd]">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-[#faf8ff]/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-[#dae2fd] dark:border-slate-800">
         <div className="flex items-center px-4 md:px-6 h-16 w-full max-w-4xl mx-auto justify-between">
           <Link
             href="/feed"
-            className="flex items-center gap-2 text-[#006948] hover:bg-[#eaedff] transition-colors p-2 rounded-full active:scale-95"
+            className="flex items-center gap-2 text-[#006948] dark:text-emerald-400 hover:bg-[#eaedff] dark:hover:bg-slate-800 transition-colors p-2 rounded-full active:scale-95"
           >
             <span className="material-symbols-outlined text-2xl">arrow_back</span>
             <span className="font-['Hanken_Grotesk'] text-sm font-bold hidden sm:inline">Back to Feed</span>
           </Link>
 
-          <h1 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e] truncate max-w-[200px] sm:max-w-md">
+          <h1 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e] dark:text-slate-100 truncate max-w-[200px] sm:max-w-md">
             Cleanup Case Details
           </h1>
 
           <button
             onClick={handleShare}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-[#E2E8F0] hover:bg-[#CBD5E1] text-[#131b2e] transition-colors cursor-pointer"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-[#E2E8F0] dark:bg-slate-800 hover:bg-[#CBD5E1] dark:hover:bg-slate-700 text-[#131b2e] dark:text-slate-200 transition-colors cursor-pointer"
             title="Share"
           >
             <span className="material-symbols-outlined text-xl">share</span>
@@ -241,14 +245,14 @@ export default function SingleFeedPostPage({ params }: PageProps) {
         {isLoading ? (
           <FeedCardSkeleton count={1} />
         ) : (
-          <article className="feed-card bg-white rounded-[24px] overflow-hidden flex flex-col shadow-sm border border-[#E2E8F0]">
+          <article className="feed-card bg-white dark:bg-slate-900/90 rounded-[24px] overflow-hidden flex flex-col shadow-sm border border-[#E2E8F0] dark:border-slate-800">
             {/* Dual Attribution Header */}
-            <div className="px-6 py-4 flex items-center justify-between border-b border-[#E2E8F0]">
+            <div className="px-6 py-4 flex items-center justify-between border-b border-[#E2E8F0] dark:border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="flex -space-x-2">
                   <Link
                     href={`/profile/${encodeURIComponent(cleanerUserId)}`}
-                    className="w-11 h-11 rounded-full border-2 border-white overflow-hidden z-10 relative shadow-xs hover:scale-105 transition-transform"
+                    className="w-11 h-11 rounded-full border-2 border-white dark:border-slate-900 overflow-hidden z-10 relative shadow-xs hover:scale-105 transition-transform"
                     title={`View profile of ${cleanerName}`}
                   >
                     <img
@@ -259,11 +263,11 @@ export default function SingleFeedPostPage({ params }: PageProps) {
                         (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
                       }}
                     />
-                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[#006948] rounded-full border-2 border-white"></div>
+                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[#006948] dark:bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900"></div>
                   </Link>
                   <Link
                     href={`/profile/${encodeURIComponent(reporterUserId)}`}
-                    className="w-11 h-11 rounded-full border-2 border-white overflow-hidden z-0 shadow-xs hover:scale-105 transition-transform"
+                    className="w-11 h-11 rounded-full border-2 border-white dark:border-slate-900 overflow-hidden z-0 shadow-xs hover:scale-105 transition-transform"
                     title={`View profile of ${reporterName}`}
                   >
                     <img
@@ -281,25 +285,25 @@ export default function SingleFeedPostPage({ params }: PageProps) {
                   <div className="flex items-baseline gap-1.5">
                     <Link
                       href={`/profile/${encodeURIComponent(cleanerUserId)}`}
-                      className="font-['Hanken_Grotesk'] text-base font-bold text-[#131b2e] hover:text-[#006948] transition-colors"
+                      className="font-['Hanken_Grotesk'] text-base font-bold text-[#131b2e] dark:text-slate-100 hover:text-[#006948] dark:hover:text-emerald-400 transition-colors"
                     >
                       {cleanerName}
                     </Link>
-                    <span className="text-[#6d7a72] text-xs font-semibold">&amp;</span>
+                    <span className="text-[#6d7a72] dark:text-slate-400 text-xs font-semibold">&amp;</span>
                     <Link
                       href={`/profile/${encodeURIComponent(reporterUserId)}`}
-                      className="font-['Hanken_Grotesk'] text-base font-bold text-[#131b2e] hover:text-[#006948] transition-colors"
+                      className="font-['Hanken_Grotesk'] text-base font-bold text-[#131b2e] dark:text-slate-100 hover:text-[#006948] dark:hover:text-emerald-400 transition-colors"
                     >
                       {reporterName}
                     </Link>
                   </div>
-                  <span className="font-['JetBrains_Mono'] text-xs text-[#6d7a72] font-semibold">
+                  <span className="font-['JetBrains_Mono'] text-xs text-[#6d7a72] dark:text-slate-400 font-semibold">
                     {timestampText} • {ward}
                   </span>
                 </div>
               </div>
 
-              <span className="font-['JetBrains_Mono'] text-xs font-bold text-[#006948] bg-[#85f8c4]/30 px-3 py-1 rounded-full border border-[#006948]/20">
+              <span className="font-['JetBrains_Mono'] text-xs font-bold text-[#006948] dark:text-emerald-300 bg-[#85f8c4]/30 dark:bg-emerald-950/60 px-3 py-1 rounded-full border border-[#006948]/20 dark:border-emerald-600/40">
                 RESOLVED CASE
               </span>
             </div>
@@ -311,49 +315,17 @@ export default function SingleFeedPostPage({ params }: PageProps) {
               aspectRatio="4/5"
             />
 
-            {/* Gemini AI Audit Proof Banner */}
-            <div className="bg-[#00855d]/10 px-6 py-4 border-b border-[#00855d]/20 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#006948]/15 flex items-center justify-center text-[#006948]">
-                  <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    verified
-                  </span>
-                </div>
-                <div className="flex flex-col justify-center">
-                  <div className="flex items-center gap-2">
-                    <span className="font-['JetBrains_Mono'] text-xs font-extrabold text-[#006948] uppercase tracking-wider">
-                      Gemini AI Verified Clean
-                    </span>
-                    <span className="text-[#006948]/50 text-xs">•</span>
-                    <span className="font-['Inter'] text-xs text-[#3d4a42] font-semibold">
-                      Site Cleared in 3.5 Hours
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#6d7a72] mt-0.5 font-['JetBrains_Mono']">
-                    Confidence Score: 98.4% • Zero Strikes Audit
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-[#006948] px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-xs">
-                <span className="material-symbols-outlined text-white text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  bolt
-                </span>
-                <span className="font-['JetBrains_Mono'] text-xs text-white font-extrabold">+200 XP</span>
-              </div>
-            </div>
-
             {/* Action Bar */}
-            <div className="px-6 py-4 flex items-center justify-between border-b border-[#E2E8F0]">
+            <div className="px-6 py-4 flex items-center justify-between border-b border-[#E2E8F0] dark:border-slate-800">
               <button
                 onClick={handleCheerToggle}
                 className={`flex items-center gap-2 group cursor-pointer transition-colors ${
-                  isCheered ? "text-[#ef4444]" : "text-[#3d4a42] hover:text-[#131b2e]"
+                  isCheered ? "text-[#ef4444] dark:text-rose-400" : "text-[#3d4a42] dark:text-slate-300 hover:text-[#131b2e] dark:hover:text-white"
                 }`}
               >
                 <span
                   className={`material-symbols-outlined text-2xl transition-transform group-active:scale-75 ${
-                    isCheered ? "text-[#ef4444]" : ""
+                    isCheered ? "text-[#ef4444] dark:text-rose-400" : ""
                   }`}
                   style={{ fontVariationSettings: isCheered ? "'FILL' 1" : "'FILL' 0" }}
                 >
@@ -361,52 +333,42 @@ export default function SingleFeedPostPage({ params }: PageProps) {
                 </span>
                 <span className="font-['Hanken_Grotesk'] text-base font-bold">{cheersCount} Cheers</span>
               </button>
-
-              <button
-                onClick={handleShare}
-                className="flex items-center justify-center w-10 h-10 rounded-full bg-[#E2E8F0]/60 hover:bg-[#E2E8F0] text-[#131b2e] transition-colors cursor-pointer"
-                title="Share"
-              >
-                <svg className="w-5 h-5 text-[#25D366]" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-                </svg>
-              </button>
             </div>
 
             {/* Description & Incident Metadata */}
-            <div className="p-6 bg-white flex flex-col gap-5">
+            <div className="p-6 bg-white dark:bg-slate-900/90 flex flex-col gap-5">
               <div>
-                <h3 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e] mb-1">
+                <h3 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e] dark:text-slate-100 mb-1">
                   {postData?.postName || "Civic Spot Cleanup & Waste Segregation"}
                 </h3>
-                <p className="text-sm text-[#3d4a42] leading-relaxed">
+                <p className="text-sm text-[#3d4a42] dark:text-slate-300 leading-relaxed">
                   {description}
                 </p>
               </div>
 
               {/* Incident Specifications Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-[#F8FAFC] p-4 rounded-2xl border border-[#E2E8F0]">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-[#F8FAFC] dark:bg-slate-800/60 p-4 rounded-2xl border border-[#E2E8F0] dark:border-slate-700/60">
                 <div>
-                  <span className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] font-bold uppercase block">
+                  <span className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] dark:text-slate-400 font-bold uppercase block">
                     GPS GEOTAG
                   </span>
-                  <span className="font-['Inter'] text-xs font-semibold text-[#0F172A]">
+                  <span className="font-['Inter'] text-xs font-semibold text-[#0F172A] dark:text-slate-200">
                     {coordsText}
                   </span>
                 </div>
                 <div>
-                  <span className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] font-bold uppercase block">
+                  <span className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] dark:text-slate-400 font-bold uppercase block">
                     WASTE COLLECTED
                   </span>
-                  <span className="font-['Inter'] text-xs font-semibold text-[#006948]">
+                  <span className="font-['Inter'] text-xs font-semibold text-[#006948] dark:text-emerald-400">
                     42 kg (Plastics &amp; Silt)
                   </span>
                 </div>
                 <div>
-                  <span className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] font-bold uppercase block">
+                  <span className="font-['JetBrains_Mono'] text-[10px] text-[#6d7a72] dark:text-slate-400 font-bold uppercase block">
                     RESPONSE TIME
                   </span>
-                  <span className="font-['Inter'] text-xs font-semibold text-[#0F172A]">
+                  <span className="font-['Inter'] text-xs font-semibold text-[#0F172A] dark:text-slate-200">
                     3 Hours 30 Mins
                   </span>
                 </div>

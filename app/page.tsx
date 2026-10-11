@@ -1354,7 +1354,7 @@ export default function HomePage() {
 
   // 3. AUTHENTICATED STATE: SHOW STITCH MAP DASHBOARD FOR AUTHENTICATED USERS
   return (
-    <div className="h-screen w-full overflow-hidden relative bg-[#faf8ff] text-[#131b2e] font-sans antialiased select-none">
+    <div className="h-screen w-full overflow-hidden relative bg-[#faf8ff] dark:bg-[#070d18] text-[#131b2e] dark:text-slate-100 font-sans antialiased select-none">
       {/* Dynamic Leaflet & OpenStreetMap Background Canvas */}
       <div className="absolute inset-0 w-full h-full z-0">
         <SafaiMap
@@ -1378,13 +1378,13 @@ export default function HomePage() {
       </div>
 
       {/* Ultra-Stylish Floating Command Bar (Uber/Apple Style) */}
-      <header className="fixed top-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-xl flex items-center justify-between px-4 py-2.5 bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-full shadow-[0_12px_40px_rgba(15,23,42,0.1)] transition-all hover:shadow-[0_16px_45px_rgba(15,23,42,0.14)]">
+      <header className="fixed top-3 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-1.5rem)] max-w-xl flex items-center justify-between px-4 py-2.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-800 rounded-full shadow-[0_12px_40px_rgba(15,23,42,0.1)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.5)] transition-all hover:shadow-[0_16px_45px_rgba(15,23,42,0.14)]">
         {/* Left Brand */}
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
           <Link href="/" className="cursor-pointer shrink-0 flex items-center" title="SafaiWatch Home">
             <SafaiWatchLogo variant="icon" size="xs" animated={true} />
           </Link>
-          <span className="font-['Hanken_Grotesk'] font-extrabold text-xs sm:text-sm text-[#131b2e] tracking-wider uppercase truncate">
+          <span className="font-['Hanken_Grotesk'] font-extrabold text-xs sm:text-sm text-[#131b2e] dark:text-slate-100 tracking-wider uppercase truncate">
             SafaiWatch Dispatch
           </span>
         </div>
@@ -1395,15 +1395,15 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setIsFilterModalOpen(!isFilterModalOpen)}
-            className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full text-[#131b2e] border shadow-xs font-['Hanken_Grotesk'] text-xs font-extrabold flex items-center gap-1.5 sm:gap-2 transition-all active:scale-95 cursor-pointer group ${
+            className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full text-[#131b2e] dark:text-slate-200 border shadow-xs font-['Hanken_Grotesk'] text-xs font-extrabold flex items-center gap-1.5 sm:gap-2 transition-all active:scale-95 cursor-pointer group ${
               isFilterModalOpen
-                ? "bg-emerald-50 border-[#006948] ring-2 ring-[#006948]/20"
-                : "bg-slate-50 hover:bg-emerald-50/70 border-slate-200/90 hover:border-[#006948]/40"
+                ? "bg-emerald-50 dark:bg-emerald-950/60 border-[#006948] dark:border-emerald-500 ring-2 ring-[#006948]/20"
+                : "bg-slate-50 dark:bg-slate-800 hover:bg-emerald-50/70 dark:hover:bg-slate-700/80 border-slate-200/90 dark:border-slate-700 hover:border-[#006948]/40"
             }`}
           >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-[#006948] transition-transform group-hover:rotate-12" />
-            <span className="hidden xs:inline font-bold text-xs text-[#131b2e]">Filter Spots</span>
-            <span className="bg-[#006948]/10 text-[#006948] font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold border border-[#006948]/20 whitespace-nowrap">
+            <SlidersHorizontal className="w-3.5 h-3.5 text-[#006948] dark:text-emerald-400 transition-transform group-hover:rotate-12" />
+            <span className="hidden xs:inline font-bold text-xs text-[#131b2e] dark:text-slate-100">Filter Spots</span>
+            <span className="bg-[#006948]/10 dark:bg-emerald-500/20 text-[#006948] dark:text-emerald-300 font-mono text-[10px] px-2 py-0.5 rounded-full font-extrabold border border-[#006948]/20 dark:border-emerald-500/30 whitespace-nowrap">
               {activeFilter === "all"
                 ? `All (${reports.length})`
                 : activeFilter === "critical"
@@ -1413,8 +1413,8 @@ export default function HomePage() {
                     : `Resolved (${resolvedCount})`}
             </span>
             <ChevronDown
-              className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-300 ${
-                isFilterModalOpen ? "rotate-180 text-[#006948]" : ""
+              className={`w-3.5 h-3.5 text-slate-500 dark:text-slate-400 transition-transform duration-300 ${
+                isFilterModalOpen ? "rotate-180 text-[#006948] dark:text-emerald-400" : ""
               }`}
             />
           </button>
@@ -1423,7 +1423,7 @@ export default function HomePage() {
           <Link
             href="/profile"
             title={userProfile?.name ? `Profile of ${userProfile.name}` : "View Profile"}
-            className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden ring-2 ring-[#006948]/30 shadow-sm hover:ring-[#006948] transition-all cursor-pointer flex items-center justify-center shrink-0"
+            className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden ring-2 ring-[#006948]/30 dark:ring-emerald-500/40 shadow-sm hover:ring-[#006948] dark:hover:ring-emerald-400 transition-all cursor-pointer flex items-center justify-center shrink-0"
           >
             {userProfile?.avatarUrl ? (
               <img
@@ -1436,9 +1436,9 @@ export default function HomePage() {
                 }}
               />
             ) : (
-              <User className="w-4 h-4 text-[#006948]" />
+              <User className="w-4 h-4 text-[#006948] dark:text-emerald-400" />
             )}
-            <div className="absolute bottom-0 right-0 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-emerald-500 rounded-full border-2 border-white"></div>
+            <div className="absolute bottom-0 right-0 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900"></div>
           </Link>
         </div>
       </header>
@@ -1449,24 +1449,24 @@ export default function HomePage() {
           {/* Backdrop overlay to close on click outside */}
           <div
             onClick={() => setIsFilterModalOpen(false)}
-            className="fixed inset-0 z-45 bg-black/20 backdrop-blur-[2px] animate-enter"
+            className="fixed inset-0 z-45 bg-black/40 backdrop-blur-[2px] animate-enter"
           />
 
-          <div className="fixed top-17 sm:top-18 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-1.5rem)] max-w-sm bg-white/95 backdrop-blur-2xl rounded-3xl border border-slate-200/90 shadow-[0_20px_60px_rgba(15,23,42,0.18)] p-3.5 sm:p-4 flex flex-col gap-2.5 transition-all duration-200 animate-enter origin-top">
+          <div className="fixed top-17 sm:top-18 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-1.5rem)] max-w-sm bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-[0_20px_60px_rgba(15,23,42,0.18)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.6)] p-3.5 sm:p-4 flex flex-col gap-2.5 transition-all duration-200 animate-enter origin-top">
             {/* Header */}
-            <div className="flex items-center justify-between px-1 pb-2 border-b border-slate-100">
+            <div className="flex items-center justify-between px-1 pb-2 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-[#006948]/10 flex items-center justify-center text-[#006948]">
+                <div className="w-6 h-6 rounded-lg bg-[#006948]/10 dark:bg-emerald-500/20 flex items-center justify-center text-[#006948] dark:text-emerald-400">
                   <SlidersHorizontal className="w-3.5 h-3.5" />
                 </div>
-                <span className="font-['Hanken_Grotesk'] text-xs font-extrabold text-[#131b2e]">
+                <span className="font-['Hanken_Grotesk'] text-xs font-extrabold text-[#131b2e] dark:text-slate-100">
                   Filter Waste Reports
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsFilterModalOpen(false)}
-                className="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+                className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center justify-center transition-colors cursor-pointer"
                 title="Close Filter Menu"
               >
                 <X className="w-3.5 h-3.5" />
@@ -1484,23 +1484,23 @@ export default function HomePage() {
                 }}
                 className={`p-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center justify-between border ${
                   activeFilter === "all"
-                    ? "bg-[#131b2e] text-white border-[#131b2e] shadow-md scale-[1.01]"
-                    : "bg-slate-50 hover:bg-slate-100/90 text-slate-800 border-slate-200/70"
+                    ? "bg-[#131b2e] dark:bg-slate-800 text-white border-[#131b2e] dark:border-slate-700 shadow-md scale-[1.01]"
+                    : "bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100/90 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200/70 dark:border-slate-700/80"
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div
                     className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                      activeFilter === "all" ? "bg-white/20 text-white" : "bg-emerald-100 text-[#006948]"
+                      activeFilter === "all" ? "bg-white/20 text-white" : "bg-emerald-100 dark:bg-emerald-950/60 text-[#006948] dark:text-emerald-400"
                     }`}
                   >
                     <Filter className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className={`text-xs font-extrabold leading-tight ${activeFilter === "all" ? "text-white" : "text-slate-900"}`}>
+                    <p className={`text-xs font-extrabold leading-tight ${activeFilter === "all" ? "text-white" : "text-slate-900 dark:text-slate-100"}`}>
                       All Waste Sites
                     </p>
-                    <p className={`text-[10px] font-medium leading-tight mt-0.5 truncate ${activeFilter === "all" ? "text-slate-300" : "text-slate-500"}`}>
+                    <p className={`text-[10px] font-medium leading-tight mt-0.5 truncate ${activeFilter === "all" ? "text-slate-300 dark:text-slate-400" : "text-slate-500 dark:text-slate-400"}`}>
                       Display all marked locations
                     </p>
                   </div>
@@ -1508,7 +1508,7 @@ export default function HomePage() {
                 <div className="flex items-center gap-2 shrink-0">
                   <span
                     className={`font-mono text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                      activeFilter === "all" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-800"
+                      activeFilter === "all" ? "bg-white/20 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200"
                     }`}
                   >
                     {reports.length}
@@ -1527,22 +1527,22 @@ export default function HomePage() {
                 className={`p-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center justify-between border ${
                   activeFilter === "critical"
                     ? "bg-red-600 text-white border-red-600 shadow-md scale-[1.01]"
-                    : "bg-red-50/50 hover:bg-red-50 text-red-900 border-red-200/60"
+                    : "bg-red-50/50 dark:bg-red-950/30 hover:bg-red-50 dark:hover:bg-red-950/50 text-red-900 dark:text-red-200 border-red-200/60 dark:border-red-900/50"
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div
                     className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                      activeFilter === "critical" ? "bg-white/20 text-white" : "bg-red-100 text-red-600"
+                      activeFilter === "critical" ? "bg-white/20 text-white" : "bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400"
                     }`}
                   >
                     <AlertTriangle className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className={`text-xs font-extrabold leading-tight ${activeFilter === "critical" ? "text-white" : "text-red-900"}`}>
+                    <p className={`text-xs font-extrabold leading-tight ${activeFilter === "critical" ? "text-white" : "text-red-900 dark:text-red-200"}`}>
                       Critical Severity
                     </p>
-                    <p className={`text-[10px] font-medium leading-tight mt-0.5 truncate ${activeFilter === "critical" ? "text-red-200" : "text-red-600/80"}`}>
+                    <p className={`text-[10px] font-medium leading-tight mt-0.5 truncate ${activeFilter === "critical" ? "text-red-200" : "text-red-600/80 dark:text-red-400"}`}>
                       Urgent high-hazard spots
                     </p>
                   </div>
@@ -1550,7 +1550,7 @@ export default function HomePage() {
                 <div className="flex items-center gap-2 shrink-0">
                   <span
                     className={`font-mono text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                      activeFilter === "critical" ? "bg-white/20 text-white" : "bg-red-100 text-red-700"
+                      activeFilter === "critical" ? "bg-white/20 text-white" : "bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300"
                     }`}
                   >
                     {criticalCount}
@@ -1569,22 +1569,22 @@ export default function HomePage() {
                 className={`p-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center justify-between border ${
                   activeFilter === "assigned"
                     ? "bg-indigo-600 text-white border-indigo-600 shadow-md scale-[1.01]"
-                    : "bg-indigo-50/50 hover:bg-indigo-50 text-indigo-900 border-indigo-200/60"
+                    : "bg-indigo-50/50 dark:bg-indigo-950/30 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200 border-indigo-200/60 dark:border-indigo-900/50"
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div
                     className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                      activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-600"
+                      activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400"
                     }`}
                   >
                     <Navigation className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className={`text-xs font-extrabold leading-tight ${activeFilter === "assigned" ? "text-white" : "text-indigo-900"}`}>
+                    <p className={`text-xs font-extrabold leading-tight ${activeFilter === "assigned" ? "text-white" : "text-indigo-900 dark:text-indigo-200"}`}>
                       Assigned / In Progress
                     </p>
-                    <p className={`text-[10px] font-medium leading-tight mt-0.5 truncate ${activeFilter === "assigned" ? "text-indigo-200" : "text-indigo-600/80"}`}>
+                    <p className={`text-[10px] font-medium leading-tight mt-0.5 truncate ${activeFilter === "assigned" ? "text-indigo-200" : "text-indigo-600/80 dark:text-indigo-400"}`}>
                       Rangers currently dispatched
                     </p>
                   </div>
@@ -1592,7 +1592,7 @@ export default function HomePage() {
                 <div className="flex items-center gap-2 shrink-0">
                   <span
                     className={`font-mono text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                      activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-700"
+                      activeFilter === "assigned" ? "bg-white/20 text-white" : "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300"
                     }`}
                   >
                     {assignedCount}
@@ -1610,23 +1610,23 @@ export default function HomePage() {
                 }}
                 className={`p-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center justify-between border ${
                   activeFilter === "resolved"
-                    ? "bg-[#006948] text-white border-[#006948] shadow-md scale-[1.01]"
-                    : "bg-emerald-50/50 hover:bg-emerald-50 text-emerald-900 border-emerald-200/60"
+                    ? "bg-[#006948] dark:bg-emerald-600 text-white border-[#006948] dark:border-emerald-600 shadow-md scale-[1.01]"
+                    : "bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-emerald-900 dark:text-emerald-200 border-emerald-200/60 dark:border-emerald-900/50"
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div
                     className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                      activeFilter === "resolved" ? "bg-white/20 text-white" : "bg-emerald-100 text-[#006948]"
+                      activeFilter === "resolved" ? "bg-white/20 text-white" : "bg-emerald-100 dark:bg-emerald-900/50 text-[#006948] dark:text-emerald-400"
                     }`}
                   >
                     <CheckCircle2 className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className={`text-xs font-extrabold leading-tight ${activeFilter === "resolved" ? "text-white" : "text-emerald-900"}`}>
+                    <p className={`text-xs font-extrabold leading-tight ${activeFilter === "resolved" ? "text-white" : "text-emerald-900 dark:text-emerald-200"}`}>
                       Cleaned / Resolved
                     </p>
-                    <p className={`text-[10px] font-medium leading-tight mt-0.5 truncate ${activeFilter === "resolved" ? "text-emerald-200" : "text-emerald-700/80"}`}>
+                    <p className={`text-[10px] font-medium leading-tight mt-0.5 truncate ${activeFilter === "resolved" ? "text-emerald-200" : "text-emerald-700/80 dark:text-emerald-400"}`}>
                       AI verified completed spots
                     </p>
                   </div>
@@ -1634,7 +1634,7 @@ export default function HomePage() {
                 <div className="flex items-center gap-2 shrink-0">
                   <span
                     className={`font-mono text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                      activeFilter === "resolved" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+                      activeFilter === "resolved" ? "bg-white/20 text-white" : "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300"
                     }`}
                   >
                     {resolvedCount}
@@ -1673,17 +1673,17 @@ export default function HomePage() {
 
       {/* Interactive Current Location Lock Banner (White Theme) */}
       {droppedCoordinates && (userProfile?.role || "").trim().toLowerCase() !== "coordinator" && (
-        <div className="fixed top-32 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-md bg-white/95 backdrop-blur-xl text-[#131b2e] rounded-2xl p-4 shadow-2xl flex items-center justify-between animate-enter border border-slate-200">
+        <div className="fixed top-32 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-md bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl text-[#131b2e] dark:text-slate-100 rounded-2xl p-4 shadow-2xl flex items-center justify-between animate-enter border border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0 border border-emerald-200 text-[#006948]">
-              <LocateFixed className="w-5 h-5 animate-pulse text-[#006948]" />
+            <div className="w-9 h-9 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl flex items-center justify-center shrink-0 border border-emerald-200 dark:border-emerald-800 text-[#006948] dark:text-emerald-400">
+              <LocateFixed className="w-5 h-5 animate-pulse text-[#006948] dark:text-emerald-400" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <p className="font-bold text-xs text-[#131b2e]">Current Location Locked</p>
-                <span className="text-[9px] bg-emerald-100 text-[#006948] px-1.5 py-0.5 rounded font-mono font-bold">GPS Verified</span>
+                <p className="font-bold text-xs text-[#131b2e] dark:text-slate-100">Current Location Locked</p>
+                <span className="text-[9px] bg-emerald-100 dark:bg-emerald-900/50 text-[#006948] dark:text-emerald-300 px-1.5 py-0.5 rounded font-mono font-bold border border-emerald-200 dark:border-emerald-800/60">GPS Verified</span>
               </div>
-              <p className="text-[11px] font-mono text-[#006948] font-bold mt-0.5">
+              <p className="text-[11px] font-mono text-[#006948] dark:text-emerald-400 font-bold mt-0.5">
                 {droppedCoordinates[0].toFixed(5)}, {droppedCoordinates[1].toFixed(5)}
               </p>
             </div>
@@ -1692,13 +1692,13 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsReportModalOpen(true)}
-              className="bg-[#006948] text-white font-bold text-xs px-3.5 py-2 rounded-xl hover:bg-[#00855d] transition-colors cursor-pointer shadow-md"
+              className="bg-[#006948] dark:bg-emerald-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl hover:bg-[#00855d] dark:hover:bg-emerald-500 transition-colors cursor-pointer shadow-md"
             >
               Report Site
             </button>
             <button
               onClick={() => setDroppedCoordinates(null)}
-              className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700"
+              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             >
               <X className="w-4 h-4" />
             </button>
@@ -1760,47 +1760,47 @@ export default function HomePage() {
 
           {/* Selected Spot Card */}
           {selectedReport && isSpotVisibleToUser(selectedReport) && (
-            <div className="w-full bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[28px] shadow-[0_20px_50px_rgba(15,23,42,0.12)] p-4 sm:p-5 flex flex-col gap-3.5 animate-enter">
+            <div className="w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-800 rounded-[28px] shadow-[0_20px_50px_rgba(15,23,42,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.6)] p-4 sm:p-5 flex flex-col gap-3.5 animate-enter">
               {/* Drag Handle Indicator */}
-              <div className="w-12 h-1 bg-slate-300 rounded-full mx-auto -mt-1 mb-1"></div>
+              <div className="w-12 h-1 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto -mt-1 mb-1"></div>
 
               {/* Header Row */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span
                     className={`text-[10px] font-mono font-extrabold px-2.5 py-1 rounded-lg uppercase flex items-center gap-1 border ${selectedReport.status === "critical"
-                      ? "bg-red-50 text-red-700 border-red-200"
+                      ? "bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 border-red-200 dark:border-red-900/50"
                       : selectedReport.status === "claimed"
-                        ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                        : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        ? "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50"
+                        : "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/50"
                       }`}
                   >
                     {selectedReport.status === "critical" ? (
-                      <AlertTriangle className="w-3 h-3 text-red-600" />
+                      <AlertTriangle className="w-3 h-3 text-red-600 dark:text-red-400" />
                     ) : selectedReport.status === "claimed" ? (
-                      <Clock className="w-3 h-3 text-indigo-600" />
+                      <Clock className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
                     ) : (
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                     )}
                     <span>{selectedReport.severity || selectedReport.status}</span>
                   </span>
 
                   {/* AI Verification Status Badge */}
                   {selectedReport.isCompletedVerify === "completed" && selectedReport.isVerified === true && (
-                    <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-emerald-50 text-emerald-700 border-emerald-200">
-                      <CheckCircle className="w-3 h-3 text-emerald-600" />
+                    <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/50">
+                      <CheckCircle className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                       <span>AI Verified</span>
                     </span>
                   )}
                   {isReportedByCurrentUser && selectedReport.isCompletedVerify !== "pending" && selectedReport.isVerified === false && (
-                    <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-rose-50 text-rose-700 border-rose-200">
-                      <AlertTriangle className="w-3 h-3 text-rose-600" />
+                    <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900/50">
+                      <AlertTriangle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
                       <span>AI Flagged</span>
                     </span>
                   )}
                   {isReportedByCurrentUser && selectedReport.isCompletedVerify === "pending" && (
-                    <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-amber-50 text-amber-700 border-amber-200">
-                      <Clock className="w-3 h-3 text-amber-600 animate-spin" />
+                    <span className="text-[10px] font-mono font-extrabold px-2 py-1 rounded-lg uppercase flex items-center gap-1 border bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50">
+                      <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400 animate-spin" />
                       <span>AI Pending</span>
                     </span>
                   )}
@@ -1808,7 +1808,7 @@ export default function HomePage() {
 
                 <button
                   onClick={() => setSelectedReport(null)}
-                  className="text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
+                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1817,7 +1817,7 @@ export default function HomePage() {
               {/* Card Media & Details */}
               <div className="flex flex-col sm:flex-row gap-3.5 items-stretch">
                 {selectedReport.image ? (
-                  <div className="relative sm:w-36 h-32 sm:h-auto rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shrink-0 shadow-xs">
+                  <div className="relative sm:w-36 h-32 sm:h-auto rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900 shrink-0 shadow-xs">
                     <img
                       src={selectedReport.image}
                       alt={selectedReport.title}
@@ -1843,12 +1843,12 @@ export default function HomePage() {
 
                 <div className="flex flex-col justify-between flex-1 gap-2">
                   <div>
-                    <h3 className="font-['Hanken_Grotesk'] text-base font-extrabold text-[#131b2e] leading-snug">
+                    <h3 className="font-['Hanken_Grotesk'] text-base font-extrabold text-[#131b2e] dark:text-slate-100 leading-snug">
                       {selectedReport.title}
                     </h3>
                     {selectedReport.category && (
-                      <p className="text-xs text-[#006948] font-semibold mt-1 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-[#006948]"></span>
+                      <p className="text-xs text-[#006948] dark:text-emerald-400 font-semibold mt-1 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-[#006948] dark:bg-emerald-400"></span>
                         <span>Waste Type: <strong>{selectedReport.wasteType || selectedReport.category}</strong></span>
                       </p>
                     )}
@@ -1858,10 +1858,10 @@ export default function HomePage() {
                   {markedByDetails && (
                     <Link
                       href={`/profile/${encodeURIComponent(markedByDetails.username)}`}
-                      className="flex items-center gap-2 text-xs text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-xl border border-slate-200 hover:bg-slate-200/80 transition-colors cursor-pointer"
+                      className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition-colors cursor-pointer"
                       title={`View profile of @${markedByDetails.username}`}
                     >
-                      <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center overflow-hidden shrink-0 border border-emerald-400/40">
+                      <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center overflow-hidden shrink-0 border border-emerald-400/40">
                         {markedByDetails.avatarUrl ? (
                           <img
                             src={markedByDetails.avatarUrl}
@@ -1873,14 +1873,14 @@ export default function HomePage() {
                             }}
                           />
                         ) : (
-                          <User className="w-3 h-3 text-[#006948]" />
+                          <User className="w-3 h-3 text-[#006948] dark:text-emerald-400" />
                         )}
                       </div>
-                      <span className="font-semibold text-slate-800 text-[11px] truncate">
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 text-[11px] truncate">
                         Marked by @{markedByDetails.username}
                       </span>
                       {isReportedByCurrentUser && (
-                        <span className="ml-auto text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">
+                        <span className="ml-auto text-[9px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/50 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/60">
                           You
                         </span>
                       )}
@@ -1894,10 +1894,10 @@ export default function HomePage() {
                         <Link
                           key={assignedUser.username || assignedUser.id || idx}
                           href={`/profile/${encodeURIComponent(assignedUser.username)}`}
-                          className="flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50/80 px-2.5 py-1 rounded-xl border border-indigo-200/60 hover:bg-indigo-100/80 transition-colors cursor-pointer"
+                          className="flex items-center gap-2 text-xs text-indigo-700 dark:text-indigo-300 bg-indigo-50/80 dark:bg-indigo-950/40 px-2.5 py-1 rounded-xl border border-indigo-200/60 dark:border-indigo-900/50 hover:bg-indigo-100/80 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer"
                           title={`View profile of @${assignedUser.username}`}
                         >
-                          <div className="w-5 h-5 rounded-full bg-indigo-200 flex items-center justify-center overflow-hidden shrink-0 border border-indigo-400/30">
+                          <div className="w-5 h-5 rounded-full bg-indigo-200 dark:bg-indigo-900 flex items-center justify-center overflow-hidden shrink-0 border border-indigo-400/30">
                             {assignedUser.avatarUrl ? (
                               <img
                                 src={assignedUser.avatarUrl}
@@ -1909,20 +1909,20 @@ export default function HomePage() {
                                 }}
                               />
                             ) : (
-                              <User className="w-3 h-3 text-indigo-600" />
+                              <User className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
                             )}
                           </div>
-                          <span className="font-semibold text-indigo-900 text-[11px] truncate">
+                          <span className="font-semibold text-indigo-900 dark:text-indigo-200 text-[11px] truncate">
                             Assigned to @{assignedUser.username}
                           </span>
                           {String(assignedUser.username || assignedUser.id).toLowerCase() === String(currentUsername).toLowerCase() && (
-                            <span className="ml-auto text-[9px] font-bold text-indigo-800 bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200">
+                            <span className="ml-auto text-[9px] font-bold text-indigo-800 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/50 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800/60">
                               You
                             </span>
                           )}
                         </Link>
                       ))}
-                      <span className="font-mono text-[10px] font-semibold text-indigo-600 px-1">
+                      <span className="font-mono text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 px-1">
                         📋 {currentAssignmentCount}/{maxAssignments} slot{maxAssignments > 1 ? 's' : ''} filled
                       </span>
                     </div>
@@ -1932,10 +1932,10 @@ export default function HomePage() {
 
               {/* AI Verification Failure Banner */}
               {selectedReport.verificationStatus === "failed" && (
-                <div className="mb-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-2">
+                <div className="mb-2 p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="material-symbols-outlined text-rose-600 text-[18px] shrink-0">error</span>
-                    <p className="text-[11px] text-rose-800 font-medium truncate">
+                    <span className="material-symbols-outlined text-rose-600 dark:text-rose-400 text-[18px] shrink-0">error</span>
+                    <p className="text-[11px] text-rose-800 dark:text-rose-200 font-medium truncate">
                       {selectedReport.pendingVerificationMsg || "AI Verification failed. Please re-upload proof."}
                     </p>
                   </div>
@@ -1943,7 +1943,7 @@ export default function HomePage() {
                     type="button"
                     onClick={() => handleDeleteVerification(selectedReport.oneTimeVerificationId || selectedReport.id)}
                     disabled={isDeletingVerification}
-                    className="text-[10px] uppercase font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-lg border border-rose-300 shrink-0 transition-colors cursor-pointer"
+                    className="text-[10px] uppercase font-bold text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/50 hover:bg-rose-200 dark:hover:bg-rose-900/80 px-2 py-1 rounded-lg border border-rose-300 dark:border-rose-800 shrink-0 transition-colors cursor-pointer"
                   >
                     {isDeletingVerification ? "..." : "Reset"}
                   </button>
@@ -1952,17 +1952,17 @@ export default function HomePage() {
 
               {/* Marked Spot AI Verification Failure Alert for Reporter */}
               {isReportedByCurrentUser && selectedReport.isCompletedVerify !== "pending" && selectedReport.isVerified === false && (
-                <div className="mb-2 p-2.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-2">
+                <div className="mb-2 p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="material-symbols-outlined text-rose-600 text-[18px] shrink-0">gpp_bad</span>
-                    <p className="text-[11px] text-rose-800 font-medium truncate">
+                    <span className="material-symbols-outlined text-rose-600 dark:text-rose-400 text-[18px] shrink-0">gpp_bad</span>
+                    <p className="text-[11px] text-rose-800 dark:text-rose-200 font-medium truncate">
                       {selectedReport.isAiVerified?.fraudReason || "Your marked photo failed AI verification."}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setIsSpotDetailModalOpen(true)}
-                    className="text-[10px] uppercase font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-lg border border-rose-300 shrink-0 transition-colors cursor-pointer"
+                    className="text-[10px] uppercase font-bold text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/50 hover:bg-rose-200 dark:hover:bg-rose-900/80 px-2 py-1 rounded-lg border border-rose-300 dark:border-rose-800 shrink-0 transition-colors cursor-pointer"
                   >
                     Inspect
                   </button>
@@ -1973,9 +1973,9 @@ export default function HomePage() {
               <div className="flex gap-2 sm:gap-3 pt-1">
                 <button
                   onClick={() => setIsSpotDetailModalOpen(true)}
-                  className="flex-1 min-w-0 bg-slate-100 hover:bg-slate-200 text-slate-800 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 min-w-0 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-['Hanken_Grotesk'] text-xs sm:text-sm font-bold py-2.5 px-2 rounded-xl border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <Eye className="w-4 h-4 text-slate-700 shrink-0" />
+                  <Eye className="w-4 h-4 text-slate-700 dark:text-slate-300 shrink-0" />
                   <span className="truncate">Details</span>
                 </button>
 
@@ -2155,7 +2155,7 @@ export default function HomePage() {
       {/* Ultra-Premium Apple Maps / Uber Style Floating GPS Recenter FAB */}
       <div className="fixed bottom-20 right-4 z-30 flex items-center group">
         {/* Sleek Hover Tooltip */}
-        <span className="pointer-events-none mr-2.5 hidden sm:inline-block whitespace-nowrap rounded-full bg-[#131b2e]/90 px-3 py-1 font-['Hanken_Grotesk'] text-[11px] font-bold text-white opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 group-hover:opacity-100 group-hover:-translate-x-1">
+        <span className="pointer-events-none mr-2.5 hidden sm:inline-block whitespace-nowrap rounded-full bg-[#131b2e]/90 dark:bg-slate-800/95 px-3 py-1 font-['Hanken_Grotesk'] text-[11px] font-bold text-white opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 group-hover:opacity-100 group-hover:-translate-x-1 border border-transparent dark:border-slate-700/80">
           {isLocating ? "Calibrating GPS..." : "Recenter GPS"}
         </span>
 
@@ -2163,7 +2163,7 @@ export default function HomePage() {
           type="button"
           onClick={handleNavigateToCurrentLocation}
           disabled={isLocating}
-          className="relative w-12 h-12 rounded-2xl bg-white/95 backdrop-blur-xl border border-slate-200/90 shadow-[0_12px_30px_rgba(15,23,42,0.12)] hover:shadow-[0_16px_36px_rgba(0,105,72,0.22)] hover:border-[#006948]/40 hover:ring-4 hover:ring-[#006948]/10 active:scale-90 transition-all duration-300 flex items-center justify-center cursor-pointer"
+          className="relative w-12 h-12 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-700/80 shadow-[0_12px_30px_rgba(15,23,42,0.12)] dark:shadow-[0_12px_30px_rgba(0,0,0,0.55)] hover:shadow-[0_16px_36px_rgba(0,105,72,0.22)] dark:hover:shadow-[0_16px_36px_rgba(34,197,94,0.25)] hover:border-[#006948]/40 dark:hover:border-emerald-500/50 hover:ring-4 hover:ring-[#006948]/10 dark:hover:ring-emerald-500/20 active:scale-90 transition-all duration-300 flex items-center justify-center cursor-pointer"
           title="Auto Navigate to Current Location (GPS)"
           aria-label="Auto navigate to current location"
         >
@@ -2175,12 +2175,12 @@ export default function HomePage() {
           {/* Navigation Compass Arrow (Apple Maps / Tesla Navigation Style) */}
           <div className="relative flex items-center justify-center">
             <Navigation
-              className={`w-5 h-5 text-[#006948] transition-all duration-300 ${
+              className={`w-5 h-5 text-[#006948] dark:text-emerald-400 transition-all duration-300 ${
                 isLocating
-                  ? "animate-spin text-emerald-600 scale-90"
-                  : "rotate-[-45deg] group-hover:scale-110 group-hover:text-emerald-700 group-hover:rotate-0"
+                  ? "animate-spin text-emerald-600 dark:text-emerald-400 scale-90"
+                  : "rotate-[-45deg] group-hover:scale-110 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 group-hover:rotate-0"
               }`}
-              style={{ fill: isLocating ? "none" : "#006948" }}
+              style={{ fill: isLocating ? "none" : "currentColor" }}
             />
           </div>
 
@@ -2194,8 +2194,8 @@ export default function HomePage() {
               }`}
             ></span>
             <span
-              className={`relative inline-flex h-2.5 w-2.5 rounded-full ring-2 ring-white transition-colors ${
-                isLocating ? "bg-emerald-400" : "bg-[#006948]"
+              className={`relative inline-flex h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-slate-900 transition-colors ${
+                isLocating ? "bg-emerald-400" : "bg-[#006948] dark:bg-emerald-400"
               }`}
             ></span>
           </span>
@@ -2232,11 +2232,11 @@ export default function HomePage() {
 
       {/* AI Assistant Chat Modal */}
       {isAiModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-enter">
-          <div className="bg-[#faf8ff] rounded-3xl max-w-md w-full p-6 border border-slate-200 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-enter">
+          <div className="bg-[#faf8ff] dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl relative">
             <button
               onClick={() => setIsAiModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-500 hover:text-slate-800 p-1"
+              className="absolute top-4 right-4 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 p-1"
             >
               <X className="w-5 h-5" />
             </button>
@@ -2246,24 +2246,24 @@ export default function HomePage() {
                 <Bot className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-['Hanken_Grotesk'] text-lg font-bold text-slate-900">
+                <h3 className="font-['Hanken_Grotesk'] text-lg font-bold text-slate-900 dark:text-slate-100">
                   SafaiWatch AI Assistant
                 </h3>
-                <p className="text-xs text-indigo-700 font-mono">
+                <p className="text-xs text-indigo-700 dark:text-indigo-400 font-mono">
                   Smart Sanitation & Route Analysis
                 </p>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-4 border border-slate-200 mb-4 text-xs text-slate-700 space-y-2 max-h-60 overflow-y-auto">
-              <p className="bg-indigo-50 text-indigo-900 p-2.5 rounded-xl border border-indigo-100">
+            <div className="bg-white dark:bg-slate-800/80 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 mb-4 text-xs text-slate-700 dark:text-slate-300 space-y-2 max-h-60 overflow-y-auto">
+              <p className="bg-indigo-50 dark:bg-indigo-950/60 text-indigo-900 dark:text-indigo-200 p-2.5 rounded-xl border border-indigo-100 dark:border-indigo-900/60">
                 🤖 Hello Civic Ranger! I analyzed Ward 14. Drop a pin anywhere on the map to file a geotagged waste report!
               </p>
             </div>
 
             <button
               onClick={() => setIsAiModalOpen(false)}
-              className="w-full py-2.5 rounded-xl bg-[#4b41e1] text-white font-bold text-sm hover:bg-indigo-700 shadow-md"
+              className="w-full py-2.5 rounded-xl bg-[#4b41e1] text-white font-bold text-sm hover:bg-indigo-700 shadow-md cursor-pointer"
             >
               Got it, Thanks!
             </button>
@@ -2274,10 +2274,10 @@ export default function HomePage() {
       {/* Spot Details & Inspection Modal */}
       {isSpotDetailModalOpen && selectedReport && isSpotVisibleToUser(selectedReport) && (
         <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-enter">
-          <div className="bg-[#faf8ff] rounded-3xl max-w-lg w-full max-h-[88vh] flex flex-col p-4 sm:p-6 border border-slate-200 shadow-2xl relative">
+          <div className="bg-[#faf8ff] dark:bg-slate-900 rounded-3xl max-w-lg w-full max-h-[88vh] flex flex-col p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-2xl relative">
             <button
               onClick={() => setIsSpotDetailModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-200/60 transition-colors z-10 cursor-pointer"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 rounded-full hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors z-10 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -2288,10 +2288,10 @@ export default function HomePage() {
                 <Eye className="w-4.5 h-4.5 text-[#4b41e1]" />
               </div>
               <div>
-                <h3 className="font-['Hanken_Grotesk'] text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
+                <h3 className="font-['Hanken_Grotesk'] text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 leading-tight">
                   Spot Details &amp; Inspection
                 </h3>
-                <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
                   ID: {selectedReport.id}
                 </p>
               </div>
@@ -2761,23 +2761,23 @@ export default function HomePage() {
               )}
 
               <div>
-                <span className="text-xs font-semibold text-slate-500 block mb-1">Waste Type / Category</span>
-                <div className="flex items-center gap-2 bg-[#006948]/10 border border-[#006948]/25 p-3 rounded-xl text-[#006948] font-bold text-sm">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#006948]"></span>
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">Waste Type / Category</span>
+                <div className="flex items-center gap-2 bg-[#006948]/10 dark:bg-emerald-500/10 border border-[#006948]/25 dark:border-emerald-500/30 p-3 rounded-xl text-[#006948] dark:text-emerald-400 font-bold text-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#006948] dark:bg-emerald-400"></span>
                   <span>{selectedReport.wasteType || selectedReport.category || "Mixed Waste"}</span>
                 </div>
               </div>
 
               <div>
-                <span className="text-xs font-semibold text-slate-500 block mb-1">Address / Location</span>
-                <p className="font-bold text-slate-900 text-sm bg-white p-3 rounded-xl border border-slate-200">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">Address / Location</span>
+                <p className="font-bold text-slate-900 dark:text-slate-100 text-sm bg-white dark:bg-slate-800/90 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
                   {selectedReport.address || selectedReport.distance || "Ward 14 Locality"}
                 </p>
               </div>
 
               <div>
-                <span className="text-xs font-semibold text-slate-500 block mb-1">Incident Description</span>
-                <p className="text-sm text-slate-700 bg-white p-3 rounded-xl border border-slate-200 leading-relaxed">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">Incident Description</span>
+                <p className="text-sm text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800/90 p-3 rounded-xl border border-slate-200 dark:border-slate-700 leading-relaxed">
                   {selectedReport.title}
                 </p>
               </div>
@@ -2788,7 +2788,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setIsSpotDetailModalOpen(false)}
-                className="flex-1 py-2.5 px-4 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm hover:bg-slate-100 transition-colors cursor-pointer"
+                className="flex-1 py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Close
               </button>
@@ -3004,22 +3004,22 @@ export default function HomePage() {
       {/* Delete Spot Confirmation Modal */}
       {isDeleteConfirmModalOpen && selectedReport && (
         <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4 animate-enter">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 border border-slate-200 shadow-2xl relative text-center">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl relative text-center">
             <button
               onClick={() => setIsDeleteConfirmModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-200">
+            <div className="w-12 h-12 bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-200 dark:border-red-900/50">
               <Trash2 className="w-6 h-6" />
             </div>
 
-            <h3 className="font-['Hanken_Grotesk'] text-lg font-extrabold text-slate-900 mb-1">
+            <h3 className="font-['Hanken_Grotesk'] text-lg font-extrabold text-slate-900 dark:text-slate-100 mb-1">
               Delete This Spot?
             </h3>
-            <p className="text-xs text-slate-500 leading-relaxed mb-6">
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
               Are you sure you want to delete this marked spot? This action will remove the spot permanently and update your user profile.
             </p>
 
@@ -3027,7 +3027,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setIsDeleteConfirmModalOpen(false)}
-                className="flex-1 py-2.5 px-4 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
+                className="flex-1 py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
