@@ -11,6 +11,7 @@ import SafaiWatchLogo from "@/components/SafaiWatchLogo";
 import NotificationPopup from "@/components/NotificationPopup";
 import BottomNav from "@/components/BottomNav";
 import ThemeToggle from "@/components/ThemeToggle";
+import { useTheme } from "@/context/ThemeContext";
 
 interface PageProps {
   params: Promise<{ username?: string; id?: string }>;
@@ -170,6 +171,7 @@ function getAiVerificationBadge(item: CaseItem) {
 
 export default function ProfilePage({ params }: PageProps) {
   const router = useRouter();
+  const { isDark } = useTheme();
   const resolvedParams = use(params);
   const rawId = decodeURIComponent(resolvedParams.username || resolvedParams.id || "me");
   const cleanId = rawId.startsWith("@") ? rawId.slice(1) : rawId;
@@ -853,38 +855,38 @@ export default function ProfilePage({ params }: PageProps) {
       )}
 
       {/* 1. TOP NAVIGATION (Desktop Web) */}
-      <div className="hidden md:flex fixed top-0 left-0 right-0 z-50 items-center justify-between bg-[#faf8ff]/80 dark:bg-[#faf8ff]/80 backdrop-blur-md rounded-full mt-4 mx-6 border border-[#dae2fd] shadow-md h-16 px-6 max-w-6xl mx-auto">
+      <div className="hidden md:flex fixed top-0 left-0 right-0 z-50 items-center justify-between bg-[#faf8ff]/80 dark:bg-[#0f172a]/90 backdrop-blur-md rounded-full mt-4 mx-6 border border-[#dae2fd] dark:border-slate-800 shadow-md h-16 px-6 max-w-6xl mx-auto">
         <Link href="/" className="flex items-center gap-2.5 group">
           <SafaiWatchLogo variant="icon" size="sm" animated={true} />
-          <span className="font-['Hanken_Grotesk'] text-xl font-extrabold text-[#006948] tracking-tight">
+          <span className="font-['Hanken_Grotesk'] text-xl font-extrabold text-[#006948] dark:text-emerald-400 tracking-tight">
             SafaiWatch
           </span>
         </Link>
 
         <div className="flex gap-2">
           <Link
-            className="font-['JetBrains_Mono'] text-xs font-semibold text-[#3d4a42] hover:bg-[#00855d]/10 px-4 py-2 rounded-full transition-all duration-200"
+            className="font-['JetBrains_Mono'] text-xs font-semibold text-[#3d4a42] dark:text-slate-300 hover:bg-[#00855d]/10 dark:hover:bg-slate-800 px-4 py-2 rounded-full transition-all duration-200"
             href="/"
           >
             Map
           </Link>
 
           <Link
-            className="font-['JetBrains_Mono'] text-xs font-semibold text-[#3d4a42] hover:bg-[#00855d]/10 px-4 py-2 rounded-full transition-all duration-200"
+            className="font-['JetBrains_Mono'] text-xs font-semibold text-[#3d4a42] dark:text-slate-300 hover:bg-[#00855d]/10 dark:hover:bg-slate-800 px-4 py-2 rounded-full transition-all duration-200"
             href="/feed"
           >
             Feed
           </Link>
 
           <Link
-            className="font-['JetBrains_Mono'] text-xs font-semibold text-[#3d4a42] hover:bg-[#00855d]/10 px-4 py-2 rounded-full transition-all duration-200"
+            className="font-['JetBrains_Mono'] text-xs font-semibold text-[#3d4a42] dark:text-slate-300 hover:bg-[#00855d]/10 dark:hover:bg-slate-800 px-4 py-2 rounded-full transition-all duration-200"
             href="/reward"
           >
             Rewards
           </Link>
 
           <Link
-            className="font-['JetBrains_Mono'] text-xs font-bold text-[#006948] bg-[#85f8c4]/40 border border-[#006948]/20 px-4 py-2 rounded-full transition-all duration-200"
+            className="font-['JetBrains_Mono'] text-xs font-bold text-[#006948] dark:text-emerald-400 bg-[#85f8c4]/40 dark:bg-emerald-950/60 border border-[#006948]/20 dark:border-emerald-600/30 px-4 py-2 rounded-full transition-all duration-200"
             href="/profile"
           >
             Profile
@@ -894,16 +896,16 @@ export default function ProfilePage({ params }: PageProps) {
         <div className="flex items-center gap-2.5">
           <ThemeToggle variant="pill" size="sm" />
 
-          <div className="font-['Inter'] text-xs font-semibold text-[#3d4a42] bg-[#f2f3ff] px-3.5 py-1.5 rounded-full border border-[#dae2fd]">
-            <span className="text-[#006948] font-bold">{karmaBalance} XP</span>
+          <div className="font-['Inter'] text-xs font-semibold text-[#3d4a42] dark:text-slate-300 bg-[#f2f3ff] dark:bg-slate-800 px-3.5 py-1.5 rounded-full border border-[#dae2fd] dark:border-slate-700">
+            <span className="text-[#006948] dark:text-emerald-400 font-bold">{karmaBalance} XP</span>
           </div>
 
           {isMyProfile && (
             <HoldButton
               doneLabel="Signed Out"
-              backgroundColor="#FEF2F2"
+              backgroundColor={isDark ? "rgba(220, 38, 38, 0.18)" : "#FEF2F2"}
               fillColor="#DC2626"
-              textColor="#DC2626"
+              textColor={isDark ? "#f87171" : "#DC2626"}
               fillTextColor="#ffffff"
               size="sm"
               radius={9999}
@@ -912,7 +914,7 @@ export default function ProfilePage({ params }: PageProps) {
               onHold={handleSignOut}
               icon={<span className="material-symbols-outlined text-sm">logout</span>}
               doneIcon={<span className="material-symbols-outlined text-sm">check_circle</span>}
-              className="border border-[#FCA5A5]/40"
+              className="border border-[#FCA5A5]/40 dark:border-red-500/30"
             >
               Sign Out
             </HoldButton>
@@ -921,14 +923,14 @@ export default function ProfilePage({ params }: PageProps) {
       </div>
 
       {/* 2. MOBILE TOP APP BAR */}
-      <div className="md:hidden sticky top-0 z-40 bg-[#F8FAFC]/90 backdrop-blur-md px-4 py-3 flex justify-between items-center border-b border-[#E2E8F0]">
+      <div className="md:hidden sticky top-0 z-40 bg-[#F8FAFC]/90 dark:bg-[#0f172a]/90 backdrop-blur-md px-4 py-3 flex justify-between items-center border-b border-[#E2E8F0] dark:border-slate-800">
         <Link
           href="/"
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] active:scale-95 transition-transform text-[#0F172A]"
+          className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700 active:scale-95 transition-transform text-[#0F172A] dark:text-slate-100"
         >
           <span className="material-symbols-outlined">arrow_back</span>
         </Link>
-        <h1 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e]">
+        <h1 className="font-['Hanken_Grotesk'] text-lg font-bold text-[#131b2e] dark:text-slate-100">
           {isMyProfile ? "My Profile" : "Civic Profile"}
         </h1>
         <div className="flex items-center gap-2">
@@ -936,9 +938,9 @@ export default function ProfilePage({ params }: PageProps) {
           {isMyProfile ? (
             <HoldButton
               doneLabel="Signed Out"
-              backgroundColor="#FEF2F2"
+              backgroundColor={isDark ? "rgba(220, 38, 38, 0.18)" : "#FEF2F2"}
               fillColor="#DC2626"
-              textColor="#DC2626"
+              textColor={isDark ? "#f87171" : "#DC2626"}
               fillTextColor="#ffffff"
               size="sm"
               radius={9999}
@@ -947,7 +949,7 @@ export default function ProfilePage({ params }: PageProps) {
               onHold={handleSignOut}
               icon={<span className="material-symbols-outlined text-sm">logout</span>}
               doneIcon={<span className="material-symbols-outlined text-sm">check_circle</span>}
-              className="border border-[#FCA5A5]/40"
+              className="border border-[#FCA5A5]/40 dark:border-red-500/30"
             >
               Sign Out
             </HoldButton>
@@ -955,7 +957,7 @@ export default function ProfilePage({ params }: PageProps) {
             <Link
               href="/history"
               title="View Activity History"
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] active:scale-95 transition-transform text-[#0F172A]"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700 active:scale-95 transition-transform text-[#0F172A] dark:text-slate-100"
             >
               <span className="material-symbols-outlined">settings</span>
             </Link>
@@ -1015,9 +1017,9 @@ export default function ProfilePage({ params }: PageProps) {
 
               <HoldButton
                 doneLabel="Signed Out"
-                backgroundColor="#FEF2F2"
+                backgroundColor={isDark ? "rgba(220, 38, 38, 0.18)" : "#FEF2F2"}
                 fillColor="#DC2626"
-                textColor="#DC2626"
+                textColor={isDark ? "#f87171" : "#DC2626"}
                 fillTextColor="#ffffff"
                 size="sm"
                 radius={9999}
@@ -1026,7 +1028,7 @@ export default function ProfilePage({ params }: PageProps) {
                 onHold={handleSignOut}
                 icon={<span className="material-symbols-outlined text-sm">logout</span>}
                 doneIcon={<span className="material-symbols-outlined text-sm">check_circle</span>}
-                className="border border-[#FCA5A5]/40"
+                className="border border-[#FCA5A5]/40 dark:border-red-500/30"
               >
                 Sign Out
               </HoldButton>
@@ -1034,14 +1036,14 @@ export default function ProfilePage({ params }: PageProps) {
           )}
 
           {/* Karma Progress Container */}
-          <div className="w-full bg-[#F8FAFC] rounded-2xl p-4 mb-4 border border-[#E2E8F0]">
+          <div className="w-full bg-[#F8FAFC] dark:bg-[#0B1120] rounded-2xl p-4 mb-4 border border-[#E2E8F0] dark:border-slate-800">
             <div className="flex justify-between items-end mb-1.5">
               <div className="text-left">
-                <p className="font-['JetBrains_Mono'] text-[11px] font-semibold text-[#6d7a72] uppercase tracking-wider mb-1">
+                <p className="font-['JetBrains_Mono'] text-[11px] font-semibold text-[#6d7a72] dark:text-slate-400 uppercase tracking-wider mb-1">
                   KARMA BALANCE
                 </p>
                 <div className="flex items-center gap-2">
-                  <span className="font-['Hanken_Grotesk'] text-2xl md:text-3xl font-extrabold text-[#131b2e]">
+                  <span className="font-['Hanken_Grotesk'] text-2xl md:text-3xl font-extrabold text-[#131b2e] dark:text-slate-100">
                     {karmaBalance}
                   </span>
                   <span
@@ -1054,15 +1056,15 @@ export default function ProfilePage({ params }: PageProps) {
               </div>
 
               <div className="text-right">
-                <p className="font-['Inter'] text-xs font-bold text-[#006948]">
+                <p className="font-['Inter'] text-xs font-bold text-[#006948] dark:text-emerald-400">
                   {userRewards?.rank ? `Rank: ${userRewards.rank}` : (isMyProfile ? "Ward Champion" : "Civic Member")}
                 </p>
               </div>
             </div>
 
-            <div className="w-full bg-[#E2E8F0] h-2.5 rounded-full overflow-hidden mt-3">
+            <div className="w-full bg-[#E2E8F0] dark:bg-slate-800 h-2.5 rounded-full overflow-hidden mt-3">
               <div
-                className="bg-[#006948] h-full rounded-full transition-all duration-500"
+                className="bg-[#006948] dark:bg-emerald-500 h-full rounded-full transition-all duration-500"
                 style={{ width: `${Math.min(100, (karmaBalance / 1000) * 100)}%` }}
               ></div>
             </div>
@@ -1104,20 +1106,20 @@ export default function ProfilePage({ params }: PageProps) {
               <h3 className="font-['Hanken_Grotesk'] text-xl font-bold text-[#131b2e]">Trophy Case</h3>
               <p className="text-xs text-[#6d7a72] font-['Inter'] mt-0.5">Click any medal to view accomplishment details</p>
             </div>
-            <span className="bg-[#F1F5F9] text-[#475569] font-['JetBrains_Mono'] text-[11px] font-bold px-3 py-1 rounded-full border border-[#CBD5E1]">
+            <span className="bg-[#F1F5F9] dark:bg-slate-800 text-[#475569] dark:text-slate-300 font-['JetBrains_Mono'] text-[11px] font-bold px-3 py-1 rounded-full border border-[#CBD5E1] dark:border-slate-700">
               {fetchedBadges.length > 0 ? `${fetchedBadges.length} ${fetchedBadges.length === 1 ? "BADGE EARNED" : "BADGES EARNED"}` : "0 BADGES EARNED"}
             </span>
           </div>
 
           {fetchedBadges.length === 0 ? (
-            <div className="bg-[#FAF8FF] rounded-[20px] border border-[#E2E8F0] p-6 text-center flex flex-col items-center justify-center animate-enter">
-              <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#6d7a72] mb-2.5 border border-[#E2E8F0] shadow-2xs">
-                <span className="material-symbols-outlined text-2xl text-[#006948]" style={{ fontVariationSettings: "'FILL' 1" }}>
+            <div className="bg-[#FAF8FF] dark:bg-[#0B1120] rounded-[20px] border border-[#E2E8F0] dark:border-slate-800 p-6 text-center flex flex-col items-center justify-center animate-enter">
+              <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-[#6d7a72] dark:text-slate-400 mb-2.5 border border-[#E2E8F0] dark:border-slate-700 shadow-2xs">
+                <span className="material-symbols-outlined text-2xl text-[#006948] dark:text-emerald-400" style={{ fontVariationSettings: "'FILL' 1" }}>
                   workspace_premium
                 </span>
               </div>
-              <h4 className="font-['Hanken_Grotesk'] text-sm font-bold text-[#131b2e]">No Trophies Unlocked Yet</h4>
-              <p className="text-xs text-[#6d7a72] max-w-xs mt-1 leading-relaxed">
+              <h4 className="font-['Hanken_Grotesk'] text-sm font-bold text-[#131b2e] dark:text-slate-100">No Trophies Unlocked Yet</h4>
+              <p className="text-xs text-[#6d7a72] dark:text-slate-400 max-w-xs mt-1 leading-relaxed">
                 Participate in neighborhood cleanups, verify citizen reports, and complete ward quests to earn your first trophy!
               </p>
             </div>
@@ -1220,9 +1222,9 @@ export default function ProfilePage({ params }: PageProps) {
           const streakProgressPercent = Math.min(100, Math.round((streaksCount / currentStreakLevel.target) * 100));
 
           return (
-            <section className="relative overflow-hidden bg-white text-slate-800 rounded-2xl sm:rounded-[24px] p-4 sm:p-6 shadow-xs border border-slate-200/90 animate-enter">
+            <section className="relative overflow-hidden bg-white dark:bg-[#0F172A] text-slate-800 dark:text-slate-100 rounded-2xl sm:rounded-[24px] p-4 sm:p-6 shadow-xs border border-slate-200/90 dark:border-slate-800 animate-enter">
               {/* Header Status Bar */}
-              <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5 mb-4 sm:mb-5 pb-4 border-b border-slate-100">
+              <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5 mb-4 sm:mb-5 pb-4 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between w-full sm:w-auto gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 border shadow-2xs ${
@@ -1230,7 +1232,7 @@ export default function ProfilePage({ params }: PageProps) {
                         ? "bg-gradient-to-br from-amber-500 via-orange-500 to-orange-600 border-amber-400/40 text-white shadow-amber-500/20"
                         : streaksCount > 0
                         ? "bg-[#006948] border-emerald-600/40 text-white"
-                        : "bg-slate-100 border-slate-200 text-slate-400"
+                        : "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400"
                     }`}>
                       <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
                         {isActiveToday ? "local_fire_department" : streaksCount > 0 ? "bolt" : "ac_unit"}
@@ -1239,27 +1241,27 @@ export default function ProfilePage({ params }: PageProps) {
 
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <h3 className="font-['Hanken_Grotesk'] text-lg sm:text-2xl font-extrabold text-[#0F172A] leading-tight tracking-tight">
+                        <h3 className="font-['Hanken_Grotesk'] text-lg sm:text-2xl font-extrabold text-[#0F172A] dark:text-slate-100 leading-tight tracking-tight">
                           {streaksCount} {streaksCount === 1 ? "Day" : "Days"} Streak
                         </h3>
                         <span className={`text-[9px] sm:text-[10px] font-['JetBrains_Mono'] font-extrabold px-2 py-0.5 rounded-full uppercase border tracking-wider shrink-0 ${
                           isActiveToday
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200/90"
+                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200/90 dark:border-emerald-800/60"
                             : streaksCount > 0
-                            ? "bg-amber-50 text-amber-700 border-amber-200/90"
-                            : "bg-slate-100 text-slate-600 border-slate-200"
+                            ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200/90 dark:border-amber-800/60"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
                         }`}>
                           {isActiveToday ? "🔥 ACTIVE TODAY" : streaksCount > 0 ? "⚡ AT RISK" : "❄️ NEW STREAK"}
                         </span>
                       </div>
 
-                      <p className="font-['Inter'] text-[11px] sm:text-xs text-slate-500 mt-0.5 flex items-center gap-1 font-medium">
-                        <span className="text-amber-600 font-bold flex items-center gap-0.5">
+                      <p className="font-['Inter'] text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1 font-medium">
+                        <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-0.5">
                           <span className="material-symbols-outlined text-sm text-amber-500">bolt</span>
                           {currentStreakLevel.multiplier} Multiplier
                         </span>
-                        <span className="text-slate-300">·</span>
-                        <span className="text-slate-600 truncate">{currentStreakLevel.title}</span>
+                        <span className="text-slate-300 dark:text-slate-600">·</span>
+                        <span className="text-slate-600 dark:text-slate-300 truncate">{currentStreakLevel.title}</span>
                       </p>
                     </div>
                   </div>
@@ -1268,9 +1270,9 @@ export default function ProfilePage({ params }: PageProps) {
                   <button
                     type="button"
                     onClick={handleFreezeToggle}
-                    className="bg-blue-50 hover:bg-blue-100/80 text-[#2563EB] px-2.5 sm:px-3.5 py-1.5 rounded-xl sm:rounded-2xl flex items-center gap-1.5 border border-blue-200/90 transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0 self-center sm:self-auto"
+                    className="bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100/80 dark:hover:bg-blue-900/50 text-[#2563EB] dark:text-blue-400 px-2.5 sm:px-3.5 py-1.5 rounded-xl sm:rounded-2xl flex items-center gap-1.5 border border-blue-200/90 dark:border-blue-800/60 transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0 self-center sm:self-auto"
                   >
-                    <span className="material-symbols-outlined text-sm sm:text-base text-[#2563EB]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    <span className="material-symbols-outlined text-sm sm:text-base text-[#2563EB] dark:text-blue-400" style={{ fontVariationSettings: "'FILL' 1" }}>
                       shield
                     </span>
                     <span className="font-['JetBrains_Mono'] text-[10px] sm:text-xs font-extrabold tracking-wider whitespace-nowrap">
@@ -1283,40 +1285,40 @@ export default function ProfilePage({ params }: PageProps) {
               {/* 7-Day Responsive Grid Streak Calendar Nodes (Zero Horizontal Scrollbar on Mobile) */}
               <div className="relative z-10 mb-4 sm:mb-6">
                 <div className="flex items-center justify-between mb-2.5 px-0.5">
-                  <span className="text-[11px] sm:text-xs font-['JetBrains_Mono'] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-sm text-[#006948]">calendar_month</span>
+                  <span className="text-[11px] sm:text-xs font-['JetBrains_Mono'] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-sm text-[#006948] dark:text-emerald-400">calendar_month</span>
                     Weekly Activity
                   </span>
-                  <span className="text-[10px] sm:text-xs font-['JetBrains_Mono'] font-bold text-[#006948] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/80">
+                  <span className="text-[10px] sm:text-xs font-['JetBrains_Mono'] font-bold text-[#006948] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200/80 dark:border-emerald-800/60">
                     {totalActiveDaysCount} Active {totalActiveDaysCount === 1 ? "Day" : "Days"}
                   </span>
                 </div>
 
                 {/* 7-Column Responsive Grid Container */}
-                <div className="relative p-2.5 sm:p-3 bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0]">
+                <div className="relative p-2.5 sm:p-3 bg-[#F8FAFC] dark:bg-[#0B1120] rounded-2xl border border-[#E2E8F0] dark:border-slate-800">
                   {/* Timeline track behind nodes */}
-                  <div className="absolute top-[26px] sm:top-[28px] left-5 right-5 h-[2px] bg-slate-200/80 z-0"></div>
+                  <div className="absolute top-[26px] sm:top-[28px] left-5 right-5 h-[2px] bg-slate-200/80 dark:bg-slate-700/80 z-0"></div>
 
                   <div className="grid grid-cols-7 gap-1 sm:gap-2 relative z-10">
                     {weekDays.map((item: any, idx: number) => {
-                      let circleClass = "bg-white text-slate-300 border border-slate-200";
+                      let circleClass = "bg-white dark:bg-slate-800 text-slate-300 dark:text-slate-500 border border-slate-200 dark:border-slate-700";
                       let icon = "remove";
-                      let labelColor = "text-slate-400";
+                      let labelColor = "text-slate-400 dark:text-slate-500";
 
                       if (item.isToday) {
-                        labelColor = "text-amber-600 font-extrabold";
+                        labelColor = "text-amber-600 dark:text-amber-400 font-extrabold";
                         if (item.isActive) {
                           circleClass = "bg-gradient-to-br from-amber-500 to-orange-600 text-white border border-amber-400/60 scale-105 shadow-xs shadow-amber-500/20";
                           icon = "local_fire_department";
                         } else {
-                          circleClass = "bg-amber-50 text-amber-600 border-2 border-amber-500 scale-105";
+                          circleClass = "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-2 border-amber-500 scale-105";
                           icon = "local_fire_department";
                         }
                       } else if (item.isActive) {
                         circleClass = "bg-[#006948] text-white border border-[#006948]";
                         icon = "check";
                       } else if (item.isPast) {
-                        circleClass = "bg-slate-100 text-slate-400 border border-slate-200";
+                        circleClass = "bg-slate-100 dark:bg-slate-800/90 text-slate-400 dark:text-slate-400 border border-slate-200 dark:border-slate-700";
                         icon = "close";
                       }
 
@@ -1338,29 +1340,29 @@ export default function ProfilePage({ params }: PageProps) {
               </div>
 
               {/* Streak Milestone Progression Card */}
-              <div className="relative z-10 bg-[#F8FAFC] rounded-2xl p-3 sm:p-4 border border-[#E2E8F0] flex flex-col gap-2">
+              <div className="relative z-10 bg-[#F8FAFC] dark:bg-[#0B1120] rounded-2xl p-3 sm:p-4 border border-[#E2E8F0] dark:border-slate-800 flex flex-col gap-2">
                 <div className="flex items-center justify-between text-xs flex-wrap gap-1">
-                  <span className="font-['Hanken_Grotesk'] font-bold text-slate-700 flex items-center gap-1.5 text-[11px] sm:text-xs">
+                  <span className="font-['Hanken_Grotesk'] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-[11px] sm:text-xs">
                     <span className="material-symbols-outlined text-amber-500 text-sm sm:text-base" style={{ fontVariationSettings: "'FILL' 1" }}>
                       military_tech
                     </span>
-                    <span>Next Milestone: <strong className="text-[#0F172A]">{currentStreakLevel.title}</strong> ({currentStreakLevel.target} Days)</span>
+                    <span>Next Milestone: <strong className="text-[#0F172A] dark:text-white">{currentStreakLevel.title}</strong> ({currentStreakLevel.target} Days)</span>
                   </span>
-                  <span className="font-['JetBrains_Mono'] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/80 text-[10px]">
+                  <span className="font-['JetBrains_Mono'] font-extrabold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md border border-amber-200/80 dark:border-amber-800/60 text-[10px]">
                     {currentStreakLevel.xpBonus}
                   </span>
                 </div>
 
-                <div className="w-full bg-slate-200/80 h-2 sm:h-2.5 rounded-full overflow-hidden border border-slate-300/40">
+                <div className="w-full bg-slate-200/80 dark:bg-slate-800 h-2 sm:h-2.5 rounded-full overflow-hidden border border-slate-300/40 dark:border-slate-700/60">
                   <div
                     className="h-full bg-gradient-to-r from-amber-500 via-orange-500 to-[#006948] rounded-full transition-all duration-500"
                     style={{ width: `${streakProgressPercent}%` }}
                   ></div>
                 </div>
 
-                <div className="flex justify-between items-center text-[10px] font-['JetBrains_Mono'] text-slate-500 font-bold pt-0.5">
+                <div className="flex justify-between items-center text-[10px] font-['JetBrains_Mono'] text-slate-500 dark:text-slate-400 font-bold pt-0.5">
                   <span>Current: {streaksCount} Days</span>
-                  <span>Longest Record: <strong className="text-[#0F172A]">{longestStreak} Days</strong></span>
+                  <span>Longest Record: <strong className="text-[#0F172A] dark:text-white">{longestStreak} Days</strong></span>
                 </div>
               </div>
             </section>

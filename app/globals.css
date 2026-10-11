@@ -112,6 +112,25 @@ body {
   background-color: #090d16 !important;
 }
 
+.dark .bg-\[\#F8FAFC\]\/90 {
+  background-color: rgba(9, 13, 22, 0.92) !important;
+}
+
+.dark .bg-\[\#FAF8FF\],
+.dark .bg-\[\#faf8ff\] {
+  background-color: #0b1120 !important;
+}
+
+.dark .bg-\[\#FAF8FF\]\/90,
+.dark .bg-\[\#faf8ff\]\/90 {
+  background-color: rgba(11, 17, 32, 0.92) !important;
+}
+
+.dark .bg-\[\#FAF8FF\]\/95,
+.dark .bg-\[\#faf8ff\]\/95 {
+  background-color: rgba(11, 17, 32, 0.95) !important;
+}
+
 .dark .bg-\[\#faf8ff\]\/80 {
   background-color: rgba(15, 23, 42, 0.88) !important;
 }
@@ -121,6 +140,21 @@ body {
 }
 
 .dark .border-\[\#E2E8F0\] {
+  border-color: #1e293b !important;
+}
+
+.dark .border-\[\#CBD5E1\] {
+  border-color: #334155 !important;
+}
+
+.dark .border-\[\#E2E7FF\] {
+  border-color: #1e293b !important;
+}
+
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-200\/80,
+.dark .border-slate-200\/90 {
   border-color: #1e293b !important;
 }
 
@@ -140,6 +174,24 @@ body {
   color: #94a3b8 !important;
 }
 
+.dark .text-\[\#475569\] {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-800,
+.dark .text-slate-700 {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-500,
+.dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
 .dark .bg-\[\#F1F5F9\] {
   background-color: #1e293b !important;
 }
@@ -148,9 +200,49 @@ body {
   background-color: #1e293b !important;
 }
 
+.dark .bg-\[\#E2E8F0\] {
+  background-color: #1e293b !important;
+}
+
+.dark .bg-\[\#CBD5E1\] {
+  background-color: #334155 !important;
+}
+
+.dark .bg-slate-100 {
+  background-color: #1e293b !important;
+}
+
+.dark .bg-slate-200,
+.dark .bg-slate-200\/80 {
+  background-color: #334155 !important;
+}
+
+.dark .bg-blue-50 {
+  background-color: rgba(30, 58, 138, 0.25) !important;
+}
+
+.dark .bg-emerald-50 {
+  background-color: rgba(6, 78, 59, 0.3) !important;
+}
+
+.dark .bg-amber-50 {
+  background-color: rgba(120, 53, 15, 0.25) !important;
+}
+
+.dark .bg-\[\#FFFBEB\] {
+  background-color: rgba(120, 53, 15, 0.25) !important;
+}
+
 .dark .bg-white {
   background-color: #0f172a !important;
   color: #f1f5f9;
+}
+
+.dark .bg-white\/95,
+.dark .bg-white\/90,
+.dark .bg-white\/80,
+.dark .bg-white\/70 {
+  background-color: rgba(15, 23, 42, 0.95) !important;
 }
 
 /* Animations */

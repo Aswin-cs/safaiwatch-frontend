@@ -83,15 +83,15 @@ export default function BottomNav({
   };
 
   return (
-    <nav className="fixed bottom-2 left-1/2 -translate-x-1/2 w-[94%] max-w-md z-40 flex justify-around items-center px-4 py-2 bg-white/95 backdrop-blur-xl rounded-full border border-slate-200/90 shadow-[0_12px_35px_rgba(15,23,42,0.12)] transition-all">
+    <nav className="fixed bottom-2 left-1/2 -translate-x-1/2 w-[94%] max-w-md z-40 flex justify-around items-center px-4 py-2 bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-xl rounded-full border border-slate-200/90 dark:border-slate-800 shadow-[0_12px_35px_rgba(15,23,42,0.12)] dark:shadow-[0_12px_35px_rgba(0,0,0,0.5)] transition-all">
       {/* Map Tab */}
       <Link
         href="/"
         onClick={handleMapClick}
         className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
           currentTab === "map"
-            ? "text-[#006948] scale-110 font-extrabold"
-            : "text-slate-500 hover:text-[#006948]"
+            ? "text-[#006948] dark:text-[#22c55e] scale-110 font-extrabold"
+            : "text-slate-500 dark:text-slate-400 hover:text-[#006948] dark:hover:text-[#22c55e]"
         }`}
       >
         <MapIcon className="w-5 h-5" />
@@ -103,8 +103,8 @@ export default function BottomNav({
         href="/feed"
         className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
           currentTab === "explore"
-            ? "text-[#006948] scale-110 font-extrabold"
-            : "text-slate-500 hover:text-[#006948]"
+            ? "text-[#006948] dark:text-[#22c55e] scale-110 font-extrabold"
+            : "text-slate-500 dark:text-slate-400 hover:text-[#006948] dark:hover:text-[#22c55e]"
         }`}
       >
         <Compass className="w-5 h-5" />
@@ -116,7 +116,7 @@ export default function BottomNav({
         <button
           onClick={handlePlusClick}
           onPointerDown={triggerHaptic}
-          className="relative -top-3 w-12 h-12 rounded-full bg-[#006948] hover:bg-[#00855d] text-white flex items-center justify-center shadow-[0_4px_20px_rgba(0,105,72,0.35)] transition-transform hover:scale-105 active:scale-95 cursor-pointer border-2 border-white"
+          className="relative -top-3 w-12 h-12 rounded-full bg-[#006948] hover:bg-[#00855d] text-white flex items-center justify-center shadow-[0_4px_20px_rgba(0,105,72,0.35)] transition-transform hover:scale-105 active:scale-95 cursor-pointer border-2 border-white dark:border-slate-800"
           title="Report Spot at Current Location"
         >
           <PlusCircle className="w-7 h-7 text-[#85f8c4]" />
@@ -128,8 +128,8 @@ export default function BottomNav({
         href="/rewards"
         className={`flex flex-col items-center justify-center transition-all cursor-pointer ${
           currentTab === "rewards"
-            ? "text-[#006948] scale-110 font-extrabold"
-            : "text-slate-500 hover:text-[#006948]"
+            ? "text-[#006948] dark:text-[#22c55e] scale-110 font-extrabold"
+            : "text-slate-500 dark:text-slate-400 hover:text-[#006948] dark:hover:text-[#22c55e]"
         }`}
       >
         <Trophy className="w-5 h-5" />
@@ -142,14 +142,14 @@ export default function BottomNav({
         onClick={handleNotificationClick}
         className={`flex flex-col items-center justify-center transition-all cursor-pointer relative ${
           currentTab === "notifications"
-            ? "text-[#006948] scale-110 font-extrabold"
-            : "text-slate-500 hover:text-[#006948]"
+            ? "text-[#006948] dark:text-[#22c55e] scale-110 font-extrabold"
+            : "text-slate-500 dark:text-slate-400 hover:text-[#006948] dark:hover:text-[#22c55e]"
         }`}
       >
         <div className="relative">
           <Bell className="w-5 h-5" />
           {hasUnreadNotifications && (
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#006948] rounded-full ring-2 ring-white" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#006948] rounded-full ring-2 ring-white dark:ring-slate-900" />
           )}
         </div>
         <span className="text-[10px] mt-0.5">Alert</span>
