@@ -191,8 +191,8 @@ function CustomZoomControl() {
   const map = useMap();
 
   return (
-    <div className="leaflet-bottom leaflet-left !pointer-events-auto !z-[800] !bottom-[84px] !left-4">
-      <div className="flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-[0_10px_25px_rgba(15,23,42,0.14)] overflow-hidden">
+    <div className="fixed bottom-20 left-4 z-30 pointer-events-auto">
+      <div className="flex flex-col bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-700/80 rounded-2xl shadow-[0_12px_30px_rgba(15,23,42,0.12)] dark:shadow-[0_12px_30px_rgba(0,0,0,0.55)] overflow-hidden">
         <button
           type="button"
           onClick={(e) => {
@@ -206,9 +206,9 @@ function CustomZoomControl() {
           }}
           aria-label="Zoom In"
           title="Zoom In"
-          className="w-11 h-11 flex items-center justify-center text-[#006948] hover:bg-emerald-50/80 active:scale-95 transition-all cursor-pointer border-b border-slate-100 group"
+          className="w-12 h-12 flex items-center justify-center text-[#006948] dark:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-950/50 active:scale-95 transition-all cursor-pointer border-b border-slate-100 dark:border-slate-800 group/zoom"
         >
-          <Plus className="w-5 h-5 group-hover:scale-110 transition-transform stroke-[2.5]" />
+          <Plus className="w-5 h-5 group-hover/zoom:scale-110 transition-transform stroke-[2.5]" />
         </button>
         <button
           type="button"
@@ -223,9 +223,9 @@ function CustomZoomControl() {
           }}
           aria-label="Zoom Out"
           title="Zoom Out"
-          className="w-11 h-11 flex items-center justify-center text-[#006948] hover:bg-emerald-50/80 active:scale-95 transition-all cursor-pointer group"
+          className="w-12 h-12 flex items-center justify-center text-[#006948] dark:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-950/50 active:scale-95 transition-all cursor-pointer group/zoom"
         >
-          <Minus className="w-5 h-5 group-hover:scale-110 transition-transform stroke-[2.5]" />
+          <Minus className="w-5 h-5 group-hover/zoom:scale-110 transition-transform stroke-[2.5]" />
         </button>
       </div>
     </div>

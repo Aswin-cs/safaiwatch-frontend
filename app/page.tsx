@@ -1354,7 +1354,7 @@ export default function HomePage() {
 
   // 3. AUTHENTICATED STATE: SHOW STITCH MAP DASHBOARD FOR AUTHENTICATED USERS
   return (
-    <div className="h-screen w-full overflow-hidden relative bg-[#faf8ff] dark:bg-[#070d18] text-[#131b2e] dark:text-slate-100 font-sans antialiased select-none">
+    <div className="h-screen h-[100dvh] w-full overflow-hidden relative bg-[#faf8ff] dark:bg-[#070d18] text-[#131b2e] dark:text-slate-100 font-sans antialiased select-none">
       {/* Dynamic Leaflet & OpenStreetMap Background Canvas */}
       <div className="absolute inset-0 w-full h-full z-0">
         <SafaiMap
