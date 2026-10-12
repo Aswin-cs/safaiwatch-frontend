@@ -471,7 +471,7 @@ export default function HistoryPage() {
                 </div>
               </div>
               <div className="text-center">
-                <p className="font-['Hanken_Grotesk'] text-sm font-bold text-[#131b2e]">
+                <p className="font-['Hanken_Grotesk'] text-sm font-bold text-[#131b2e] dark:text-slate-100">
                   Loading History Records
                 </p>
                 <div className="inline-loader mt-2 justify-center">
